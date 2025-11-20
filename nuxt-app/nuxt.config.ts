@@ -12,6 +12,14 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+   // Private runtime configuration (only available on the server)
+  runtimeConfig: {
+    openai: {
+      // Make sure you have OPENAI_API_KEY set in your .env file
+      apiKey: process.env.OPENAI_API_KEY
+    }
+  },
+
   routeRules: {
     '/api/**': {
       cors: true

@@ -87,6 +87,35 @@ async function toggleRecording() {
   }
 }
 
+async function loadTestAudio(audioFile: string = 'invictus') {
+  error.value = null
+  isRecording.value = false
+  
+  try {
+    // Map audio file names to their paths
+    const audioFiles: Record<string, string> = {
+      'invictus': '/invictus.mp3',
+      'speech': '/test-speech.wav',
+      'music': '/test-audio.mp3'
+    }
+    
+    const filename = audioFiles[audioFile] || '/invictus.mp3'
+    const response = await fetch(filename)
+    if (!response.ok) {
+      throw new Error(`Failed to load ${audioFile} audio`)
+    }
+    
+    const blob = await response.blob()
+    recordingBlob.value = blob
+    hasRecording.value = true
+    transcript.value = ''
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error(e)
+    error.value = `Failed to load ${audioFile} audio file.`
+  }
+}
+
 async function sendForTranscription() {
   if (!recordingBlob.value || !canTranscribe.value) {
     return
@@ -97,7 +126,14 @@ async function sendForTranscription() {
 
   try {
     const formData = new FormData()
-    formData.append('audio', recordingBlob.value, 'recording.webm')
+    // Determine file extension based on MIME type
+    let fileExtension = 'webm'
+    if (recordingBlob.value.type.includes('mp3')) {
+      fileExtension = 'mp3'
+    } else if (recordingBlob.value.type.includes('wav')) {
+      fileExtension = 'wav'
+    }
+    formData.append('audio', recordingBlob.value, `recording.${fileExtension}`)
 
     const response = await $fetch<{ transcript: string }>('/api/transcribe', {
       method: 'POST',
@@ -132,10 +168,10 @@ async function sendForTranscription() {
             <div class="flex items-center justify-between gap-2">
               <div>
                 <p class="font-medium text-highlighted">
-                  Quick capture sandbox
+                  Audio Capture & Transcription
                 </p>
                 <p class="text-sm text-muted">
-                  Record a short clip and send it to a dummy transcription endpoint.
+                  Record audio and transcribe it using OpenAI's Whisper model.
                 </p>
               </div>
               <UBadge v-if="isRecording" color="warning" variant="subtle">
@@ -174,8 +210,39 @@ async function sendForTranscription() {
                   icon="i-lucide-sparkles"
                   @click="sendForTranscription"
                 >
-                  Send to transcription route
+                  Transcribe with AI
                 </UButton>
+                
+                <UDropdownMenu 
+                  :items="[
+                    [{
+                      label: 'Invictus Poem',
+                      icon: 'i-lucide-book-open',
+                      onSelect: () => loadTestAudio('invictus')
+                    }],
+                    [{
+                      label: 'Speech Sample',
+                      icon: 'i-lucide-mic-2',
+                      onSelect: () => loadTestAudio('speech')
+                    }],
+                    [{
+                      label: 'Music Sample',
+                      icon: 'i-lucide-music',
+                      onSelect: () => loadTestAudio('music')
+                    }]
+                  ]"
+                  :disabled="isRecording || isSubmitting"
+                >
+                  <UButton
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-download"
+                    trailing-icon="i-lucide-chevron-down"
+                    :disabled="isRecording || isSubmitting"
+                  >
+                    Load test audio
+                  </UButton>
+                </UDropdownMenu>
               </div>
 
               <div
@@ -201,10 +268,10 @@ async function sendForTranscription() {
 
             <div class="space-y-2">
               <p class="text-sm font-medium text-highlighted">
-                Transcript (dummy response)
+                Transcript
               </p>
               <UTextarea
-                :model-value="transcript || 'Transcript will appear here after calling /api/transcribe.'"
+                :model-value="transcript || 'Transcript will appear here after transcription.'"
                 color="neutral"
                 variant="subtle"
                 readonly
