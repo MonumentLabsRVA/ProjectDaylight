@@ -49,14 +49,14 @@ export default defineEventHandler(async (event) => {
   const supabase = await serverSupabaseServiceRole(event)
   const authUser = await serverSupabaseUser(event)
 
-  if (!authUser?.id) {
+  const userId = authUser?.sub || authUser?.id
+
+  if (!userId) {
     throw createError({
       statusCode: 401,
-      statusMessage: 'User is not authenticated. Please sign in through Supabase and include the session token in the request.'
+      statusMessage: 'Unauthorized - Please log in'
     })
   }
-
-  const userId = authUser.id
 
   const body = await readBody<CaptureEventsBody>(event)
 

@@ -17,46 +17,16 @@ interface HomeResponse {
   recentEvents: TimelineEvent[]
 }
 
-// Use the same authenticated fetch pattern as timeline and evidence pages
-const supabase = useSupabaseClient()
-const session = useSupabaseSession()
-
-const data = ref<HomeResponse | null>(null)
-const status = ref<'idle' | 'pending' | 'success' | 'error'>('idle')
-const error = ref<any>(null)
-
-async function fetchHome() {
-  status.value = 'pending'
-  error.value = null
-
-  try {
-    // Get the current access token
-    const accessToken =
-      session.value?.access_token ||
-      (await supabase.auth.getSession()).data.session?.access_token
-
-    const result = await $fetch<HomeResponse>('/api/home', {
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
-    })
-
-    data.value = result || null
-    status.value = 'success'
-  } catch (e: any) {
-    // eslint-disable-next-line no-console
-    console.error('[Home] Failed to fetch:', e)
-    error.value = e
-    status.value = 'error'
-    data.value = null
-  }
-}
-
-onMounted(() => {
-  fetchHome()
+// Use useFetch with cookie headers for SSR compatibility
+const { data, status, error, refresh } = await useFetch<HomeResponse>('/api/home', {
+  headers: useRequestHeaders(['cookie'])
 })
 
+// Watch for session changes and refresh data
+const session = useSupabaseSession()
 watch(session, (newSession) => {
   if (newSession?.access_token) {
-    fetchHome()
+    refresh()
   }
 })
 
@@ -210,10 +180,6 @@ function onQuickCapture () {
               <p>
                 • Organize screenshots, emails, and documents in
                 <NuxtLink to="/evidence" class="underline text-primary">Evidence</NuxtLink>.
-              </p>
-              <p>
-                • Chat with an AI about your case (coming soon) on the
-                <NuxtLink to="/chat" class="underline text-primary">Chat</NuxtLink> page.
               </p>
               <p>
                 • Generate packets in the

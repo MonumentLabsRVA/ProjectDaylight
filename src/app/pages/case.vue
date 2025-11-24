@@ -1,61 +1,49 @@
 <script setup lang="ts">
-const supabase = useSupabaseClient()
 const session = useSupabaseSession()
 const toast = useToast()
 
+interface CaseRow {
+  id: string
+  title: string
+  case_number: string | null
+  jurisdiction_state: string | null
+  jurisdiction_county: string | null
+  court_name: string | null
+  case_type: string | null
+  stage: string | null
+  your_role: string | null
+  opposing_party_name: string | null
+  opposing_party_role: string | null
+  children_count: number | null
+  children_summary: string | null
+  parenting_schedule: string | null
+  goals_summary: string | null
+  risk_flags: string[] | null
+  notes: string | null
+  next_court_date: string | null
+  created_at: string
+  updated_at: string
+}
+
 interface CaseResponse {
-  case: {
-    id: string
-    title: string
-    case_number: string | null
-    jurisdiction_state: string | null
-    jurisdiction_county: string | null
-    court_name: string | null
-    case_type: string | null
-    stage: string | null
-    your_role: string | null
-    opposing_party_name: string | null
-    opposing_party_role: string | null
-    children_count: number | null
-    children_summary: string | null
-    parenting_schedule: string | null
-    goals_summary: string | null
-    risk_flags: string[] | null
-    notes: string | null
-    next_court_date: string | null
-    created_at: string
-    updated_at: string
-  } | null
+  case: CaseRow | null
 }
 
 interface CaseSaveResponse {
-  case: {
-    id: string
-    title: string
-    case_number: string | null
-    jurisdiction_state: string | null
-    jurisdiction_county: string | null
-    court_name: string | null
-    case_type: string | null
-    stage: string | null
-    your_role: string | null
-    opposing_party_name: string | null
-    opposing_party_role: string | null
-    children_count: number | null
-    children_summary: string | null
-    parenting_schedule: string | null
-    goals_summary: string | null
-    risk_flags: string[] | null
-    notes: string | null
-    next_court_date: string | null
-    created_at: string
-    updated_at: string
-  } | null
+  case: CaseRow | null
 }
 
-const loading = ref(false)
+const {
+  data: caseResponse,
+  status: loadStatus,
+  error: loadError,
+  refresh: refreshCase
+} = await useFetch<CaseResponse>('/api/case', {
+  headers: useRequestHeaders(['cookie'])
+})
+
+const loading = computed(() => loadStatus.value === 'pending')
 const saving = ref(false)
-const loadError = ref<any>(null)
 const saveError = ref<any>(null)
 const lastSavedAt = ref<string | null>(null)
 const caseId = ref<string | null>(null)
@@ -65,12 +53,12 @@ const activeCaseTab = ref<'overview' | 'people' | 'goals'>('overview')
 // Form state
 const title = ref('')
 const caseNumber = ref('')
-const jurisdictionState = ref<string | null>(null)
+const jurisdictionState = ref<string>('')
 const jurisdictionCounty = ref('')
 const courtName = ref('')
 const caseType = ref('')
 const stage = ref('')
-const yourRole = ref<string | null>(null)
+const yourRole = ref<string>('')
 const opposingPartyName = ref('')
 const opposingPartyRole = ref('')
 const childrenCount = ref<number | null>(null)
@@ -133,7 +121,7 @@ const stateOptions = [
   'West Virginia',
   'Wisconsin',
   'Wyoming'
-] as const
+] as string[]
 
 const roleOptions = [
   'Mother',
@@ -142,7 +130,7 @@ const roleOptions = [
   'Grandparent',
   'Guardian ad litem',
   'Other'
-] as const
+] as string[]
 
 const stageOptions = [
   'Thinking about filing',
@@ -152,7 +140,7 @@ const stageOptions = [
   'Final hearing / trial',
   'Post-judgment',
   'Other'
-] as const
+] as string[]
 
 const caseTypeOptions = [
   'Divorce with custody',
@@ -161,7 +149,7 @@ const caseTypeOptions = [
   'Modification',
   'Protection order',
   'Other'
-] as const
+] as string[]
 
 const riskFlagOptions = [
   'Domestic violence / safety concerns',
@@ -172,9 +160,11 @@ const riskFlagOptions = [
   'Relocation / move-away',
   'Financial control',
   'Other high-risk patterns'
-] as const
+] as string[]
 
 const hasLoadedOnce = ref(false)
+
+const showSkeleton = computed(() => loadStatus.value === 'pending' && !hasLoadedOnce.value)
 
 function formatTimestamp(value?: string | null) {
   if (!value) {
@@ -195,62 +185,44 @@ function formatTimestamp(value?: string | null) {
   })
 }
 
-async function getAccessToken() {
-  const current = session.value
-  if (current?.access_token) {
-    return current.access_token
+function applyCase(current: CaseRow | null) {
+  if (!current) {
+    hasLoadedOnce.value = true
+    return
   }
 
-  const { data } = await supabase.auth.getSession()
-  return data.session?.access_token
+  caseId.value = current.id
+  title.value = current.title ?? ''
+  caseNumber.value = current.case_number ?? ''
+    jurisdictionState.value = current.jurisdiction_state || ''
+  jurisdictionCounty.value = current.jurisdiction_county ?? ''
+  courtName.value = current.court_name ?? ''
+  caseType.value = current.case_type ?? ''
+  stage.value = current.stage ?? ''
+    yourRole.value = current.your_role || ''
+  opposingPartyName.value = current.opposing_party_name ?? ''
+  opposingPartyRole.value = current.opposing_party_role ?? ''
+  childrenCount.value = current.children_count
+  childrenSummary.value = current.children_summary ?? ''
+  parentingSchedule.value = current.parenting_schedule ?? ''
+  goalsSummary.value = current.goals_summary ?? ''
+  riskFlags.value = current.risk_flags ?? []
+  notes.value = current.notes ?? ''
+  nextCourtDate.value = current.next_court_date
+  lastSavedAt.value = current.updated_at
+  hasLoadedOnce.value = true
 }
 
 async function loadCase() {
-  loading.value = true
-  loadError.value = null
-
-  try {
-    const accessToken = await getAccessToken()
-
-    const result = await $fetch<CaseResponse>('/api/case', {
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
-    })
-
-    const current = result.case
-
-    if (!current) {
-      hasLoadedOnce.value = true
-      return
-    }
-
-    caseId.value = current.id
-    title.value = current.title ?? ''
-    caseNumber.value = current.case_number ?? ''
-    jurisdictionState.value = current.jurisdiction_state
-    jurisdictionCounty.value = current.jurisdiction_county ?? ''
-    courtName.value = current.court_name ?? ''
-    caseType.value = current.case_type ?? ''
-    stage.value = current.stage ?? ''
-    yourRole.value = current.your_role
-    opposingPartyName.value = current.opposing_party_name ?? ''
-    opposingPartyRole.value = current.opposing_party_role ?? ''
-    childrenCount.value = current.children_count
-    childrenSummary.value = current.children_summary ?? ''
-    parentingSchedule.value = current.parenting_schedule ?? ''
-    goalsSummary.value = current.goals_summary ?? ''
-    riskFlags.value = current.risk_flags ?? []
-    notes.value = current.notes ?? ''
-    nextCourtDate.value = current.next_court_date
-    lastSavedAt.value = current.updated_at
-    hasLoadedOnce.value = true
-  } catch (e: any) {
-    // eslint-disable-next-line no-console
-    console.error('[Case] Failed to load:', e)
-    loadError.value = e
-  } finally {
-    loading.value = false
-  }
+  await refreshCase()
+  applyCase(caseResponse.value?.case ?? null)
 }
+
+watch(caseResponse, (res) => {
+  if (!hasLoadedOnce.value && res) {
+    applyCase(res.case ?? null)
+  }
+}, { immediate: true })
 
 async function saveCase() {
   if (!title.value.trim()) {
@@ -267,8 +239,6 @@ async function saveCase() {
   saveError.value = null
 
   try {
-    const accessToken = await getAccessToken()
-
     const body = {
       id: caseId.value ?? undefined,
       title: title.value,
@@ -292,8 +262,7 @@ async function saveCase() {
 
     const result = await $fetch<CaseSaveResponse>('/api/case', {
       method: 'POST',
-      body,
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
+      body
     })
 
     const saved = result.case
@@ -374,7 +343,17 @@ watch(session, (newSession) => {
           </template>
 
           <div class="space-y-6">
+            <!-- Tabs header (skeleton + real) -->
+            <div v-if="showSkeleton" class="flex items-center justify-between">
+              <div class="flex gap-4">
+                <USkeleton class="h-7 w-20" />
+                <USkeleton class="h-7 w-32" />
+                <USkeleton class="h-7 w-28" />
+              </div>
+              <USkeleton class="h-7 w-20 hidden sm:block" />
+            </div>
             <UTabs
+              v-else
               v-model="activeCaseTab"
               :items="[
                 {
@@ -397,290 +376,418 @@ watch(session, (newSession) => {
               variant="link"
             />
 
-            <!-- BASICS TAB -->
-            <div
-              v-if="activeCaseTab === 'overview'"
-              class="space-y-6"
-            >
+            <!-- Skeleton form while loading -->
+            <div v-if="showSkeleton" class="space-y-6">
               <div class="grid gap-6 md:grid-cols-2">
-                <!-- Case basics -->
+                <!-- Case basics skeleton -->
                 <div class="space-y-3">
-                  <p class="text-xs font-medium uppercase tracking-wide text-muted">
-                    Case basics
-                  </p>
-
-                  <div class="space-y-2">
-                    <label class="space-y-1 block">
-                      <span class="text-xs font-medium text-highlighted">Case title</span>
-                      <UInput
-                        v-model="title"
-                        placeholder="Smith v. Smith – custody"
-                        class="w-full"
-                      />
-                      <span class="text-[11px] text-muted">
-                        Short name you and your attorney recognize. This will also be used on exports.
-                      </span>
-                    </label>
-
-                    <label class="space-y-1 block">
-                      <span class="text-xs font-medium text-highlighted">Court case number (optional)</span>
-                      <UInput
-                        v-model="caseNumber"
-                        placeholder="CL24-1234"
-                        class="w-full"
-                      />
-                    </label>
-
-                    <label class="space-y-1 block">
-                      <span class="text-xs font-medium text-highlighted">Case type</span>
-                      <USelectMenu
-                        v-model="caseType"
-                        :items="caseTypeOptions"
-                        placeholder="Select type"
-                        class="w-full"
-                        :ui="{ trailingIcon: 'group-data-[state=open]:rotate-180 transition-transform duration-200' }"
-                      />
-                    </label>
-
-                    <label class="space-y-1 block">
-                      <span class="text-xs font-medium text-highlighted">Stage</span>
-                      <USelectMenu
-                        v-model="stage"
-                        :items="stageOptions"
-                        placeholder="Where are you in the process?"
-                        class="w-full"
-                        :ui="{ trailingIcon: 'group-data-[state=open]:rotate-180 transition-transform duration-200' }"
-                      />
-                    </label>
+                  <USkeleton class="h-3 w-24" />
+                  <div class="space-y-3">
+                    <div class="space-y-1">
+                      <USkeleton class="h-3 w-20" />
+                      <USkeleton class="h-9 w-full" />
+                      <USkeleton class="h-3 w-40" />
+                    </div>
+                    <div class="space-y-1">
+                      <USkeleton class="h-3 w-40" />
+                      <USkeleton class="h-9 w-full" />
+                    </div>
+                    <div class="space-y-1">
+                      <USkeleton class="h-3 w-20" />
+                      <USkeleton class="h-9 w-full" />
+                    </div>
+                    <div class="space-y-1">
+                      <USkeleton class="h-3 w-16" />
+                      <USkeleton class="h-9 w-full" />
+                    </div>
                   </div>
                 </div>
 
-                <!-- Jurisdiction & court -->
+                <!-- Jurisdiction & court skeleton -->
                 <div class="space-y-3">
-                  <p class="text-xs font-medium uppercase tracking-wide text-muted">
-                    Jurisdiction & court
-                  </p>
-
-                  <div class="space-y-2">
-                    <label class="space-y-1 block">
-                      <span class="text-xs font-medium text-highlighted">State</span>
-                      <USelectMenu
-                        v-model="jurisdictionState"
-                        :items="stateOptions"
-                        placeholder="Select state"
-                        class="w-full"
-                        :ui="{ trailingIcon: 'group-data-[state=open]:rotate-180 transition-transform duration-200' }"
-                      />
-                      <span class="text-[11px] text-muted">
-                        The state where your divorce or custody case is being handled.
-                      </span>
-                    </label>
-
-                    <label class="space-y-1 block">
-                      <span class="text-xs font-medium text-highlighted">County / locality (optional)</span>
-                      <UInput
-                        v-model="jurisdictionCounty"
-                        placeholder="Richmond City"
-                        class="w-full"
-                      />
-                    </label>
-
-                    <label class="space-y-1 block">
-                      <span class="text-xs font-medium text-highlighted">Court (optional)</span>
-                      <UInput
-                        v-model="courtName"
-                        placeholder="Richmond Circuit Court, VA"
-                        class="w-full"
-                      />
-                    </label>
-
-                    <label class="space-y-1 block">
-                      <span class="text-xs font-medium text-highlighted">Next important court date (optional)</span>
-                      <UInput
-                        v-model="nextCourtDate"
-                        type="datetime-local"
-                        class="w-full"
-                      />
-                      <span class="text-[11px] text-muted">
-                        Used for reminders and to frame exports around upcoming hearings.
-                      </span>
-                    </label>
+                  <USkeleton class="h-3 w-28" />
+                  <div class="space-y-3">
+                    <div class="space-y-1">
+                      <USkeleton class="h-3 w-14" />
+                      <USkeleton class="h-9 w-full" />
+                      <USkeleton class="h-3 w-56" />
+                    </div>
+                    <div class="space-y-1">
+                      <USkeleton class="h-3 w-40" />
+                      <USkeleton class="h-9 w-full" />
+                    </div>
+                    <div class="space-y-1">
+                      <USkeleton class="h-3 w-28" />
+                      <USkeleton class="h-9 w-full" />
+                    </div>
+                    <div class="space-y-1">
+                      <USkeleton class="h-3 w-56" />
+                      <USkeleton class="h-9 w-full" />
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <!-- PEOPLE & CHILDREN TAB -->
-            <div
-              v-else-if="activeCaseTab === 'people'"
-              class="space-y-6"
-            >
               <div class="grid gap-6 md:grid-cols-2">
-                <!-- People involved -->
+                <!-- People involved skeleton -->
                 <div class="space-y-3">
-                  <p class="text-xs font-medium uppercase tracking-wide text-muted">
-                    People involved
-                  </p>
-
-                  <div class="space-y-2">
-                    <label class="space-y-1 block">
-                      <span class="text-xs font-medium text-highlighted">Your role</span>
-                      <USelectMenu
-                        v-model="yourRole"
-                        :items="roleOptions"
-                        placeholder="How do you show up in this case?"
-                        class="w-full"
-                        :ui="{ trailingIcon: 'group-data-[state=open]:rotate-180 transition-transform duration-200' }"
-                      />
-                    </label>
-
-                    <label class="space-y-1 block">
-                      <span class="text-xs font-medium text-highlighted">Other parent / opposing party</span>
-                      <UInput
-                        v-model="opposingPartyName"
-                        placeholder="Jordan Smith"
-                        class="w-full"
-                      />
-                      <span class="text-[11px] text-muted">
-                        The main other adult in the case. You can use initials if you prefer.
-                      </span>
-                    </label>
-
-                    <label class="space-y-1 block">
-                      <span class="text-xs font-medium text-highlighted">Their role (optional)</span>
-                      <UInput
-                        v-model="opposingPartyRole"
-                        placeholder="Co-parent / Respondent"
-                        class="w-full"
-                      />
-                    </label>
+                  <USkeleton class="h-3 w-28" />
+                  <div class="space-y-3">
+                    <div class="space-y-1">
+                      <USkeleton class="h-3 w-16" />
+                      <USkeleton class="h-9 w-full" />
+                    </div>
+                    <div class="space-y-1">
+                      <USkeleton class="h-3 w-40" />
+                      <USkeleton class="h-9 w-full" />
+                      <USkeleton class="h-3 w-52" />
+                    </div>
+                    <div class="space-y-1">
+                      <USkeleton class="h-3 w-32" />
+                      <USkeleton class="h-9 w-full" />
+                    </div>
                   </div>
                 </div>
 
-                <!-- Children -->
+                <!-- Children skeleton -->
                 <div class="space-y-3">
-                  <p class="text-xs font-medium uppercase tracking-wide text-muted">
-                    Children
-                  </p>
-
-                  <div class="space-y-2">
-                    <label class="space-y-1 block">
-                      <span class="text-xs font-medium text-highlighted">Number of children in this case</span>
-                      <UInput
-                        v-model.number="childrenCount"
-                        type="number"
-                        min="0"
-                        class="w-full"
-                      />
-                    </label>
-
-                    <label class="space-y-1 block">
-                      <span class="text-xs font-medium text-highlighted">Children overview</span>
-                      <UTextarea
-                        v-model="childrenSummary"
-                        :rows="3"
-                        autoresize
-                        placeholder="Example: Emma (7, 2nd grade) and Noah (4, preschool). Emma has asthma; both do best with consistent bedtime and school routines."
-                        class="w-full"
-                      />
-                      <span class="text-[11px] text-muted">
-                        High‑level details: names or initials, ages, grades, and any important needs.
-                      </span>
-                    </label>
-
-                    <label class="space-y-1 block">
-                      <span class="text-xs font-medium text-highlighted">Current parenting schedule (optional)</span>
-                      <UTextarea
-                        v-model="parentingSchedule"
-                        :rows="3"
-                        autoresize
-                        placeholder="Example: Week-on / week-off; exchanges Sunday at 6pm. Holidays follow standard Virginia guideline schedule."
-                        class="w-full"
-                      />
-                    </label>
+                  <USkeleton class="h-3 w-16" />
+                  <div class="space-y-3">
+                    <div class="space-y-1">
+                      <USkeleton class="h-3 w-40" />
+                      <USkeleton class="h-9 w-full" />
+                    </div>
+                    <div class="space-y-1">
+                      <USkeleton class="h-3 w-28" />
+                      <USkeleton class="h-20 w-full" />
+                      <USkeleton class="h-3 w-60" />
+                    </div>
+                    <div class="space-y-1">
+                      <USkeleton class="h-3 w-44" />
+                      <USkeleton class="h-20 w-full" />
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <!-- GOALS & RISKS TAB -->
-            <div
-              v-else-if="activeCaseTab === 'goals'"
-              class="space-y-6"
-            >
               <div class="grid gap-6 md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-                <!-- Goals & story -->
+                <!-- Goals skeleton -->
                 <div class="space-y-3">
-                  <p class="text-xs font-medium uppercase tracking-wide text-muted">
-                    Goals & what you want understood
-                  </p>
-
-                  <label class="space-y-1 block">
-                    <span class="text-xs font-medium text-highlighted">If the judge only remembered 2–3 things about your situation, what should they be?</span>
-                    <UTextarea
-                      v-model="goalsSummary"
-                      :rows="5"
-                      autoresize
-                      placeholder="Example: I want a stable, consistent school-week routine, predictable exchanges, and a plan that keeps the kids out of adult conflict."
-                      class="w-full"
-                    />
-                    <span class="text-[11px] text-muted">
-                      This helps Daylight frame timelines and exports around your actual objectives.
-                    </span>
-                  </label>
-
-                  <label class="space-y-1 block">
-                    <span class="text-xs font-medium text-highlighted">Other notes (optional)</span>
-                    <UTextarea
-                      v-model="notes"
-                      :rows="4"
-                      autoresize
-                      placeholder="Anything else about your case, attorneys, or context you want in one place."
-                      class="w-full"
-                    />
-                  </label>
+                  <USkeleton class="h-3 w-40" />
+                  <div class="space-y-1">
+                    <USkeleton class="h-3 w-full" />
+                    <USkeleton class="h-24 w-full" />
+                    <USkeleton class="h-3 w-64" />
+                  </div>
+                  <div class="space-y-1">
+                    <USkeleton class="h-3 w-28" />
+                    <USkeleton class="h-20 w-full" />
+                  </div>
                 </div>
 
-                <!-- Risk flags -->
+                <!-- Risk flags skeleton -->
                 <div class="space-y-3">
-                  <p class="text-xs font-medium uppercase tracking-wide text-muted">
-                    Risk flags
-                  </p>
-
+                  <USkeleton class="h-3 w-20" />
                   <div class="space-y-2">
-                    <label class="space-y-1 block">
-                      <span class="text-xs font-medium text-highlighted">What kinds of issues show up in your case?</span>
-                      <USelectMenu
-                        v-model="riskFlags"
-                        :items="riskFlagOptions"
-                        multiple
-                        placeholder="Select all that apply"
-                        class="w-full"
-                        :ui="{ trailingIcon: 'group-data-[state=open]:rotate-180 transition-transform duration-200' }"
-                      />
-                      <span class="text-[11px] text-muted">
-                        These help group events and evidence around safety, stability, and other high‑impact patterns.
-                      </span>
-                    </label>
-
-                    <div
-                      v-if="riskFlags.length"
-                      class="flex flex-wrap gap-1 pt-1"
-                    >
-                      <UBadge
-                        v-for="flag in riskFlags"
-                        :key="flag"
-                        color="warning"
-                        variant="subtle"
-                        size="xs"
-                      >
-                        {{ flag }}
-                      </UBadge>
+                    <USkeleton class="h-3 w-56" />
+                    <USkeleton class="h-9 w-full" />
+                    <div class="flex flex-wrap gap-1 pt-1">
+                      <USkeleton class="h-5 w-24" />
+                      <USkeleton class="h-5 w-32" />
+                      <USkeleton class="h-5 w-28" />
                     </div>
                   </div>
                 </div>
               </div>
             </div>
+
+            <!-- Real form once data is loaded or user has started editing -->
+            <template v-else>
+              <!-- BASICS TAB -->
+              <div
+                v-if="activeCaseTab === 'overview'"
+                class="space-y-6"
+              >
+                <div class="grid gap-6 md:grid-cols-2">
+                  <!-- Case basics -->
+                  <div class="space-y-3">
+                    <p class="text-xs font-medium uppercase tracking-wide text-muted">
+                      Case basics
+                    </p>
+
+                    <div class="space-y-2">
+                      <label class="space-y-1 block">
+                        <span class="text-xs font-medium text-highlighted">Case title</span>
+                        <UInput
+                          v-model="title"
+                          placeholder="Smith v. Smith – custody"
+                          class="w-full"
+                        />
+                        <span class="text-[11px] text-muted">
+                          Short name you and your attorney recognize. This will also be used on exports.
+                        </span>
+                      </label>
+
+                      <label class="space-y-1 block">
+                        <span class="text-xs font-medium text-highlighted">Court case number (optional)</span>
+                        <UInput
+                          v-model="caseNumber"
+                          placeholder="CL24-1234"
+                          class="w-full"
+                        />
+                      </label>
+
+                      <label class="space-y-1 block">
+                        <span class="text-xs font-medium text-highlighted">Case type</span>
+                        <USelectMenu
+                          v-model="caseType"
+                          :items="caseTypeOptions"
+                          placeholder="Select type"
+                          class="w-full"
+                          :ui="{ trailingIcon: 'group-data-[state=open]:rotate-180 transition-transform duration-200' }"
+                        />
+                      </label>
+
+                      <label class="space-y-1 block">
+                        <span class="text-xs font-medium text-highlighted">Stage</span>
+                        <USelectMenu
+                          v-model="stage"
+                          :items="stageOptions"
+                          placeholder="Where are you in the process?"
+                          class="w-full"
+                          :ui="{ trailingIcon: 'group-data-[state=open]:rotate-180 transition-transform duration-200' }"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Jurisdiction & court -->
+                  <div class="space-y-3">
+                    <p class="text-xs font-medium uppercase tracking-wide text-muted">
+                      Jurisdiction & court
+                    </p>
+
+                    <div class="space-y-2">
+                      <label class="space-y-1 block">
+                        <span class="text-xs font-medium text-highlighted">State</span>
+                        <USelectMenu
+                          v-model="jurisdictionState"
+                          :items="stateOptions"
+                          placeholder="Select state"
+                          class="w-full"
+                          :ui="{ trailingIcon: 'group-data-[state=open]:rotate-180 transition-transform duration-200' }"
+                        />
+                        <span class="text-[11px] text-muted">
+                          The state where your divorce or custody case is being handled.
+                        </span>
+                      </label>
+
+                      <label class="space-y-1 block">
+                        <span class="text-xs font-medium text-highlighted">County / locality (optional)</span>
+                        <UInput
+                          v-model="jurisdictionCounty"
+                          placeholder="Richmond City"
+                          class="w-full"
+                        />
+                      </label>
+
+                      <label class="space-y-1 block">
+                        <span class="text-xs font-medium text-highlighted">Court (optional)</span>
+                        <UInput
+                          v-model="courtName"
+                          placeholder="Richmond Circuit Court, VA"
+                          class="w-full"
+                        />
+                      </label>
+
+                      <label class="space-y-1 block">
+                        <span class="text-xs font-medium text-highlighted">Next important court date (optional)</span>
+                        <UInput
+                          v-model="nextCourtDate"
+                          type="datetime-local"
+                          class="w-full"
+                        />
+                        <span class="text-[11px] text-muted">
+                          Used for reminders and to frame exports around upcoming hearings.
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- PEOPLE & CHILDREN TAB -->
+              <div
+                v-else-if="activeCaseTab === 'people'"
+                class="space-y-6"
+              >
+                <div class="grid gap-6 md:grid-cols-2">
+                  <!-- People involved -->
+                  <div class="space-y-3">
+                    <p class="text-xs font-medium uppercase tracking-wide text-muted">
+                      People involved
+                    </p>
+
+                    <div class="space-y-2">
+                      <label class="space-y-1 block">
+                        <span class="text-xs font-medium text-highlighted">Your role</span>
+                        <USelectMenu
+                          v-model="yourRole"
+                          :items="roleOptions"
+                          placeholder="How do you show up in this case?"
+                          class="w-full"
+                          :ui="{ trailingIcon: 'group-data-[state=open]:rotate-180 transition-transform duration-200' }"
+                        />
+                      </label>
+
+                      <label class="space-y-1 block">
+                        <span class="text-xs font-medium text-highlighted">Other parent / opposing party</span>
+                        <UInput
+                          v-model="opposingPartyName"
+                          placeholder="Jordan Smith"
+                          class="w-full"
+                        />
+                        <span class="text-[11px] text-muted">
+                          The main other adult in the case. You can use initials if you prefer.
+                        </span>
+                      </label>
+
+                      <label class="space-y-1 block">
+                        <span class="text-xs font-medium text-highlighted">Their role (optional)</span>
+                        <UInput
+                          v-model="opposingPartyRole"
+                          placeholder="Co-parent / Respondent"
+                          class="w-full"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Children -->
+                  <div class="space-y-3">
+                    <p class="text-xs font-medium uppercase tracking-wide text-muted">
+                      Children
+                    </p>
+
+                    <div class="space-y-2">
+                      <label class="space-y-1 block">
+                        <span class="text-xs font-medium text-highlighted">Number of children in this case</span>
+                        <UInput
+                          v-model.number="childrenCount"
+                          type="number"
+                          min="0"
+                          class="w-full"
+                        />
+                      </label>
+
+                      <label class="space-y-1 block">
+                        <span class="text-xs font-medium text-highlighted">Children overview</span>
+                        <UTextarea
+                          v-model="childrenSummary"
+                          :rows="3"
+                          autoresize
+                          placeholder="Example: Emma (7, 2nd grade) and Noah (4, preschool). Emma has asthma; both do best with consistent bedtime and school routines."
+                          class="w-full"
+                        />
+                        <span class="text-[11px] text-muted">
+                          High‑level details: names or initials, ages, grades, and any important needs.
+                        </span>
+                      </label>
+
+                      <label class="space-y-1 block">
+                        <span class="text-xs font-medium text-highlighted">Current parenting schedule (optional)</span>
+                        <UTextarea
+                          v-model="parentingSchedule"
+                          :rows="3"
+                          autoresize
+                          placeholder="Example: Week-on / week-off; exchanges Sunday at 6pm. Holidays follow standard Virginia guideline schedule."
+                          class="w-full"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- GOALS & RISKS TAB -->
+              <div
+                v-else-if="activeCaseTab === 'goals'"
+                class="space-y-6"
+              >
+                <div class="grid gap-6 md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+                  <!-- Goals & story -->
+                  <div class="space-y-3">
+                    <p class="text-xs font-medium uppercase tracking-wide text-muted">
+                      Goals & what you want understood
+                    </p>
+
+                    <label class="space-y-1 block">
+                      <span class="text-xs font-medium text-highlighted">If the judge only remembered 2–3 things about your situation, what should they be?</span>
+                      <UTextarea
+                        v-model="goalsSummary"
+                        :rows="5"
+                        autoresize
+                        placeholder="Example: I want a stable, consistent school-week routine, predictable exchanges, and a plan that keeps the kids out of adult conflict."
+                        class="w-full"
+                      />
+                      <span class="text-[11px] text-muted">
+                        This helps Daylight frame timelines and exports around your actual objectives.
+                      </span>
+                    </label>
+
+                    <label class="space-y-1 block">
+                      <span class="text-xs font-medium text-highlighted">Other notes (optional)</span>
+                      <UTextarea
+                        v-model="notes"
+                        :rows="4"
+                        autoresize
+                        placeholder="Anything else about your case, attorneys, or context you want in one place."
+                        class="w-full"
+                      />
+                    </label>
+                  </div>
+
+                  <!-- Risk flags -->
+                  <div class="space-y-3">
+                    <p class="text-xs font-medium uppercase tracking-wide text-muted">
+                      Risk flags
+                    </p>
+
+                    <div class="space-y-2">
+                      <label class="space-y-1 block">
+                        <span class="text-xs font-medium text-highlighted">What kinds of issues show up in your case?</span>
+                        <USelectMenu
+                          v-model="riskFlags"
+                          :items="riskFlagOptions"
+                          multiple
+                          placeholder="Select all that apply"
+                          class="w-full"
+                          :ui="{ trailingIcon: 'group-data-[state=open]:rotate-180 transition-transform duration-200' }"
+                        />
+                        <span class="text-[11px] text-muted">
+                          These help group events and evidence around safety, stability, and other high‑impact patterns.
+                        </span>
+                      </label>
+
+                      <div
+                        v-if="riskFlags.length"
+                        class="flex flex-wrap gap-1 pt-1"
+                      >
+                        <UBadge
+                          v-for="flag in riskFlags"
+                          :key="flag"
+                          color="warning"
+                          variant="subtle"
+                          size="xs"
+                        >
+                          {{ flag }}
+                        </UBadge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
 
             <div class="flex flex-col gap-3 border-t border-default pt-4 sm:flex-row sm:items-center sm:justify-between">
               <div class="flex items-center gap-2 text-xs text-muted">

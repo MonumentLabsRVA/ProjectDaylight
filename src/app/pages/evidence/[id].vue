@@ -26,54 +26,33 @@ interface EvidenceDetailResponse extends EvidenceItem {
   }>
 }
 
-// Use the same authentication pattern as other pages
-const supabase = useSupabaseClient()
+// Use SSR-aware useFetch with cookie-based auth
 const session = useSupabaseSession()
 const route = useRoute()
 const router = useRouter()
 
-const evidenceId = route.params.id as string
-const data = ref<EvidenceDetailResponse | null>(null)
-const status = ref<'idle' | 'pending' | 'success' | 'error'>('idle')
-const error = ref<any>(null)
+const evidenceId = computed(() => route.params.id as string)
 
-async function fetchEvidenceDetail() {
-  status.value = 'pending'
-  error.value = null
-  
-  try {
-    // Get the current access token
-    const accessToken = session.value?.access_token || 
-      (await supabase.auth.getSession()).data.session?.access_token
-
-    // Fetch with authentication header
-    const result = await $fetch<EvidenceDetailResponse>(`/api/evidence/${evidenceId}`, {
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
-    })
-    
-    data.value = result
-    status.value = 'success'
-  } catch (e: any) {
-    console.error('[Evidence Detail] Failed to fetch:', e)
-    error.value = e
-    status.value = 'error'
-    
-    // If not found, redirect back to evidence list
-    if (e.statusCode === 404) {
-      await router.push('/evidence')
-    }
-  }
-}
-
-// Fetch on mount
-onMounted(() => {
-  fetchEvidenceDetail()
+const {
+  data,
+  status,
+  error,
+  refresh
+} = await useFetch<EvidenceDetailResponse>(() => `/api/evidence/${evidenceId.value}`, {
+  headers: useRequestHeaders(['cookie'])
 })
 
-// Watch for session changes and refetch
+// Refresh when session changes (e.g., login)
 watch(session, (newSession) => {
   if (newSession?.access_token) {
-    fetchEvidenceDetail()
+    refresh()
+  }
+})
+
+// Redirect to list if evidence not found
+watch(error, async (err: any) => {
+  if (err?.statusCode === 404) {
+    await router.push('/evidence')
   }
 })
 

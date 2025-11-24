@@ -1,45 +1,16 @@
 <script setup lang="ts">
 import type { EventType, TimelineEvent } from '~/types'
 
-// Use the same authentication pattern as evidence.vue
-const supabase = useSupabaseClient()
-const session = useSupabaseSession()
-
-const data = ref<TimelineEvent[]>([])
-const status = ref<'idle' | 'pending' | 'success' | 'error'>('idle')
-const error = ref<any>(null)
-
-async function fetchTimeline() {
-  status.value = 'pending'
-  error.value = null
-
-  try {
-    // Get the current access token
-    const accessToken =
-      session.value?.access_token ||
-      (await supabase.auth.getSession()).data.session?.access_token
-
-    const result = await $fetch<TimelineEvent[]>('/api/timeline', {
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
-    })
-
-    data.value = result || []
-    status.value = 'success'
-  } catch (e: any) {
-    console.error('[Timeline] Failed to fetch:', e)
-    error.value = e
-    status.value = 'error'
-    data.value = []
-  }
-}
-
-onMounted(() => {
-  fetchTimeline()
+// Fetch timeline via SSR-aware useFetch and cookie-based auth
+const { data, status, error, refresh } = await useFetch<TimelineEvent[]>('/api/timeline', {
+  headers: useRequestHeaders(['cookie'])
 })
+
+const session = useSupabaseSession()
 
 watch(session, (newSession) => {
   if (newSession?.access_token) {
-    fetchTimeline()
+    refresh()
   }
 })
 
@@ -78,13 +49,13 @@ const typeColors: Record<EventType, 'success' | 'error' | 'info' | 'warning' | '
 }
 
 const filteredEvents = computed(() => {
-  if (!data.value) return []
+  const events = data.value || []
 
   if (selectedType.value === 'all') {
-    return data.value
+    return events
   }
 
-  return data.value.filter(event => event.type === selectedType.value)
+  return events.filter(event => event.type === selectedType.value)
 })
 
 if (process.client) {
@@ -95,7 +66,7 @@ if (process.client) {
       {
         status: status.value,
         error: error.value,
-        count: (data.value || []).length,
+        count: (data.value ?? []).length,
         items: data.value
       }
     )

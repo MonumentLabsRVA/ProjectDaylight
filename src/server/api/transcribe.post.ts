@@ -1,6 +1,7 @@
 import OpenAI from 'openai'
 import { readFiles } from 'h3-formidable'
 import fs from 'fs/promises'
+import { serverSupabaseUser } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -10,6 +11,17 @@ export default defineEventHandler(async (event) => {
     throw createError({
       statusCode: 500,
       statusMessage: 'OpenAI API key is not configured. Please set OPENAI_API_KEY in your .env file.'
+    })
+  }
+
+  // Require authenticated user (cookie/JWT based)
+  const user = await serverSupabaseUser(event)
+  const userId = user?.sub || user?.id
+
+  if (!userId) {
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'Unauthorized - Please log in'
     })
   }
 

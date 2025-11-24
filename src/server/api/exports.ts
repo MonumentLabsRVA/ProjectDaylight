@@ -1,4 +1,5 @@
 import { sub } from 'date-fns'
+import { serverSupabaseUser } from '#supabase/server'
 import type { ExportJob, ExportPreset } from '~/types'
 
 const presets: ExportPreset[] = [{
@@ -42,7 +43,18 @@ const recentJobs: ExportJob[] = [{
   createdAt: sub(new Date(), { hours: 1 }).toISOString()
 }]
 
-export default eventHandler(async () => {
+export default eventHandler(async (event) => {
+  // Protect exports behind authenticated sessions (cookie/JWT based)
+  const user = await serverSupabaseUser(event)
+  const userId = user?.sub || user?.id
+
+  if (!userId) {
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'Unauthorized - Please log in'
+    })
+  }
+
   return {
     presets,
     recentJobs

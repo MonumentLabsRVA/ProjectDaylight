@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import type { EvidenceItem, TimelineEvent, EventType } from '~/types'
 
-// Supabase auth (same pattern as evidence/timeline pages)
-const supabase = useSupabaseClient()
+// Supabase session; data fetching uses cookie-based auth via useFetch
 const session = useSupabaseSession()
 const toast = useToast()
 
@@ -25,17 +24,39 @@ interface CaseResponse {
   case: CaseRow | null
 }
 
-// Data from API
-const timeline = ref<TimelineEvent[]>([])
-const evidence = ref<EvidenceItem[]>([])
+// Data from API via SSR-aware useFetch and cookie-based auth
+const {
+  data: timelineData,
+  status: timelineStatus,
+  error: timelineError,
+  refresh: refreshTimeline
+} = await useFetch<TimelineEvent[]>('/api/timeline', {
+  headers: useRequestHeaders(['cookie'])
+})
 
-const timelineStatus = ref<'idle' | 'pending' | 'success' | 'error'>('idle')
-const evidenceStatus = ref<'idle' | 'pending' | 'success' | 'error'>('idle')
-const timelineError = ref<any>(null)
-const evidenceError = ref<any>(null)
-const caseStatus = ref<'idle' | 'pending' | 'success' | 'error'>('idle')
-const caseError = ref<any>(null)
+const {
+  data: evidenceData,
+  status: evidenceStatus,
+  error: evidenceError,
+  refresh: refreshEvidence
+} = await useFetch<EvidenceItem[]>('/api/evidence', {
+  headers: useRequestHeaders(['cookie'])
+})
+
+const {
+  data: caseResponse,
+  status: caseStatus,
+  error: caseError,
+  refresh: refreshCase
+} = await useFetch<CaseResponse>('/api/case', {
+  headers: useRequestHeaders(['cookie'])
+})
+
 const currentCase = ref<CaseRow | null>(null)
+
+watch(caseResponse, (res) => {
+  currentCase.value = res?.case ?? null
+}, { immediate: true })
 
 // Export form state
 type ExportFocus = 'full-timeline' | 'incidents-only' | 'positive-parenting'
@@ -85,159 +106,85 @@ const exportFocusOptions: { label: string; value: ExportFocus; description: stri
   description: 'Highlight your stability, routines, and positive involvement.'
 }]
 
-async function getAccessToken() {
-  const current = session.value
-  if (current?.access_token) {
-    return current.access_token
+function applyCase(row: CaseRow | null) {
+  if (!row) return
+
+  if (!caseTitle.value.trim()) {
+    caseTitle.value = row.title ?? ''
   }
 
-  const { data } = await supabase.auth.getSession()
-  return data.session?.access_token
-}
-
-async function fetchTimeline() {
-  timelineStatus.value = 'pending'
-  timelineError.value = null
-
-  try {
-    const accessToken = await getAccessToken()
-
-    const result = await $fetch<TimelineEvent[]>('/api/timeline', {
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
-    })
-
-    timeline.value = result || []
-    timelineStatus.value = 'success'
-  } catch (e: any) {
-    // eslint-disable-next-line no-console
-    console.error('[Export] Failed to fetch timeline:', e)
-    timelineError.value = e
-    timelineStatus.value = 'error'
-    timeline.value = []
-  }
-}
-
-async function fetchEvidence() {
-  evidenceStatus.value = 'pending'
-  evidenceError.value = null
-
-  try {
-    const accessToken = await getAccessToken()
-
-    const result = await $fetch<EvidenceItem[]>('/api/evidence', {
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
-    })
-
-    evidence.value = result || []
-    evidenceStatus.value = 'success'
-  } catch (e: any) {
-    // eslint-disable-next-line no-console
-    console.error('[Export] Failed to fetch evidence:', e)
-    evidenceError.value = e
-    evidenceStatus.value = 'error'
-    evidence.value = []
-  }
-}
-
-async function fetchCase() {
-  caseStatus.value = 'pending'
-  caseError.value = null
-
-  try {
-    const accessToken = await getAccessToken()
-
-    const result = await $fetch<CaseResponse>('/api/case', {
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
-    })
-
-    const row = result.case
-    currentCase.value = row ?? null
-
-    if (row) {
-      if (!caseTitle.value.trim()) {
-        caseTitle.value = row.title ?? ''
+  if (!courtName.value.trim()) {
+    const pieces: string[] = []
+    if (row.court_name) {
+      pieces.push(row.court_name)
+    } else if (row.jurisdiction_county || row.jurisdiction_state) {
+      const locality = [row.jurisdiction_county, row.jurisdiction_state]
+        .filter(Boolean)
+        .join(', ')
+      if (locality) {
+        pieces.push(locality)
       }
+    }
+    courtName.value = pieces.join(' - ')
+  }
 
-      if (!courtName.value.trim()) {
-        const pieces: string[] = []
-        if (row.court_name) {
-          pieces.push(row.court_name)
-        } else if (row.jurisdiction_county || row.jurisdiction_state) {
-          const locality = [row.jurisdiction_county, row.jurisdiction_state]
-            .filter(Boolean)
-            .join(', ')
-          if (locality) {
-            pieces.push(locality)
-          }
-        }
-        courtName.value = pieces.join(' - ')
-      }
+  if (!overviewNotes.value.trim()) {
+    const lines: string[] = []
 
-      if (!overviewNotes.value.trim()) {
-        const lines: string[] = []
+    if (row.goals_summary) {
+      lines.push(row.goals_summary.trim())
+    }
 
-        if (row.goals_summary) {
-          lines.push(row.goals_summary.trim())
-        }
+    if (row.children_summary) {
+      lines.push('')
+      lines.push(`Children: ${row.children_summary.trim()}`)
+    }
 
-        if (row.children_summary) {
-          lines.push('')
-          lines.push(`Children: ${row.children_summary.trim()}`)
-        }
+    if (row.parenting_schedule) {
+      lines.push('')
+      lines.push(`Current schedule: ${row.parenting_schedule.trim()}`)
+    }
 
-        if (row.parenting_schedule) {
-          lines.push('')
-          lines.push(`Current schedule: ${row.parenting_schedule.trim()}`)
-        }
-
-        if (row.next_court_date) {
-          const date = new Date(row.next_court_date)
-          if (!Number.isNaN(date.getTime())) {
-            lines.push('')
-            lines.push(
-              `Next important court date: ${date.toLocaleString(undefined, {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}`
-            )
-          }
-        }
-
-        if (row.risk_flags && row.risk_flags.length) {
-          lines.push('')
-          lines.push(`Key concerns: ${row.risk_flags.join(', ')}`)
-        }
-
-        if (lines.length) {
-          overviewNotes.value = lines.join('\n')
-        }
+    if (row.next_court_date) {
+      const date = new Date(row.next_court_date)
+      if (!Number.isNaN(date.getTime())) {
+        lines.push('')
+        lines.push(
+          `Next important court date: ${date.toLocaleString(undefined, {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })}`
+        )
       }
     }
 
-    caseStatus.value = 'success'
-  } catch (e: any) {
-    // eslint-disable-next-line no-console
-    console.error('[Export] Failed to fetch case:', e)
-    caseError.value = e
-    caseStatus.value = 'error'
-    currentCase.value = null
+    if (row.risk_flags && row.risk_flags.length) {
+      lines.push('')
+      lines.push(`Key concerns: ${row.risk_flags.join(', ')}`)
+    }
+
+    if (lines.length) {
+      overviewNotes.value = lines.join('\n')
+    }
   }
 }
 
+watch(currentCase, (row) => {
+  if (row) {
+    applyCase(row)
+  }
+}, { immediate: true })
+
 async function loadData() {
   await Promise.allSettled([
-    fetchTimeline(),
-    fetchEvidence(),
-    fetchCase()
+    refreshTimeline(),
+    refreshEvidence(),
+    refreshCase()
   ])
 }
-
-onMounted(() => {
-  loadData()
-})
 
 watch(session, (newSession) => {
   if (newSession?.access_token) {
@@ -270,7 +217,7 @@ function formatEventType(type: EventType) {
 }
 
 const filteredEvents = computed(() => {
-  let events = timeline.value || []
+  let events = (timelineData.value || []) as TimelineEvent[]
 
   if (exportFocus.value === 'incidents-only') {
     events = events.filter(event => event.type === 'incident')
@@ -356,10 +303,10 @@ function buildMarkdown() {
   if (includeEvidenceIndex.value) {
     lines.push('## 3. Evidence index', '')
 
-    if (!evidence.value.length) {
+    if (!evidenceData.value?.length) {
       lines.push('_No evidence items found for this export._', '')
     } else {
-      evidence.value.forEach((item, index) => {
+      ;(evidenceData.value || []).forEach((item, index) => {
         lines.push(
           `${index + 1}. [${formatDate(item.createdAt)}] **${item.originalName}** (${item.sourceType})`
         )
@@ -391,16 +338,11 @@ async function generateAISummary() {
   aiSummary.value = null
 
   try {
-    const accessToken = await getAccessToken()
-    
     const response = await $fetch('/api/export-summary', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      },
       body: {
-        timeline: timeline.value,
-        evidence: evidence.value,
+        timeline: timelineData.value || [],
+        evidence: evidenceData.value || [],
         caseInfo: currentCase.value,
         exportFocus: exportFocus.value,
         userPreferences: {

@@ -57,54 +57,33 @@ interface EventDetailResponse {
   }>
 }
 
-// Use the same authentication pattern as other pages
-const supabase = useSupabaseClient()
+// Use SSR-aware useFetch with cookie-based auth
 const session = useSupabaseSession()
 const route = useRoute()
 const router = useRouter()
 
-const eventId = route.params.id as string
-const data = ref<EventDetailResponse | null>(null)
-const status = ref<'idle' | 'pending' | 'success' | 'error'>('idle')
-const error = ref<any>(null)
+const eventId = computed(() => route.params.id as string)
 
-async function fetchEventDetail() {
-  status.value = 'pending'
-  error.value = null
-  
-  try {
-    // Get the current access token
-    const accessToken = session.value?.access_token || 
-      (await supabase.auth.getSession()).data.session?.access_token
-
-    // Fetch with authentication header
-    const result = await $fetch<EventDetailResponse>(`/api/event/${eventId}`, {
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
-    })
-    
-    data.value = result
-    status.value = 'success'
-  } catch (e: any) {
-    console.error('[Event Detail] Failed to fetch:', e)
-    error.value = e
-    status.value = 'error'
-    
-    // If not found, redirect back to timeline
-    if (e.statusCode === 404) {
-      await router.push('/timeline')
-    }
-  }
-}
-
-// Fetch on mount
-onMounted(() => {
-  fetchEventDetail()
+const {
+  data,
+  status,
+  error,
+  refresh
+} = await useFetch<EventDetailResponse>(() => `/api/event/${eventId.value}`, {
+  headers: useRequestHeaders(['cookie'])
 })
 
-// Watch for session changes and refetch
+// Refresh when session changes (e.g., login)
 watch(session, (newSession) => {
   if (newSession?.access_token) {
-    fetchEventDetail()
+    refresh()
+  }
+})
+
+// Redirect to timeline if event not found
+watch(error, async (err: any) => {
+  if (err?.statusCode === 404) {
+    await router.push('/timeline')
   }
 })
 

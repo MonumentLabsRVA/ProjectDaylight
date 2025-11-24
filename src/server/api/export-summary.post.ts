@@ -24,38 +24,14 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Get Supabase service role client
-  const supabase = await serverSupabaseServiceRole(event)
-  
-  // Resolve the authenticated user from the Supabase access token (Authorization header)
-  // and fall back to cookie-based auth via serverSupabaseUser.
-  let userId: string | null = null
-  
-  const authHeader = getHeader(event, 'authorization')
-  const token = authHeader?.startsWith('Bearer ')
-    ? authHeader.substring(7)
-    : null
-  
-  if (token) {
-    const { data: userResult, error: userError } = await supabase.auth.getUser(token)
-    
-    if (userError) {
-      // eslint-disable-next-line no-console
-      console.error('Supabase auth.getUser error (export summary):', userError)
-    } else {
-      userId = userResult.user?.id ?? null
-    }
-  }
-  
-  if (!userId) {
-    const authUser = await serverSupabaseUser(event)
-    userId = authUser?.id ?? null
-  }
-  
+  // Ensure the request is authenticated via cookies/JWT (no manual Authorization header)
+  const authUser = await serverSupabaseUser(event)
+  const userId = authUser?.sub || authUser?.id
+
   if (!userId) {
     throw createError({
       statusCode: 401,
-      statusMessage: 'Unauthorized'
+      statusMessage: 'Unauthorized - Please log in'
     })
   }
 

@@ -1,49 +1,16 @@
 <script setup lang="ts">
 import type { EvidenceItem } from '~/types'
 
-// Use the same authentication pattern as capture.vue
-const supabase = useSupabaseClient()
-const session = useSupabaseSession()
-
-// Initialize reactive data
-const data = ref<EvidenceItem[]>([])
-const status = ref<'idle' | 'pending' | 'success' | 'error'>('idle')
-const error = ref<any>(null)
-
-// Function to fetch evidence with proper authentication
-async function fetchEvidence() {
-  status.value = 'pending'
-  error.value = null
-  
-  try {
-    // Get the current access token
-    const accessToken = session.value?.access_token || 
-      (await supabase.auth.getSession()).data.session?.access_token
-
-    // Fetch with authentication header
-    const result = await $fetch<EvidenceItem[]>('/api/evidence', {
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
-    })
-    
-    data.value = result || []
-    status.value = 'success'
-  } catch (e: any) {
-    console.error('[Evidence] Failed to fetch:', e)
-    error.value = e
-    status.value = 'error'
-    data.value = []
-  }
-}
-
-// Fetch on mount and when session changes
-onMounted(() => {
-  fetchEvidence()
+// Fetch evidence via SSR-aware useFetch and cookie-based auth
+const { data, status, error, refresh } = await useFetch<EvidenceItem[]>('/api/evidence', {
+  headers: useRequestHeaders(['cookie'])
 })
 
-// Watch for session changes and refetch
+const session = useSupabaseSession()
+
 watch(session, (newSession) => {
   if (newSession?.access_token) {
-    fetchEvidence()
+    refresh()
   }
 })
 
@@ -96,7 +63,7 @@ if (process.client) {
       {
         status: status.value,
         error: error.value,
-        count: (data.value || []).length,
+        count: (data.value ?? []).length,
         items: data.value
       }
     )
