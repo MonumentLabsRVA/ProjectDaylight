@@ -61,7 +61,59 @@
 ## PHASE 2: Launch Essentials (Week 2)
 *"Make it worth paying for"*
 
-### Priority 1: Payments & Billing
+### Priority 1: Image Evidence Storage
+**Foundation for reliable evidence capture**
+
+- [ ] **Supabase Storage integration**
+  - Configure storage buckets for evidence images
+  - Set up proper RLS policies for secure access
+  - Implement upload workflow with progress tracking
+  - Handle image compression/optimization
+  
+- [ ] **Image evidence features**
+  - Direct image upload from evidence page
+  - Thumbnail generation and display
+  - Full-size image viewer
+  - EXIF data extraction (timestamp, location if available)
+  - OCR integration for searchable text
+  
+- [ ] **Storage management**
+  - Storage quota per user
+  - Cleanup of deleted evidence files
+  - Efficient retrieval and caching
+  
+**Success:** User can upload photos as evidence → view them in timeline → include in exports
+
+### Priority 2: Evidence-Event Association
+**Connect evidence to timeline events for context**
+
+- [ ] **Database schema updates**
+  - Create junction table for evidence-event relationships (many-to-many)
+  - Add proper foreign keys and RLS policies
+  - Migration for new relationship structure
+  
+- [ ] **Event detail page enhancements**
+  - Display all evidence associated with an event
+  - Quick link to view each piece of evidence
+  - Show evidence thumbnails in event card
+  - Add/remove evidence associations from event view
+  
+- [ ] **Evidence detail page enhancements**
+  - Show all events associated with this evidence
+  - Add/remove event associations from evidence view
+  - Timeline context for when evidence was captured vs. events
+  
+- [ ] **Association interface**
+  - Search/select events when viewing evidence
+  - Search/select evidence when viewing events
+  - Bulk association capabilities
+  - Visual indicators for linked items
+  
+**Success:** User can link a photo to multiple events → see photo when viewing event → see events when viewing photo
+
+---
+
+### Priority 3: Payments & Billing
 - [ ] **Stripe integration**
   - Subscription checkout ($49/month)
   - 7-day free trial
@@ -74,7 +126,7 @@
   - Upgrade/downgrade options
   - Invoice history
 
-### Priority 2: Landing Page & Branding
+### Priority 4: Landing Page & Branding
 - [ ] **Professional landing page**
   - Compelling hero: "Your Story, Protected"
   - 3 key benefits (Evidence capture, Timeline, Court-ready exports)
@@ -88,7 +140,7 @@
   - Favicon
   - Email templates for auth/billing
 
-### Priority 3: Onboarding & First Experience
+### Priority 5: Onboarding & First Experience
 - [ ] **Smooth signup flow**
   - Email/password or Google OAuth
   - Immediate access after signup (trial starts)
@@ -105,7 +157,7 @@
 ## PHASE 3: Polish & Launch Prep (Week 3)
 *"Make it feel professional"*
 
-### Priority 4: Critical Polish
+### Priority 6: Critical Polish
 - [ ] **Mobile responsiveness**
   - Test all pages on mobile
   - Fix breaking layouts
@@ -121,7 +173,7 @@
   - Lazy load heavy components
   - Cache API responses where sensible
 
-### Priority 5: Production Readiness
+### Priority 7: Production Readiness
 - [ ] **Monitoring & Analytics**
   - Error tracking (Sentry)
   - Basic analytics (Posthog)
