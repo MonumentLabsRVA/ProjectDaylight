@@ -140,14 +140,33 @@ function formatDate(value: string) {
           <code class="px-1 rounded bg-subtle text-xs text-muted border border-default">/api/timeline</code>.
         </p>
 
-        <UCard
-          v-if="status === 'pending'"
-          class="flex items-center justify-center py-12"
-        >
-          <UIcon name="i-lucide-loader-2" class="size-5 text-muted animate-spin" />
-          <span class="ml-2 text-sm text-muted">Loading timeline…</span>
-        </UCard>
+        <!-- Loading state with skeleton placeholders -->
+        <div v-if="status === 'pending'" class="space-y-3">
+          <UCard v-for="i in 5" :key="i">
+            <div class="flex flex-col gap-3">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <USkeleton class="h-5 w-20" />
+                  <USkeleton class="h-6 w-48" />
+                </div>
+                <USkeleton class="h-4 w-32" />
+              </div>
 
+              <div class="space-y-1">
+                <USkeleton class="h-4 w-full" />
+                <USkeleton class="h-4 w-4/5" />
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2">
+                <USkeleton class="h-4 w-24" />
+                <USkeleton class="h-4 w-32" />
+                <USkeleton class="h-4 w-28" />
+              </div>
+            </div>
+          </UCard>
+        </div>
+
+        <!-- Content display -->
         <div
           v-else
           class="space-y-3"

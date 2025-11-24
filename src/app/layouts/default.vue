@@ -48,74 +48,6 @@ const links = [[{
   onSelect: () => {
     open.value = false
   }
-}, {
-  label: 'Template pages',
-  icon: 'i-lucide-layers',
-  type: 'trigger',
-  children: [{
-    label: 'Dashboard template',
-    to: '/template-home',
-    icon: 'i-lucide-layout-dashboard',
-    onSelect: () => {
-      open.value = false
-    }
-  }, {
-    label: 'Inbox',
-    to: '/inbox',
-    icon: 'i-lucide-inbox',
-    badge: '4',
-    onSelect: () => {
-      open.value = false
-    }
-  }, {
-    label: 'Customers',
-    to: '/customers',
-    icon: 'i-lucide-users',
-    onSelect: () => {
-      open.value = false
-    }
-  }, {
-    label: 'Settings',
-    to: '/settings',
-    icon: 'i-lucide-settings',
-    type: 'trigger',
-    children: [{
-      label: 'General',
-      to: '/settings',
-      exact: true,
-      onSelect: () => {
-        open.value = false
-      }
-    }, {
-      label: 'Members',
-      to: '/settings/members',
-      onSelect: () => {
-        open.value = false
-      }
-    }, {
-      label: 'Notifications',
-      to: '/settings/notifications',
-      onSelect: () => {
-        open.value = false
-      }
-    }, {
-      label: 'Security',
-      to: '/settings/security',
-      onSelect: () => {
-        open.value = false
-      }
-    }]
-  }]
-}], [{
-  label: 'Feedback',
-  icon: 'i-lucide-message-circle',
-  to: 'https://github.com/nuxt-ui-templates/dashboard',
-  target: '_blank'
-}, {
-  label: 'Help & Support',
-  icon: 'i-lucide-info',
-  to: 'https://github.com/nuxt-ui-templates/dashboard',
-  target: '_blank'
 }]] satisfies NavigationMenuItem[][]
 
 const groups = computed(() => [{
@@ -171,7 +103,20 @@ onMounted(async () => {
       :ui="{ footer: 'lg:border-t lg:border-default' }"
     >
       <template #header="{ collapsed }">
-        <TeamsMenu :collapsed="collapsed" />
+        <NuxtLink 
+          to="/home" 
+          class="flex items-center gap-2.5 py-3"
+          :class="collapsed ? 'justify-center px-2' : 'px-3'"
+        >
+          <span 
+            class="inline-flex shrink-0 rounded-sm bg-primary" 
+            :class="collapsed ? 'size-6' : 'size-8'"
+          />
+          <div v-if="!collapsed" class="flex flex-col text-sm font-medium leading-tight text-highlighted">
+            <span>Project</span>
+            <span>Daylight</span>
+          </div>
+        </NuxtLink>
       </template>
 
       <template #default="{ collapsed }">
@@ -183,14 +128,6 @@ onMounted(async () => {
           orientation="vertical"
           tooltip
           popover
-        />
-
-        <UNavigationMenu
-          :collapsed="collapsed"
-          :items="links[1]"
-          orientation="vertical"
-          tooltip
-          class="mt-auto"
         />
       </template>
 

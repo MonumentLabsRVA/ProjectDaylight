@@ -159,11 +159,34 @@ function sourceLabel(type: EvidenceItem['sourceType']) {
           <code class="px-1 rounded bg-subtle text-xs text-muted border border-default">/api/evidence</code>.
         </p>
 
-        <UCard v-if="status === 'pending'" class="flex items-center justify-center py-12">
-          <UIcon name="i-lucide-loader-2" class="size-5 text-muted animate-spin" />
-          <span class="ml-2 text-sm text-muted">Loading evidence…</span>
-        </UCard>
+        <!-- Loading state with skeleton placeholders -->
+        <div v-if="status === 'pending'" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <UCard v-for="i in 6" :key="i">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex-1 min-w-0 space-y-3">
+                <div class="flex items-center gap-2">
+                  <USkeleton class="h-5 w-16" />
+                  <USkeleton class="h-4 w-24" />
+                </div>
 
+                <USkeleton class="h-6 w-3/4" />
+
+                <div class="space-y-1">
+                  <USkeleton class="h-4 w-full" />
+                  <USkeleton class="h-4 w-5/6" />
+                </div>
+
+                <div class="flex flex-wrap gap-1">
+                  <USkeleton class="h-5 w-16" />
+                  <USkeleton class="h-5 w-20" />
+                  <USkeleton class="h-5 w-14" />
+                </div>
+              </div>
+            </div>
+          </UCard>
+        </div>
+
+        <!-- Content display -->
         <div
           v-else
           class="grid gap-3 md:grid-cols-2 xl:grid-cols-3"
