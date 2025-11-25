@@ -12,7 +12,7 @@ defineOptions({
         <div class="flex h-16 items-center justify-between">
           <!-- Logo -->
           <NuxtLink to="/" class="flex items-center gap-2.5">
-            <span class="inline-flex size-7 rounded-md bg-gradient-to-br from-primary/80 to-primary shadow-sm" />
+            <AppLogoIcon :size="28" />
             <span class="text-lg font-semibold tracking-tight text-highlighted">
               Daylight
             </span>
@@ -61,7 +61,7 @@ defineOptions({
     <UFooter>
       <template #left>
         <NuxtLink to="/" class="flex items-center gap-2">
-          <span class="inline-flex size-6 rounded-md bg-gradient-to-br from-primary/80 to-primary shadow-sm" />
+          <AppLogoIcon :size="24" />
           <span class="font-semibold tracking-tight text-highlighted">
             Daylight
           </span>

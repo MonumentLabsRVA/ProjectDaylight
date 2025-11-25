@@ -261,6 +261,52 @@ const typeColors: Record<string, string> = {
   school: 'warning'
 }
 
+// Phone mockup timeline events
+const phoneTimelineEvents = ref([
+  {
+    visible: false,
+    time: '7:30 PM',
+    type: 'incident',
+    icon: 'i-lucide-alert-circle',
+    title: 'Late pickup (2.5 hours)',
+    description: 'Arrived 2.5 hours late for scheduled 5pm pickup. Child was distressed.',
+    badge: 'Incident',
+    evidence: 2
+  },
+  {
+    visible: false,
+    time: '3:45 PM',
+    type: 'positive',
+    icon: 'i-lucide-heart',
+    title: 'School conference attended',
+    description: 'Met with Ms. Rodriguez. Emma showing improvement in reading.',
+    badge: 'Positive',
+    evidence: 1
+  },
+  {
+    visible: false,
+    time: '10:00 AM',
+    type: 'medical',
+    icon: 'i-lucide-stethoscope',
+    title: 'Dental checkup complete',
+    description: 'No cavities. Next appointment scheduled for May.',
+    badge: 'Medical',
+    evidence: 1
+  },
+  {
+    visible: false,
+    time: '8:15 PM',
+    type: 'communication',
+    icon: 'i-lucide-message-square',
+    title: 'Schedule change request',
+    description: 'Text received requesting weekend swap. No documentation provided.',
+    badge: 'Communication',
+    evidence: 3
+  }
+])
+
+let phoneAnimationTimeouts: ReturnType<typeof setTimeout>[] = []
+
 // Animation for extracted events
 const waveformBars = ref<number[]>([])
 const isRecording = ref(true)
@@ -287,6 +333,15 @@ onMounted(() => {
     eventRevealTimeout.push(timeout)
   })
   
+  // Animate phone timeline events
+  phoneTimelineEvents.value.forEach((_, index) => {
+    const timeout = setTimeout(() => {
+      const event = phoneTimelineEvents.value[index]
+      if (event) event.visible = true
+    }, 600 + (index * 400))
+    phoneAnimationTimeouts.push(timeout)
+  })
+  
   // Start evidence animation
   initEvidenceAnimation()
 })
@@ -295,62 +350,222 @@ onUnmounted(() => {
   if (animationInterval) clearInterval(animationInterval)
   eventRevealTimeout.forEach(t => clearTimeout(t))
   evidenceAnimationTimeouts.forEach(t => clearTimeout(t))
+  phoneAnimationTimeouts.forEach(t => clearTimeout(t))
 })
 </script>
 
 <template>
   <div class="relative">
     <!-- Hero Section -->
-    <section class="relative overflow-hidden">
-      <!-- Subtle gradient background -->
-      <div class="absolute inset-0 bg-gradient-to-b from-muted via-default to-default" />
+    <section class="relative overflow-hidden bg-default">
+      <!-- Animated gradient orbs - softer in light mode -->
+      <div class="absolute top-1/4 -left-32 w-96 h-96 bg-primary/10 dark:bg-primary/20 rounded-full blur-3xl animate-pulse" />
+      <div class="absolute bottom-1/4 -right-32 w-96 h-96 bg-primary/8 dark:bg-primary/15 rounded-full blur-3xl animate-pulse" style="animation-delay: 1s;" />
 
-      <!-- Decorative grid pattern -->
-      <div class="absolute inset-0 bg-[linear-gradient(to_right,var(--ui-border-muted)_1px,transparent_1px),linear-gradient(to_bottom,var(--ui-border-muted)_1px,transparent_1px)] bg-[size:14px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
+      <UContainer class="relative z-10">
+        <div class="grid items-center gap-12 pt-8 pb-24 lg:grid-cols-2 lg:gap-16">
+          <!-- Left: Text content -->
+          <div class="flex flex-col justify-center items-center text-center lg:items-start lg:text-left">
+            <!-- Badge -->
+            <div class="mb-8 inline-flex w-fit items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
+              <span class="relative flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+              </span>
+              AI-Powered Evidence Platform
+            </div>
 
-      <UContainer class="relative">
-        <div class="flex min-h-[85vh] flex-col items-center justify-center py-24 text-center">
-          <!-- Main headline -->
-          <h1 class="max-w-3xl text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
-            <span class="text-primary">Talk. Vent.</span>
-            <span class="block text-muted">Daylight handles the rest.</span>
-          </h1>
+            <!-- Main headline -->
+            <h1 class="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl xl:text-7xl">
+              <span class="text-primary">Talk. Vent.</span>
+              <span class="block mt-2 text-highlighted">We organize it all.</span>
+            </h1>
 
-          <!-- Subheadline -->
-          <p class="mt-8 max-w-xl text-lg leading-relaxed text-muted">
-            When you're going through custody proceedings, the last thing you need is another task. Daylight turns voice notes into organized timelines—so you can focus on what matters.
-          </p>
+            <!-- Subheadline -->
+            <p class="mt-8 max-w-lg text-lg leading-relaxed text-muted mx-auto lg:mx-0">
+              Stop carrying custody documentation in your head. Record voice notes, upload screenshots—Daylight extracts events, builds timelines, and generates court-ready exports.
+            </p>
 
-          <!-- CTA buttons -->
-          <div class="mt-10 flex flex-col gap-4 sm:flex-row sm:gap-6">
-            <NuxtLink to="/auth/signup">
-              <UButton
-                size="xl"
-                color="primary"
-                class="px-8"
-              >
-                Start documenting
-                <template #trailing>
-                  <UIcon name="i-lucide-arrow-right" class="size-4" />
-                </template>
-              </UButton>
-            </NuxtLink>
-            <NuxtLink to="/home">
-              <UButton
-                size="xl"
-                color="neutral"
-                variant="outline"
-                class="px-8"
-              >
-                See how it works
-              </UButton>
-            </NuxtLink>
+            <!-- CTA buttons -->
+            <div class="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:gap-4 lg:items-start">
+              <NuxtLink to="/auth/signup">
+                <UButton
+                  size="xl"
+                  color="primary"
+                  class="px-8 font-semibold shadow-lg shadow-primary/25"
+                >
+                  Start documenting free
+                  <template #trailing>
+                    <UIcon name="i-lucide-arrow-right" class="size-4" />
+                  </template>
+                </UButton>
+              </NuxtLink>
+              <NuxtLink to="/home">
+                <UButton
+                  size="xl"
+                  color="neutral"
+                  variant="ghost"
+                  class="px-8"
+                >
+                  <UIcon name="i-lucide-play-circle" class="size-5 mr-2" />
+                  See how it works
+                </UButton>
+              </NuxtLink>
+            </div>
+
+            <!-- Trust indicators -->
+            <div class="mt-12 lg:mt-16 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 sm:gap-8 text-sm text-dimmed">
+              <div class="flex items-center gap-2">
+                <UIcon name="i-lucide-shield-check" class="size-4 text-primary/60" />
+                <span>Bank-level encryption</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <UIcon name="i-lucide-scale" class="size-4 text-primary/60" />
+                <span>Attorney recommended</span>
+              </div>
+            </div>
           </div>
 
-          <!-- Trust indicator -->
-          <p class="mt-16 text-sm text-dimmed">
-            Recommended by family law attorneys
-          </p>
+          <!-- Right: iPhone mockup -->
+          <div class="relative flex items-center justify-center">
+            <!-- Glow behind phone -->
+            <div class="absolute inset-0 flex items-center justify-center">
+              <div class="w-72 h-[500px] bg-gradient-to-b from-primary/20 dark:from-primary/30 via-primary/10 dark:via-primary/20 to-transparent rounded-full blur-3xl" />
+            </div>
+            
+            <!-- iPhone Frame - themed for light/dark -->
+            <div class="relative">
+              <!-- Phone outer frame -->
+              <div class="relative w-[280px] sm:w-[300px] h-[580px] sm:h-[620px] bg-neutral-200 dark:bg-neutral-900 rounded-[50px] p-2 shadow-2xl shadow-black/20 dark:shadow-black/50 border border-neutral-300 dark:border-neutral-700/50">
+                <!-- Phone inner bezel -->
+                <div class="relative w-full h-full bg-neutral-100 dark:bg-neutral-950 rounded-[42px] overflow-hidden">
+                  <!-- Dynamic Island / Notch -->
+                  <div class="absolute top-3 left-1/2 -translate-x-1/2 w-24 h-7 bg-neutral-900 dark:bg-black rounded-full z-20 flex items-center justify-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-neutral-700 dark:bg-neutral-800" />
+                    <div class="w-3 h-3 rounded-full bg-neutral-700/80 dark:bg-neutral-800/80" />
+                  </div>
+                  
+                  <!-- Screen content -->
+                  <div class="relative w-full h-full bg-gradient-to-b from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-950 pt-14 overflow-hidden">
+                    <!-- App header -->
+                    <div class="px-5 pb-4 border-b border-neutral-200 dark:border-neutral-800/50">
+                      <div class="flex items-center justify-between">
+                        <div>
+                          <p class="text-[10px] text-neutral-500 uppercase tracking-wider font-medium">Your Timeline</p>
+                          <p class="text-lg font-semibold text-neutral-900 dark:text-white mt-0.5">November 2025</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                            <UIcon name="i-lucide-plus" class="size-4 text-primary" />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <!-- Quick stats -->
+                      <div class="flex gap-3 mt-4">
+                        <div class="flex-1 bg-neutral-200/70 dark:bg-neutral-800/50 rounded-xl px-3 py-2">
+                          <p class="text-[10px] text-neutral-500">Events</p>
+                          <p class="text-sm font-bold text-neutral-900 dark:text-white">47</p>
+                        </div>
+                        <div class="flex-1 bg-neutral-200/70 dark:bg-neutral-800/50 rounded-xl px-3 py-2">
+                          <p class="text-[10px] text-neutral-500">Evidence</p>
+                          <p class="text-sm font-bold text-neutral-900 dark:text-white">23</p>
+                        </div>
+                        <div class="flex-1 bg-neutral-200/70 dark:bg-neutral-800/50 rounded-xl px-3 py-2">
+                          <p class="text-[10px] text-neutral-500">Flags</p>
+                          <p class="text-sm font-bold text-warning">6</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <!-- Timeline events -->
+                    <div class="px-4 py-4 space-y-3 overflow-hidden">
+                      <div
+                        v-for="(event, index) in phoneTimelineEvents"
+                        :key="index"
+                        class="relative transition-all duration-700 ease-out"
+                        :class="event.visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'"
+                      >
+                        <!-- Event card -->
+                        <div 
+                          class="bg-white/80 dark:bg-neutral-800/60 backdrop-blur rounded-2xl p-3 border border-neutral-200 dark:border-neutral-700/30"
+                          :class="{
+                            'border-l-2 border-l-error': event.type === 'incident',
+                            'border-l-2 border-l-success': event.type === 'positive',
+                            'border-l-2 border-l-info': event.type === 'medical',
+                            'border-l-2 border-l-warning': event.type === 'communication'
+                          }"
+                        >
+                          <div class="flex items-start gap-3">
+                            <div 
+                              class="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                              :class="{
+                                'bg-error/20': event.type === 'incident',
+                                'bg-success/20': event.type === 'positive',
+                                'bg-info/20': event.type === 'medical',
+                                'bg-warning/20': event.type === 'communication'
+                              }"
+                            >
+                              <UIcon 
+                                :name="event.icon"
+                                class="size-4"
+                                :class="{
+                                  'text-error': event.type === 'incident',
+                                  'text-success': event.type === 'positive',
+                                  'text-info': event.type === 'medical',
+                                  'text-warning': event.type === 'communication'
+                                }"
+                              />
+                            </div>
+                            <div class="flex-1 min-w-0">
+                              <div class="flex items-center justify-between gap-2">
+                                <p class="text-xs font-semibold text-neutral-900 dark:text-white truncate">{{ event.title }}</p>
+                                <span class="text-[10px] text-neutral-500 shrink-0">{{ event.time }}</span>
+                              </div>
+                              <p class="text-[11px] text-neutral-600 dark:text-neutral-400 mt-0.5 line-clamp-2">{{ event.description }}</p>
+                              <div class="flex items-center gap-2 mt-2">
+                                <span 
+                                  class="text-[9px] px-1.5 py-0.5 rounded-full font-medium"
+                                  :class="{
+                                    'bg-error/20 text-error': event.type === 'incident',
+                                    'bg-success/20 text-success': event.type === 'positive',
+                                    'bg-info/20 text-info': event.type === 'medical',
+                                    'bg-warning/20 text-warning': event.type === 'communication'
+                                  }"
+                                >
+                                  {{ event.badge }}
+                                </span>
+                                <span v-if="event.evidence" class="text-[9px] text-neutral-500 flex items-center gap-1">
+                                  <UIcon name="i-lucide-paperclip" class="size-2.5" />
+                                  {{ event.evidence }} attached
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <!-- Floating record button -->
+                    <div class="absolute bottom-6 left-1/2 -translate-x-1/2">
+                      <div class="relative">
+                        <div class="absolute inset-0 bg-primary rounded-full animate-ping opacity-20" />
+                        <div class="relative w-14 h-14 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/30">
+                          <UIcon name="i-lucide-mic" class="size-6 text-white dark:text-neutral-900" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Side button (power) -->
+              <div class="absolute right-[-2px] top-32 w-1 h-16 bg-neutral-400 dark:bg-neutral-700 rounded-l-sm" />
+              <!-- Volume buttons -->
+              <div class="absolute left-[-2px] top-28 w-1 h-8 bg-neutral-400 dark:bg-neutral-700 rounded-r-sm" />
+              <div class="absolute left-[-2px] top-40 w-1 h-12 bg-neutral-400 dark:bg-neutral-700 rounded-r-sm" />
+            </div>
+          </div>
         </div>
       </UContainer>
     </section>

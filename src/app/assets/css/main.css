@@ -1,11 +1,12 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
-:root {
-  --ui-primary: black;
+::selection {
+  background-color: #0ea5e9; /* sky-500 for light mode */
+  color: #f0f9ff;            /* sky-50 text for contrast */
 }
 
-.dark {
-  --ui-primary: white;
+.dark ::selection {
+  background-color: #0ea5e9; /* sky-500 for dark mode */
+  color: #0c4a6e;            /* sky-900 text for contrast */
 }
-

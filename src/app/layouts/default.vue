@@ -192,12 +192,8 @@ onMounted(async () => {
           class="flex items-center gap-2.5 py-3"
           :class="collapsed ? 'justify-center px-2' : 'px-3'"
         >
-          <span 
-            class="inline-flex shrink-0 rounded-sm bg-primary" 
-            :class="collapsed ? 'size-6' : 'size-8'"
-          />
+          <AppLogoIcon :size="collapsed ? 24 : 20" class="shrink-0" />
           <div v-if="!collapsed" class="flex flex-col text-sm font-medium leading-tight text-highlighted">
-            <span>Project</span>
             <span>Daylight</span>
           </div>
         </NuxtLink>
