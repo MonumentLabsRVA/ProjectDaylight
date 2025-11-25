@@ -29,7 +29,14 @@ export default defineNuxtConfig({
   },
 
   routeRules: {
+    // Prerender public pages that don't need auth
     '/': { prerender: true },
+    '/auth/login': { prerender: true },
+    '/auth/signup': { prerender: true },
+    '/auth/confirm': { prerender: true },
+    '/privacy-policy': { prerender: true },
+    '/terms-and-conditions': { prerender: true },
+    // API routes
     '/api/**': {
       cors: true
     }
