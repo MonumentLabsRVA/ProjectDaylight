@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useObjectUrl } from '@vueuse/core'
+import { getDateStringInTimezone, detectBrowserTimezone } from '~/composables/useTimezone'
 
 // =============================================================================
 // Types
@@ -42,10 +43,13 @@ interface CaptureState {
 const supabase = useSupabaseClient()
 const supabaseSession = useSupabaseSession()
 
+// Get local date string to avoid UTC date mismatch (e.g., 11pm Nov 25 local showing as Nov 26)
+const localTodayDate = getDateStringInTimezone(new Date(), detectBrowserTimezone())
+
 const state = ref<CaptureState>({
   step: 'event',
   eventText: '',
-  referenceDate: new Date().toISOString().slice(0, 10),
+  referenceDate: localTodayDate,
   evidence: [],
   isRecording: false,
   hasRecording: false,
@@ -419,19 +423,27 @@ async function confirmAndSave() {
 
   try {
     // Save the extracted events to the database
-    const result = await $fetch<{ createdEventIds: string[] }>('/api/capture/save-events', {
+    const result = await $fetch<{ createdEventIds: string[]; linkedEvidenceCount: number; captureId?: string | null }>('/api/capture/save-events', {
       method: 'POST',
       headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
       body: {
         extraction: state.value.extractionResult.extraction,
         evidenceIds: state.value.evidence
           .filter(e => e.uploadedEvidenceId)
-          .map(e => e.uploadedEvidenceId)
+          .map(e => e.uploadedEvidenceId),
+        // Include journal entry data
+        eventText: effectiveEventText.value,
+        referenceDate: state.value.referenceDate
       }
     })
 
-    // Navigate to timeline on success
-    await navigateTo('/timeline')
+    // Prefer navigating to the newly created journal entry if available
+    if (result.captureId) {
+      await navigateTo(`/journal/${result.captureId}`)
+    } else {
+      // Fallback to timeline if capture record wasn't created for some reason
+      await navigateTo('/timeline')
+    }
   } catch (e: any) {
     console.error('Save error:', e)
     state.value.error = e?.data?.statusMessage || 'Failed to save events'
@@ -928,7 +940,7 @@ function loadTestText(sample: string) {
                 :disabled="!state.extractionResult?.extraction?.events?.length"
                 @click="confirmAndSave"
               >
-                Save to Timeline
+                Save Entry
               </UButton>
             </div>
           </template>

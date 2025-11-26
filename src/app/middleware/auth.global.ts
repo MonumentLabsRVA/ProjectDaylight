@@ -26,8 +26,8 @@ export default defineNuxtRouteMiddleware((to, from) => {
     return navigateTo(`/auth/login?redirect=${encodeURIComponent(redirectTo)}`)
   }
   
-  // If user is authenticated and trying to access auth pages, redirect to home
-  if (user.value && (to.path === '/auth/login' || to.path === '/auth/signup')) {
+  // If user is authenticated and trying to access auth pages or landing page, redirect to home
+  if (user.value && (to.path === '/auth/login' || to.path === '/auth/signup' || to.path === '/')) {
     // Check if there's a redirect parameter
     const redirect = to.query.redirect as string
     if (redirect) {

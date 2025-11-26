@@ -38,6 +38,13 @@ const links = [[{
     open.value = false
   }
 }, {
+  label: 'Journal',
+  icon: 'i-lucide-book-open',
+  to: '/journal',
+  onSelect: () => {
+    open.value = false
+  }
+}, {
   label: 'Capture',
   icon: 'i-lucide-mic',
   to: '/capture',

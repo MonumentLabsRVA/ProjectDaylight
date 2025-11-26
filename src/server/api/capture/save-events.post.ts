@@ -55,6 +55,10 @@ interface ExtractionPayload {
 interface SaveEventsBody {
   extraction: ExtractionPayload
   evidenceIds?: string[]
+  // Journal entry data
+  eventText?: string
+  referenceDate?: string
+  referenceTimeDescription?: string
 }
 
 export default defineEventHandler(async (event) => {
@@ -75,6 +79,9 @@ export default defineEventHandler(async (event) => {
   const events = body?.extraction?.events || []
   const actionItems = body?.extraction?.action_items || []
   const evidenceIds = body?.evidenceIds || []
+  const eventText = body?.eventText
+  const referenceDate = body?.referenceDate
+  const referenceTimeDescription = body?.referenceTimeDescription
 
   if (!events.length) {
     throw createError({
@@ -84,6 +91,51 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
+    // Create a capture record (journal entry) to preserve the original narrative
+    let captureId: string | null = null
+    if (eventText) {
+      const { data: captureData, error: captureError } = await supabase
+        .from('captures')
+        .insert({
+          user_id: userId,
+          event_text: eventText,
+          reference_date: referenceDate || null,
+          reference_time_description: referenceTimeDescription || null,
+          status: 'completed',
+          extraction_raw: body.extraction,
+          processed_at: new Date().toISOString(),
+          completed_at: new Date().toISOString()
+        })
+        .select('id')
+        .single()
+
+      if (captureError) {
+        console.error('Failed to create capture record:', captureError)
+        // Don't fail the whole operation, just log
+      } else {
+        captureId = captureData?.id || null
+      }
+
+      // Link evidence to the capture record
+      if (captureId && evidenceIds.length) {
+        const captureEvidenceLinks = evidenceIds.map((evidenceId, index) => ({
+          capture_id: captureId,
+          evidence_id: evidenceId,
+          sort_order: index,
+          is_processed: true,
+          processed_at: new Date().toISOString()
+        }))
+
+        const { error: captureLinkError } = await supabase
+          .from('capture_evidence')
+          .insert(captureEvidenceLinks)
+
+        if (captureLinkError) {
+          console.error('Failed to link evidence to capture:', captureLinkError)
+        }
+      }
+    }
+
     // Insert events
     const eventsToInsert = events.map((e) => ({
       user_id: userId,
@@ -251,7 +303,8 @@ export default defineEventHandler(async (event) => {
 
     return {
       createdEventIds,
-      linkedEvidenceCount: evidenceIds.length
+      linkedEvidenceCount: evidenceIds.length,
+      captureId
     }
   } catch (error: any) {
     console.error('Save events error:', error)
