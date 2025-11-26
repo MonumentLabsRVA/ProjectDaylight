@@ -36,9 +36,9 @@ export default defineEventHandler(async (event): Promise<JournalEntry[]> => {
 
   const client = await serverSupabaseClient<Database>(event)
 
-  // Fetch all captures (journal entries) for this user
-  const { data: captures, error: capturesError } = await client
-    .from('captures')
+  // Fetch all journal entries for this user
+  const { data: entries, error: entriesError } = await client
+    .from('journal_entries')
     .select(`
       id,
       event_text,
@@ -55,22 +55,22 @@ export default defineEventHandler(async (event): Promise<JournalEntry[]> => {
     .order('reference_date', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })
 
-  if (capturesError) {
-    console.error('Error fetching journal entries:', capturesError)
+  if (entriesError) {
+    console.error('Error fetching journal entries:', entriesError)
     throw createError({ statusCode: 500, statusMessage: 'Failed to fetch journal entries' })
   }
 
-  if (!captures || captures.length === 0) {
+  if (!entries || entries.length === 0) {
     return []
   }
 
-  // Fetch evidence for each capture
-  const captureIds = captures.map(c => c.id)
+  // Fetch evidence for each journal entry
+  const entryIds = entries.map(e => e.id)
   
-  const { data: captureEvidence, error: evidenceError } = await client
-    .from('capture_evidence')
+  const { data: entryEvidence, error: evidenceError } = await client
+    .from('journal_entry_evidence')
     .select(`
-      capture_id,
+      journal_entry_id,
       sort_order,
       evidence:evidence_id (
         id,
@@ -79,38 +79,38 @@ export default defineEventHandler(async (event): Promise<JournalEntry[]> => {
         summary
       )
     `)
-    .in('capture_id', captureIds)
+    .in('journal_entry_id', entryIds)
     .order('sort_order', { ascending: true })
 
   if (evidenceError) {
-    console.error('Error fetching capture evidence:', evidenceError)
+    console.error('Error fetching journal entry evidence:', evidenceError)
     // Continue without evidence data
   }
 
-  // Group evidence by capture_id
-  const evidenceByCapture = new Map<string, JournalEntry['evidence']>()
-  if (captureEvidence) {
-    for (const ce of captureEvidence) {
-      const existing = evidenceByCapture.get(ce.capture_id) || []
-      if (ce.evidence && !Array.isArray(ce.evidence)) {
+  // Group evidence by journal_entry_id
+  const evidenceByEntry = new Map<string, JournalEntry['evidence']>()
+  if (entryEvidence) {
+    for (const je of entryEvidence) {
+      const existing = evidenceByEntry.get(je.journal_entry_id) || []
+      if (je.evidence && !Array.isArray(je.evidence)) {
         existing.push({
-          id: ce.evidence.id,
-          sourceType: ce.evidence.source_type,
-          originalFilename: ce.evidence.original_filename,
-          summary: ce.evidence.summary,
-          sortOrder: ce.sort_order
+          id: je.evidence.id,
+          sourceType: je.evidence.source_type,
+          originalFilename: je.evidence.original_filename,
+          summary: je.evidence.summary,
+          sortOrder: je.sort_order
         })
       }
-      evidenceByCapture.set(ce.capture_id, existing)
+      evidenceByEntry.set(je.journal_entry_id, existing)
     }
   }
 
   // Map to response format
-  return captures.map(capture => {
-    const evidence = evidenceByCapture.get(capture.id) || []
+  return entries.map(entry => {
+    const evidence = evidenceByEntry.get(entry.id) || []
 
     // Derive high-level event categories from extraction_raw, if present
-    const raw = (capture as any).extraction_raw as any | null
+    const raw = (entry as any).extraction_raw as any | null
     const eventTypes: JournalEntry['eventTypes'] = []
 
     if (raw && Array.isArray(raw.events)) {
@@ -123,16 +123,16 @@ export default defineEventHandler(async (event): Promise<JournalEntry[]> => {
     }
 
     return {
-      id: capture.id,
-      eventText: capture.event_text,
-      referenceDate: capture.reference_date,
-      referenceTimeDescription: capture.reference_time_description,
-      status: capture.status as JournalEntry['status'],
+      id: entry.id,
+      eventText: entry.event_text,
+      referenceDate: entry.reference_date,
+      referenceTimeDescription: entry.reference_time_description,
+      status: entry.status as JournalEntry['status'],
       eventTypes,
-      createdAt: capture.created_at,
-      updatedAt: capture.updated_at,
-      processedAt: capture.processed_at,
-      completedAt: capture.completed_at,
+      createdAt: entry.created_at,
+      updatedAt: entry.updated_at,
+      processedAt: entry.processed_at,
+      completedAt: entry.completed_at,
       evidenceCount: evidence.length,
       evidence
     }

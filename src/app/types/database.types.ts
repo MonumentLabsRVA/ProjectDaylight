@@ -94,9 +94,9 @@ export type Database = {
         }
         Relationships: []
       }
-      capture_evidence: {
+      journal_entry_evidence: {
         Row: {
-          capture_id: string
+          journal_entry_id: string
           created_at: string
           evidence_id: string
           id: string
@@ -105,7 +105,7 @@ export type Database = {
           sort_order: number
         }
         Insert: {
-          capture_id: string
+          journal_entry_id: string
           created_at?: string
           evidence_id: string
           id?: string
@@ -114,7 +114,7 @@ export type Database = {
           sort_order?: number
         }
         Update: {
-          capture_id?: string
+          journal_entry_id?: string
           created_at?: string
           evidence_id?: string
           id?: string
@@ -124,14 +124,14 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "capture_evidence_capture_id_fkey"
-            columns: ["capture_id"]
+            foreignKeyName: "journal_entry_evidence_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
             isOneToOne: false
-            referencedRelation: "captures"
+            referencedRelation: "journal_entries"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "capture_evidence_evidence_id_fkey"
+            foreignKeyName: "journal_entry_evidence_evidence_id_fkey"
             columns: ["evidence_id"]
             isOneToOne: false
             referencedRelation: "evidence"
@@ -139,7 +139,7 @@ export type Database = {
           },
         ]
       }
-      captures: {
+      journal_entries: {
         Row: {
           completed_at: string | null
           created_at: string
@@ -150,7 +150,7 @@ export type Database = {
           processing_error: string | null
           reference_date: string | null
           reference_time_description: string | null
-          status: Database["public"]["Enums"]["capture_status"]
+          status: Database["public"]["Enums"]["journal_entry_status"]
           updated_at: string
           user_id: string
         }
@@ -164,7 +164,7 @@ export type Database = {
           processing_error?: string | null
           reference_date?: string | null
           reference_time_description?: string | null
-          status?: Database["public"]["Enums"]["capture_status"]
+          status?: Database["public"]["Enums"]["journal_entry_status"]
           updated_at?: string
           user_id: string
         }
@@ -178,7 +178,7 @@ export type Database = {
           processing_error?: string | null
           reference_date?: string | null
           reference_time_description?: string | null
-          status?: Database["public"]["Enums"]["capture_status"]
+          status?: Database["public"]["Enums"]["journal_entry_status"]
           updated_at?: string
           user_id?: string
         }
@@ -696,7 +696,7 @@ export type Database = {
       action_priority: "urgent" | "high" | "normal" | "low"
       action_status: "open" | "in_progress" | "done" | "cancelled"
       action_type: "document" | "contact" | "file" | "obtain" | "other"
-      capture_status: "draft" | "processing" | "review" | "completed" | "cancelled"
+      journal_entry_status: "draft" | "processing" | "review" | "completed" | "cancelled"
       communication_direction: "incoming" | "outgoing" | "mixed" | "unknown"
       communication_medium: "text" | "email" | "unknown"
       event_type:
@@ -853,7 +853,7 @@ export const Constants = {
       action_priority: ["urgent", "high", "normal", "low"],
       action_status: ["open", "in_progress", "done", "cancelled"],
       action_type: ["document", "contact", "file", "obtain", "other"],
-      capture_status: ["draft", "processing", "review", "completed", "cancelled"],
+      journal_entry_status: ["draft", "processing", "review", "completed", "cancelled"],
       communication_direction: ["incoming", "outgoing", "mixed", "unknown"],
       communication_medium: ["text", "email", "unknown"],
       event_type: [

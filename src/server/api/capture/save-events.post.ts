@@ -91,11 +91,11 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    // Create a capture record (journal entry) to preserve the original narrative
-    let captureId: string | null = null
+    // Create a journal entry record to preserve the original narrative
+    let journalEntryId: string | null = null
     if (eventText) {
-      const { data: captureData, error: captureError } = await supabase
-        .from('captures')
+      const { data: entryData, error: entryError } = await supabase
+        .from('journal_entries')
         .insert({
           user_id: userId,
           event_text: eventText,
@@ -109,29 +109,29 @@ export default defineEventHandler(async (event) => {
         .select('id')
         .single()
 
-      if (captureError) {
-        console.error('Failed to create capture record:', captureError)
+      if (entryError) {
+        console.error('Failed to create journal entry record:', entryError)
         // Don't fail the whole operation, just log
       } else {
-        captureId = captureData?.id || null
+        journalEntryId = entryData?.id || null
       }
 
-      // Link evidence to the capture record
-      if (captureId && evidenceIds.length) {
-        const captureEvidenceLinks = evidenceIds.map((evidenceId, index) => ({
-          capture_id: captureId,
+      // Link evidence to the journal entry record
+      if (journalEntryId && evidenceIds.length) {
+        const entryEvidenceLinks = evidenceIds.map((evidenceId, index) => ({
+          journal_entry_id: journalEntryId,
           evidence_id: evidenceId,
           sort_order: index,
           is_processed: true,
           processed_at: new Date().toISOString()
         }))
 
-        const { error: captureLinkError } = await supabase
-          .from('capture_evidence')
-          .insert(captureEvidenceLinks)
+        const { error: entryLinkError } = await supabase
+          .from('journal_entry_evidence')
+          .insert(entryEvidenceLinks)
 
-        if (captureLinkError) {
-          console.error('Failed to link evidence to capture:', captureLinkError)
+        if (entryLinkError) {
+          console.error('Failed to link evidence to journal entry:', entryLinkError)
         }
       }
     }
@@ -304,7 +304,7 @@ export default defineEventHandler(async (event) => {
     return {
       createdEventIds,
       linkedEvidenceCount: evidenceIds.length,
-      captureId
+      journalEntryId
     }
   } catch (error: any) {
     console.error('Save events error:', error)

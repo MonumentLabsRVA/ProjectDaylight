@@ -419,7 +419,7 @@ async function confirmAndSave() {
 
   try {
     // Save the extracted events to the database
-    const result = await $fetch<{ createdEventIds: string[]; linkedEvidenceCount: number; captureId?: string | null }>('/api/capture/save-events', {
+    const result = await $fetch<{ createdEventIds: string[]; linkedEvidenceCount: number; journalEntryId?: string | null }>('/api/capture/save-events', {
       method: 'POST',
       headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
       body: {
@@ -434,10 +434,10 @@ async function confirmAndSave() {
     })
 
     // Prefer navigating to the newly created journal entry if available
-    if (result.captureId) {
-      await navigateTo(`/journal/${result.captureId}`)
+    if (result.journalEntryId) {
+      await navigateTo(`/journal/${result.journalEntryId}`)
     } else {
-      // Fallback to timeline if capture record wasn't created for some reason
+      // Fallback to timeline if journal entry record wasn't created for some reason
       await navigateTo('/timeline')
     }
   } catch (e: any) {

@@ -69,9 +69,9 @@ async function getJournalEntry(
   userId: string,
   id: string
 ): Promise<JournalEntryDetail> {
-  // Fetch the capture
-  const { data: capture, error: captureError } = await client
-    .from('captures')
+  // Fetch the journal entry
+  const { data: entry, error: entryError } = await client
+    .from('journal_entries')
     .select(`
       id,
       event_text,
@@ -89,13 +89,13 @@ async function getJournalEntry(
     .eq('user_id', userId)
     .single()
 
-  if (captureError || !capture) {
+  if (entryError || !entry) {
     throw createError({ statusCode: 404, statusMessage: 'Journal entry not found' })
   }
 
   // Fetch associated evidence
-  const { data: captureEvidence, error: evidenceError } = await client
-    .from('capture_evidence')
+  const { data: entryEvidence, error: evidenceError } = await client
+    .from('journal_entry_evidence')
     .select(`
       sort_order,
       is_processed,
@@ -112,7 +112,7 @@ async function getJournalEntry(
         extraction_raw
       )
     `)
-    .eq('capture_id', id)
+    .eq('journal_entry_id', id)
     .order('sort_order', { ascending: true })
 
   if (evidenceError) {
@@ -121,39 +121,39 @@ async function getJournalEntry(
 
   // Map evidence
   const evidence: JournalEntryDetail['evidence'] = []
-  if (captureEvidence) {
-    for (const ce of captureEvidence) {
-      if (ce.evidence && !Array.isArray(ce.evidence)) {
+  if (entryEvidence) {
+    for (const je of entryEvidence) {
+      if (je.evidence && !Array.isArray(je.evidence)) {
         evidence.push({
-          id: ce.evidence.id,
-          sourceType: ce.evidence.source_type,
-          storagePath: ce.evidence.storage_path,
-          originalFilename: ce.evidence.original_filename,
-          mimeType: ce.evidence.mime_type,
-          summary: ce.evidence.summary,
-          tags: ce.evidence.tags || [],
-          userAnnotation: ce.evidence.user_annotation,
-          extractionRaw: ce.evidence.extraction_raw,
-          sortOrder: ce.sort_order,
-          isProcessed: ce.is_processed,
-          processedAt: ce.processed_at
+          id: je.evidence.id,
+          sourceType: je.evidence.source_type,
+          storagePath: je.evidence.storage_path,
+          originalFilename: je.evidence.original_filename,
+          mimeType: je.evidence.mime_type,
+          summary: je.evidence.summary,
+          tags: je.evidence.tags || [],
+          userAnnotation: je.evidence.user_annotation,
+          extractionRaw: je.evidence.extraction_raw,
+          sortOrder: je.sort_order,
+          isProcessed: je.is_processed,
+          processedAt: je.processed_at
         })
       }
     }
   }
 
   return {
-    id: capture.id,
-    eventText: capture.event_text,
-    referenceDate: capture.reference_date,
-    referenceTimeDescription: capture.reference_time_description,
-    status: capture.status as JournalEntryDetail['status'],
-    extractionRaw: capture.extraction_raw,
-    processingError: capture.processing_error,
-    createdAt: capture.created_at,
-    updatedAt: capture.updated_at,
-    processedAt: capture.processed_at,
-    completedAt: capture.completed_at,
+    id: entry.id,
+    eventText: entry.event_text,
+    referenceDate: entry.reference_date,
+    referenceTimeDescription: entry.reference_time_description,
+    status: entry.status as JournalEntryDetail['status'],
+    extractionRaw: entry.extraction_raw,
+    processingError: entry.processing_error,
+    createdAt: entry.created_at,
+    updatedAt: entry.updated_at,
+    processedAt: entry.processed_at,
+    completedAt: entry.completed_at,
     evidence
   }
 }
@@ -188,7 +188,7 @@ async function updateJournalEntry(
   }
 
   const { error: updateError } = await client
-    .from('captures')
+    .from('journal_entries')
     .update(updates)
     .eq('id', id)
     .eq('user_id', userId)
@@ -207,15 +207,15 @@ async function deleteJournalEntry(
   userId: string,
   id: string
 ): Promise<void> {
-  // Delete capture_evidence links first
+  // Delete journal_entry_evidence links first
   await client
-    .from('capture_evidence')
+    .from('journal_entry_evidence')
     .delete()
-    .eq('capture_id', id)
+    .eq('journal_entry_id', id)
 
-  // Delete the capture
+  // Delete the journal entry
   const { error: deleteError } = await client
-    .from('captures')
+    .from('journal_entries')
     .delete()
     .eq('id', id)
     .eq('user_id', userId)

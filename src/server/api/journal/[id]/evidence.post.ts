@@ -4,7 +4,7 @@ import type { Database } from '~/types/database.types'
 /**
  * POST /api/journal/[id]/evidence
  * 
- * Links an evidence item to a journal entry (capture).
+ * Links an evidence item to a journal entry.
  * Expects: { evidenceId: string, annotation?: string }
  */
 
@@ -21,8 +21,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
 
-  const captureId = getRouterParam(event, 'id')
-  if (!captureId) {
+  const journalEntryId = getRouterParam(event, 'id')
+  if (!journalEntryId) {
     throw createError({ statusCode: 400, statusMessage: 'Missing journal entry ID' })
   }
 
@@ -33,15 +33,15 @@ export default defineEventHandler(async (event) => {
 
   const client = await serverSupabaseClient<Database>(event)
 
-  // Verify the capture belongs to the user
-  const { data: capture, error: captureError } = await client
-    .from('captures')
+  // Verify the journal entry belongs to the user
+  const { data: entry, error: entryError } = await client
+    .from('journal_entries')
     .select('id')
-    .eq('id', captureId)
+    .eq('id', journalEntryId)
     .eq('user_id', userId)
     .single()
 
-  if (captureError || !capture) {
+  if (entryError || !entry) {
     throw createError({ statusCode: 404, statusMessage: 'Journal entry not found' })
   }
 
@@ -65,11 +65,11 @@ export default defineEventHandler(async (event) => {
       .eq('id', body.evidenceId)
   }
 
-  // Get the current max sort_order for this capture
+  // Get the current max sort_order for this journal entry
   const { data: existingLinks } = await client
-    .from('capture_evidence')
+    .from('journal_entry_evidence')
     .select('sort_order')
-    .eq('capture_id', captureId)
+    .eq('journal_entry_id', journalEntryId)
     .order('sort_order', { ascending: false })
     .limit(1)
 
@@ -77,9 +77,9 @@ export default defineEventHandler(async (event) => {
 
   // Check if already linked
   const { data: existingLink } = await client
-    .from('capture_evidence')
+    .from('journal_entry_evidence')
     .select('id')
-    .eq('capture_id', captureId)
+    .eq('journal_entry_id', journalEntryId)
     .eq('evidence_id', body.evidenceId)
     .single()
 
@@ -88,11 +88,11 @@ export default defineEventHandler(async (event) => {
     return { success: true, alreadyLinked: true }
   }
 
-  // Link evidence to capture
+  // Link evidence to journal entry
   const { error: linkError } = await client
-    .from('capture_evidence')
+    .from('journal_entry_evidence')
     .insert({
-      capture_id: captureId,
+      journal_entry_id: journalEntryId,
       evidence_id: body.evidenceId,
       sort_order: nextSortOrder,
       is_processed: true,
@@ -100,7 +100,7 @@ export default defineEventHandler(async (event) => {
     })
 
   if (linkError) {
-    console.error('Failed to link evidence to capture:', linkError)
+    console.error('Failed to link evidence to journal entry:', linkError)
     throw createError({ statusCode: 500, statusMessage: 'Failed to attach evidence' })
   }
 
