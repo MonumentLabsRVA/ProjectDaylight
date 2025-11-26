@@ -85,6 +85,56 @@ export interface InsightItem {
 
 export type ExportFocus = 'full-timeline' | 'incidents-only' | 'positive-parenting'
 
+// Billing / Subscription types (Stripe-ready structure)
+export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'unpaid' | 'paused'
+export type PlanTier = 'free' | 'starter' | 'pro' | 'enterprise'
+export type BillingInterval = 'month' | 'year'
+
+export interface PricingPlan {
+  id: string
+  tier: PlanTier
+  name: string
+  description: string
+  priceMonthly: number
+  priceYearly: number
+  features: string[]
+  highlighted?: boolean
+  comingSoon?: boolean // Plan is not yet available for purchase
+  stripePriceIdMonthly?: string // Will be set when Stripe is integrated
+  stripePriceIdYearly?: string
+}
+
+export interface Subscription {
+  id: string
+  userId: string
+  status: SubscriptionStatus
+  planTier: PlanTier
+  billingInterval: BillingInterval
+  currentPeriodStart: string
+  currentPeriodEnd: string
+  cancelAtPeriodEnd: boolean
+  stripeCustomerId?: string | null
+  stripeSubscriptionId?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface BillingInfo {
+  subscription: Subscription | null
+  plans: PricingPlan[]
+}
+
+export interface CreateSubscriptionPayload {
+  planTier: PlanTier
+  billingInterval: BillingInterval
+}
+
+export interface UpdateSubscriptionPayload {
+  planTier?: PlanTier
+  billingInterval?: BillingInterval
+  cancelAtPeriodEnd?: boolean
+}
+
 export interface ExportMetadata {
   case_title?: string
   court_name?: string

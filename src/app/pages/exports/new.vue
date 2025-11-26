@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { EvidenceItem, TimelineEvent, EventType, ExportFocus, ExportMetadata } from '~/types'
+import type { EvidenceItem, TimelineEvent, EventType, ExportFocus, ExportMetadata, SavedExport } from '~/types'
 
 const session = useSupabaseSession()
 const toast = useToast()
@@ -387,7 +387,7 @@ async function generateAndSaveExport() {
       ai_summary_included: !!aiSummary.value
     }
 
-    const response = await $fetch('/api/exports', {
+    const response = await $fetch<{ export: SavedExport }>('/api/exports', {
       method: 'POST',
       body: {
         title,
@@ -427,18 +427,22 @@ async function generateAndSaveExport() {
     <template #header>
       <UDashboardNavbar title="New Export">
         <template #leading>
-          <div class="flex items-center gap-2">
-            <UButton
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-arrow-left"
-              size="sm"
-              to="/exports"
-            />
-            <UDashboardSidebarCollapse />
-          </div>
+          <UDashboardSidebarCollapse />
         </template>
       </UDashboardNavbar>
+
+      <!-- Secondary toolbar with back button -->
+      <div class="shrink-0 flex items-center gap-3 px-4 sm:px-6 py-3 border-b border-default bg-elevated/30">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          icon="i-lucide-arrow-left"
+          to="/exports"
+        >
+          Exports
+        </UButton>
+      </div>
     </template>
 
     <template #body>
