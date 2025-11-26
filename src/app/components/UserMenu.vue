@@ -9,6 +9,7 @@ const colorMode = useColorMode()
 const supabase = useSupabaseClient()
 const supabaseUser = useSupabaseUser()
 const router = useRouter()
+const toast = useToast()
 
 type JwtUser = {
   email?: string
@@ -52,7 +53,13 @@ const user = computed(() => {
 
 async function handleLogout() {
   await supabase.auth.signOut()
-  await router.push('/auth/login')
+  await router.push('/')
+
+  toast.add({
+    title: 'Logged out',
+    description: 'You have been signed out of your account.',
+    icon: 'i-lucide-log-out'
+  })
 }
 
 const items = computed<DropdownMenuItem[][]>(() => ([[{
