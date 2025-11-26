@@ -1,12 +1,13 @@
 # Project Daylight - Product Vision & Strategy
 
 *Last Updated: November 2024*
+*Revised: November 2024 - Updated terminology from "captures" to "journal entries"*
 
 ---
 
 ## Executive Summary
 
-**Project Daylight** (working name) is an AI-powered evidence and timeline platform designed specifically for parents navigating high-stakes family court situations. It transforms the chaos of divorce, custody disputes, and co-parenting conflicts into clear, court-ready documentation through effortless capture, automatic organization, and intelligent analysis.
+**Project Daylight** (working name) is an AI-powered evidence and timeline platform designed specifically for parents navigating high-stakes family court situations. It transforms the chaos of divorce, custody disputes, and co-parenting conflicts into clear, court-ready documentation through effortless journaling, automatic organization, and intelligent analysis.
 
 ### Core Value Proposition
 > "Transform exhausted scribbles into court-ready evidence."
@@ -41,11 +42,11 @@ Current solutions fail because:
 
 ## Product Philosophy
 
-### 1. Zero Friction Capture
+### 1. Zero Friction Journaling
 *"If it requires effort, it won't get documented."*
-- Voice notes while driving
-- Screenshot and forget
-- Forward and done
+- Voice journal entries while driving
+- Attach screenshots with a tap
+- Write quick entries when voice isn't convenient
 
 ### 2. Automatic Intelligence
 *"The AI is your paralegal, not your therapist."*
@@ -96,27 +97,36 @@ Current solutions fail because:
 ### Core User Journey
 
 ```
-Chaos → Capture → Structure → Insight → Output
+Chaos → Journal → Structure → Insight → Output
 ```
 
-### 1. Capture Layer
+### 1. Journal Entry Layer
 
-**Quick Capture Button** (Home Screen Hero)
+The **Journal Entry** is the primary unit of user input in Daylight. It represents a narrative moment—what happened, when it happened, and optionally, supporting evidence. Journal entries are the raw material that gets processed into structured timeline events.
+
+**Voice Journal Entry** (Home Screen Hero)
 - Single tap to voice record
 - Auto-transcribe with timestamp
+- AI extracts structured events from natural speech
 - Background processing
 
-**Screenshot Ingestion**
-- Gallery import or direct capture
-- OCR text extraction
-- Auto-link to timeline
+**Written Journal Entry**
+- Quick text input for when voice isn't convenient
+- Reference date picker for "when did this happen"
+- Attach evidence inline
 
-**Email Forwarding**
+**Evidence Attachment**
+- Attach screenshots, photos, documents to any journal entry
+- Add annotations explaining what each piece shows
+- AI analyzes evidence and incorporates into event extraction
+
+**Email Forwarding** (Future)
 - Unique inbox per user
 - Parse sender, date, content
 - Extract attachments
+- Auto-create journal entry from email
 
-**Calendar Sync** (Optional)
+**Calendar Sync** (Future)
 - Pull custody schedule
 - Import parenting events
 - Auto-document activities
@@ -193,10 +203,10 @@ Chaos → Capture → Structure → Insight → Output
 **1. Home Screen**
 ```
 [Header: Date | Settings]
-[Big Capture Button]
+[New Journal Entry Button]
 [Today's Summary Card]
 [Recent Events List]
-[Bottom Nav: Home | Timeline | Evidence | Insights | Export]
+[Bottom Nav: Home | Journal | Timeline | Evidence | Export]
 ```
 
 **2. Timeline Screen**
@@ -241,7 +251,15 @@ Chaos → Capture → Structure → Insight → Output
 
 ### Data Model (Conceptual)
 
-**Event**
+**Journal Entry**
+- The primary input unit—a user's narrative about what happened
+- Event text (voice transcript or written description)
+- Reference date (when the events occurred)
+- Processing status (draft → processing → review → completed)
+- Extraction result (structured events extracted by AI)
+- Attached evidence items
+
+**Event** (extracted from Journal Entries)
 - Timestamp
 - Type (positive/incident/medical/etc)
 - Description
@@ -249,13 +267,16 @@ Chaos → Capture → Structure → Insight → Output
 - Location (optional)
 - Evidence links
 - AI-generated tags
+- Source journal entry reference
 
 **Evidence**
 - Source type (text/email/photo/document)
 - Original content
-- Extracted text
+- Extracted text (OCR/AI analysis)
+- User annotation (context provided by user)
 - Metadata
 - Event associations
+- Journal entry associations
 
 **Insight**
 - Query
@@ -326,7 +347,7 @@ Chaos → Capture → Structure → Insight → Output
 
 ### User Success
 - Time from chaos to first export: <24 hours
-- Events captured per week: >20
+- Journal entries per week: >5 (yielding 20+ structured events)
 - Documentation completeness: >80%
 
 ### Business Success
@@ -361,7 +382,7 @@ Chaos → Capture → Structure → Insight → Output
 ## Development Principles
 
 ### Technical Philosophy
-- **Mobile-first:** Most capture happens on phones
+- **Mobile-first:** Most journaling happens on phones
 - **Offline-capable:** Court happens in dead zones
 - **AI-powered:** Every interaction should feel magical
 - **Privacy-first:** This is sensitive data
@@ -377,18 +398,19 @@ Chaos → Capture → Structure → Insight → Output
 ## Roadmap & Future Directions
 
 ### Next 3 Months: Core MVP
-- **Month 1:** Capture + Timeline
-  - Voice capture with transcription
-  - Screenshot import + storage in Supabase
-  - Screenshot OCR and parsing into structured evidence
+- **Month 1:** Journal + Timeline
+  - Voice journal entries with transcription
+  - Written journal entries with date picker
+  - Evidence attachment to journal entries
+  - AI extraction of structured events from entries
   - Basic chronological timeline
   - Simple PDF export
   
 - **Month 2:** Intelligence Layer
-  - AI event extraction from voice notes
+  - AI event extraction refinement
   - Pattern recognition on real user data
   - Basic contradiction detection
-  - Evidence linking (events ↔ evidence ↔ communications)
+  - Evidence linking (events ↔ evidence ↔ journal entries)
   
 - **Month 3:** Market Entry
   - Payment processing
@@ -436,13 +458,15 @@ The focus remains on achieving sustainable revenue through the core evidence man
 ## Immediate Next Steps
 
 ### Now
-- [ ] Ship a reliable screenshot/photo → Supabase storage → Evidence flow
-- [ ] Make OCR’d text from screenshots clearly visible and searchable in Evidence
-- [ ] Tighten the Export center around real data (timeline + evidence)
+- [x] Journal entry creation flow (voice + text input)
+- [x] Evidence attachment to journal entries
+- [x] AI extraction of structured events from journal entries
+- [ ] Tighten the Export center around real data (timeline + evidence + journal entries)
 
 ### Next
 - [ ] Add a simple AI interpreter surface (chat-style UI) on top of stored timeline + evidence
 - [ ] Start limited testing with a small group of real users (3–10) and refine flows
+- [ ] Journal entry history view with filtering and search
 
 ---
 
