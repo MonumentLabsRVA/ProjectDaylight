@@ -30,21 +30,7 @@ watch(error, async (err: any) => {
   }
 })
 
-const statusColors: Record<string, 'success' | 'error' | 'info' | 'warning' | 'neutral'> = {
-  draft: 'neutral',
-  processing: 'warning',
-  review: 'info',
-  completed: 'success',
-  cancelled: 'error'
-}
-
-const statusIcons: Record<string, string> = {
-  draft: 'i-lucide-pencil',
-  processing: 'i-lucide-loader-2',
-  review: 'i-lucide-eye',
-  completed: 'i-lucide-check-circle',
-  cancelled: 'i-lucide-x-circle'
-}
+// We currently only surface "draft" vs a generic saved entry in the UI.
 
 const sourceTypeIcons: Record<string, string> = {
   photo: 'i-lucide-image',
@@ -440,13 +426,23 @@ watch(
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div class="flex items-center gap-3">
                 <UBadge
-                  :color="statusColors[data.status]"
+                  v-if="data.status === 'draft'"
+                  color="neutral"
                   variant="subtle"
                   size="lg"
                   class="capitalize"
                 >
-                  <UIcon :name="statusIcons[data.status]" class="size-3.5 mr-1" />
-                  {{ data.status }}
+                  <UIcon name="i-lucide-pencil" class="size-3.5 mr-1" />
+                  Draft
+                </UBadge>
+                <UBadge
+                  v-else
+                  color="primary"
+                  variant="subtle"
+                  size="lg"
+                >
+                  <UIcon name="i-lucide-book-open" class="size-3.5 mr-1" />
+                  Journal entry
                 </UBadge>
 
                 <div v-if="data.referenceDate">
@@ -731,7 +727,9 @@ watch(
             </div>
             <div>
               <p class="text-xs text-muted">Status</p>
-              <p class="capitalize">{{ data.status }}</p>
+              <p class="capitalize">
+                {{ data.status === 'draft' ? 'Draft' : 'Saved' }}
+              </p>
             </div>
             <div>
               <p class="text-xs text-muted">Created</p>

@@ -18,24 +18,37 @@ watch(session, (newSession) => {
 })
 
 // Filter states
-const selectedStatuses = ref<string[]>([])
+const selectedTypes = ref<string[]>([])
 const searchQuery = ref('')
 const sortOrder = ref<'newest' | 'oldest'>('newest')
 
-const statusOptions = [
-  { value: 'draft', label: 'Draft', icon: 'i-lucide-pencil', color: 'neutral' as const },
-  { value: 'processing', label: 'Processing', icon: 'i-lucide-loader-2', color: 'warning' as const },
-  { value: 'review', label: 'Review', icon: 'i-lucide-eye', color: 'info' as const },
-  { value: 'completed', label: 'Completed', icon: 'i-lucide-check-circle', color: 'success' as const },
-  { value: 'cancelled', label: 'Cancelled', icon: 'i-lucide-x-circle', color: 'error' as const }
+// Category filters (derived from extracted events)
+const typeOptions = [
+  { value: 'incident', label: 'Incidents', icon: 'i-lucide-alert-triangle', color: 'error' as const },
+  { value: 'school', label: 'School', icon: 'i-lucide-graduation-cap', color: 'warning' as const },
+  { value: 'medical', label: 'Medical', icon: 'i-lucide-stethoscope', color: 'info' as const },
+  { value: 'communication', label: 'Communication', icon: 'i-lucide-messages-square', color: 'primary' as const },
+  { value: 'legal', label: 'Legal', icon: 'i-lucide-scale', color: 'neutral' as const },
+  { value: 'positive', label: 'Positive', icon: 'i-lucide-smile-plus', color: 'success' as const }
 ]
 
-const statusColors: Record<string, 'success' | 'error' | 'info' | 'warning' | 'neutral'> = {
-  draft: 'neutral',
-  processing: 'warning',
-  review: 'info',
-  completed: 'success',
-  cancelled: 'error'
+function eventTypeColor(type: string): 'primary' | 'success' | 'info' | 'warning' | 'error' | 'neutral' {
+  switch (type) {
+    case 'incident':
+      return 'error'
+    case 'medical':
+      return 'info'
+    case 'school':
+      return 'warning'
+    case 'positive':
+      return 'success'
+    case 'communication':
+      return 'primary'
+    case 'legal':
+      return 'neutral'
+    default:
+      return 'neutral'
+  }
 }
 
 // Filtered and sorted entries
@@ -51,9 +64,12 @@ const filteredEntries = computed(() => {
     )
   }
 
-  // Filter by status
-  if (selectedStatuses.value.length > 0) {
-    entries = entries.filter(entry => selectedStatuses.value.includes(entry.status))
+  // Filter by event categories (incident, school, medical, etc.)
+  if (selectedTypes.value.length > 0) {
+    entries = entries.filter(entry =>
+      Array.isArray(entry.eventTypes) &&
+      entry.eventTypes.some(type => selectedTypes.value.includes(type))
+    )
   }
 
   // Sort
@@ -87,20 +103,20 @@ const entriesByDate = computed(() => {
 })
 
 const hasActiveFilters = computed(() => {
-  return selectedStatuses.value.length > 0 || searchQuery.value.length > 0
+  return selectedTypes.value.length > 0 || searchQuery.value.length > 0
 })
 
 function clearFilters() {
-  selectedStatuses.value = []
+  selectedTypes.value = []
   searchQuery.value = ''
 }
 
-function toggleStatus(status: string) {
-  const index = selectedStatuses.value.indexOf(status)
+function toggleType(type: string) {
+  const index = selectedTypes.value.indexOf(type)
   if (index > -1) {
-    selectedStatuses.value.splice(index, 1)
+    selectedTypes.value.splice(index, 1)
   } else {
-    selectedStatuses.value.push(status)
+    selectedTypes.value.push(type)
   }
 }
 
@@ -190,7 +206,7 @@ function truncateText(text: string | null, maxLength: number) {
       <!-- Toolbar -->
       <div class="shrink-0 flex items-center justify-between border-b border-default px-4 sm:px-6 gap-4 overflow-x-auto min-h-[49px] py-2">
         <div class="flex items-center gap-2">
-          <!-- Status Filter -->
+          <!-- Category Filter -->
           <UPopover>
             <UButton
               variant="soft"
@@ -199,26 +215,26 @@ function truncateText(text: string | null, maxLength: number) {
               icon="i-lucide-filter"
               trailing-icon="i-lucide-chevron-down"
             >
-              <span v-if="selectedStatuses.length > 0">
-                Status ({{ selectedStatuses.length }})
+              <span v-if="selectedTypes.length > 0">
+                Categories ({{ selectedTypes.length }})
               </span>
-              <span v-else>All Statuses</span>
+              <span v-else>All Categories</span>
             </UButton>
 
             <template #content>
               <div class="p-2 w-56">
-                <p class="text-xs font-medium text-muted mb-2 px-2">Entry Status</p>
+                <p class="text-xs font-medium text-muted mb-2 px-2">Entry Categories</p>
 
                 <div class="space-y-1">
                   <label
-                    v-for="opt in statusOptions"
+                    v-for="opt in typeOptions"
                     :key="opt.value"
                     class="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 transition-colors cursor-pointer"
                   >
                     <UCheckbox
-                      :model-value="selectedStatuses.includes(opt.value)"
+                      :model-value="selectedTypes.includes(opt.value)"
                       :ui="{ wrapper: 'pointer-events-none' }"
-                      @update:model-value="toggleStatus(opt.value)"
+                      @update:model-value="toggleType(opt.value)"
                     />
                     <UIcon :name="opt.icon" class="size-4" />
                     <span class="text-sm flex-1">{{ opt.label }}</span>
@@ -228,7 +244,7 @@ function truncateText(text: string | null, maxLength: number) {
                       variant="subtle"
                       :color="opt.color"
                     >
-                      {{ data.filter(e => e.status === opt.value).length }}
+                      {{ data.filter(e => Array.isArray(e.eventTypes) && e.eventTypes.includes(opt.value)).length }}
                     </UBadge>
                   </label>
                 </div>
@@ -240,7 +256,7 @@ function truncateText(text: string | null, maxLength: number) {
                     variant="ghost"
                     size="xs"
                     class="w-full"
-                    @click="selectedStatuses = []"
+                    @click="selectedTypes = []"
                   >
                     Clear
                   </UButton>
@@ -364,7 +380,23 @@ function truncateText(text: string | null, maxLength: number) {
                 <UCard
                   :ui="{
                     base: 'hover:bg-muted/5 transition-colors cursor-pointer border-l-4',
-                    root: entry.status === 'completed' ? 'border-l-success' : entry.status === 'draft' ? 'border-l-neutral' : 'border-l-warning'
+                    root: Array.isArray(entry.eventTypes)
+                      ? (
+                          entry.eventTypes.includes('incident')
+                            ? 'border-l-error'
+                            : entry.eventTypes.includes('medical')
+                              ? 'border-l-info'
+                              : entry.eventTypes.includes('school')
+                                ? 'border-l-warning'
+                                : entry.eventTypes.includes('positive')
+                                  ? 'border-l-success'
+                                  : entry.eventTypes.includes('communication')
+                                    ? 'border-l-primary'
+                                    : entry.eventTypes.includes('legal')
+                                      ? 'border-l-neutral'
+                                      : 'border-l-neutral'
+                        )
+                      : 'border-l-neutral'
                   }"
                 >
                   <div class="space-y-3">
@@ -377,12 +409,13 @@ function truncateText(text: string | null, maxLength: number) {
                     <div class="flex flex-wrap items-center justify-between gap-2">
                       <div class="flex items-center gap-2">
                         <UBadge
-                          :color="statusColors[entry.status]"
+                          v-if="Array.isArray(entry.eventTypes) && entry.eventTypes.length"
+                          :color="eventTypeColor(entry.eventTypes[0])"
                           variant="subtle"
                           size="xs"
                           class="capitalize"
                         >
-                          {{ entry.status }}
+                          {{ entry.eventTypes[0] }}
                         </UBadge>
 
                         <span

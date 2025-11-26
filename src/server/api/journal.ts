@@ -7,6 +7,11 @@ export interface JournalEntry {
   referenceDate: string | null
   referenceTimeDescription: string | null
   status: 'draft' | 'processing' | 'review' | 'completed' | 'cancelled'
+  /**
+   * High-level categories inferred from extracted events in extraction_raw.
+   * Used for journal filters like "incident", "school", "medical", etc.
+   */
+  eventTypes: Database['public']['Enums']['event_type'][]
   createdAt: string
   updatedAt: string
   processedAt: string | null
@@ -40,6 +45,7 @@ export default defineEventHandler(async (event): Promise<JournalEntry[]> => {
       reference_date,
       reference_time_description,
       status,
+      extraction_raw,
       created_at,
       updated_at,
       processed_at,
@@ -102,12 +108,27 @@ export default defineEventHandler(async (event): Promise<JournalEntry[]> => {
   // Map to response format
   return captures.map(capture => {
     const evidence = evidenceByCapture.get(capture.id) || []
+
+    // Derive high-level event categories from extraction_raw, if present
+    const raw = (capture as any).extraction_raw as any | null
+    const eventTypes: JournalEntry['eventTypes'] = []
+
+    if (raw && Array.isArray(raw.events)) {
+      for (const ev of raw.events) {
+        const type = ev?.type as Database['public']['Enums']['event_type'] | undefined
+        if (type && !eventTypes.includes(type)) {
+          eventTypes.push(type)
+        }
+      }
+    }
+
     return {
       id: capture.id,
       eventText: capture.event_text,
       referenceDate: capture.reference_date,
       referenceTimeDescription: capture.reference_time_description,
       status: capture.status as JournalEntry['status'],
+      eventTypes,
       createdAt: capture.created_at,
       updatedAt: capture.updated_at,
       processedAt: capture.processed_at,

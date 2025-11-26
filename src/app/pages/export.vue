@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import type { EvidenceItem, TimelineEvent, EventType, SavedExport, ExportFocus, ExportMetadata } from '~/types'
+import type {
+  EvidenceItem,
+  EvidenceSourceType,
+  TimelineEvent,
+  EventType,
+  SavedExport,
+  ExportFocus,
+  ExportMetadata
+} from '~/types'
 
 // Supabase session; data fetching uses cookie-based auth via useFetch
 const session = useSupabaseSession()
@@ -274,6 +282,40 @@ const filteredEvents = computed(() => {
   return events
 })
 
+function buildEvidenceSummaryForEvent(event: TimelineEvent): string | null {
+  if (!event.evidenceIds?.length) return null
+  const items = (evidenceData.value || []) as EvidenceItem[]
+  if (!items.length) return null
+
+  const counts: Record<EvidenceSourceType, number> = {
+    text: 0,
+    email: 0,
+    photo: 0,
+    document: 0
+  }
+
+  for (const evidenceId of event.evidenceIds) {
+    const match = items.find((item) => item.id === evidenceId)
+    if (!match) continue
+    counts[match.sourceType] = (counts[match.sourceType] ?? 0) + 1
+  }
+
+  const parts: string[] = []
+
+  const pushPart = (count: number, singular: string, plural: string) => {
+    if (!count) return
+    parts.push(`${count} ${count === 1 ? singular : plural}`)
+  }
+
+  pushPart(counts.photo, 'photo', 'photos')
+  pushPart(counts.text, 'text message', 'text messages')
+  pushPart(counts.email, 'email', 'emails')
+  pushPart(counts.document, 'document', 'documents')
+
+  if (!parts.length) return null
+  return parts.join(', ')
+}
+
 function buildMarkdown() {
   const lines: string[] = []
 
@@ -338,8 +380,9 @@ function buildMarkdown() {
         lines.push(`   - Participants: ${event.participants.join(', ')}`)
       }
 
-      if (event.evidenceIds?.length) {
-        lines.push(`   - Linked evidence IDs: ${event.evidenceIds.join(', ')}`)
+      const evidenceSummary = buildEvidenceSummaryForEvent(event)
+      if (evidenceSummary) {
+        lines.push(`   - Evidence: ${evidenceSummary}`)
       }
 
       lines.push('')
@@ -780,7 +823,9 @@ async function downloadPdf() {
     } else {
       events.forEach((event, index) => {
         const descLines = event.description ? doc.splitTextToSize(event.description, contentWidth - 15).length : 0
-        const metaCount = (event.location ? 1 : 0) + (event.participants?.length ? 1 : 0) + (event.evidenceIds?.length ? 1 : 0)
+        const evidenceSummary = buildEvidenceSummaryForEvent(event)
+        const metaCount =
+          (event.location ? 1 : 0) + (event.participants?.length ? 1 : 0) + (evidenceSummary ? 1 : 0)
         const estimatedHeight = 20 + (descLines * 14) + (metaCount * 14) + 10
         
         ensureSpace(estimatedHeight)
@@ -832,10 +877,8 @@ async function downloadPdf() {
           cursorY += 12
         }
 
-        if (event.evidenceIds?.length) {
-          doc.setTextColor(0, 100, 200)
-          doc.text(`Evidence IDs: ${event.evidenceIds.join(', ')}`, margin + 15, cursorY)
-          doc.setTextColor(80, 80, 80)
+        if (evidenceSummary) {
+          doc.text(`Evidence: ${evidenceSummary}`, margin + 15, cursorY)
           cursorY += 12
         }
 
