@@ -1,7 +1,8 @@
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 import type { PricingPlan, Subscription, BillingInfo, PlanTier } from '~/types'
+import { isStripeConfigured } from '../utils/stripe'
 
-// Define pricing plans - these would eventually come from Stripe or a config
+// Define pricing plans
 const PRICING_PLANS: PricingPlan[] = [
   {
     id: 'plan_free',
@@ -33,7 +34,9 @@ const PRICING_PLANS: PricingPlan[] = [
       'Priority support',
       'Chat with your case (Coming Soon)'
     ],
-    highlighted: true
+    highlighted: true,
+    stripePriceIdMonthly: process.env.STRIPE_PRICE_PRO_MONTHLY,
+    stripePriceIdYearly: process.env.STRIPE_PRICE_PRO_YEARLY
   },
   {
     id: 'plan_counsel',
@@ -86,10 +89,9 @@ function mapRowToSubscription(row: SubscriptionRow): Subscription {
   }
 }
 
-export default eventHandler(async (event): Promise<BillingInfo> => {
+export default eventHandler(async (event): Promise<BillingInfo & { stripeConfigured: boolean }> => {
   const supabase = await serverSupabaseClient(event)
 
-  // Resolve authenticated user
   const authUser = await serverSupabaseUser(event)
   const userId = authUser?.sub || authUser?.id
 
@@ -101,10 +103,8 @@ export default eventHandler(async (event): Promise<BillingInfo> => {
   }
 
   // Fetch user's subscription
-  // Note: Using 'as any' because the subscriptions table type isn't generated yet
-  // Once the migration is run and types are regenerated, this can be typed properly
   let subscription: Subscription | null = null
-  
+
   try {
     const { data, error } = await (supabase as any)
       .from('subscriptions')
@@ -113,19 +113,17 @@ export default eventHandler(async (event): Promise<BillingInfo> => {
       .maybeSingle()
 
     if (error && error.code !== 'PGRST116' && error.code !== '42P01') {
-      // 42P01 = table does not exist (migration not run yet)
       console.error('Supabase select subscription error:', error)
     } else if (data) {
       subscription = mapRowToSubscription(data as SubscriptionRow)
     }
   } catch (err) {
-    // Table might not exist yet - that's OK, just return null subscription
-    console.warn('Could not fetch subscription (table may not exist yet):', err)
+    console.warn('Could not fetch subscription:', err)
   }
 
   return {
     subscription,
-    plans: PRICING_PLANS
+    plans: PRICING_PLANS,
+    stripeConfigured: isStripeConfigured()
   }
 })
-

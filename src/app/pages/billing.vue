@@ -1,36 +1,60 @@
 <script setup lang="ts">
-import type { BillingInfo, PricingPlan, Subscription, BillingInterval, PlanTier } from '~/types'
+import type { BillingInfo, BillingInterval, PricingPlan } from '~/types'
 
 const toast = useToast()
+const route = useRoute()
+
+// Check for success/canceled from Stripe redirect
+onMounted(() => {
+  if (route.query.success === 'true') {
+    toast.add({
+      title: 'Subscription activated!',
+      description: 'Welcome to Pro. Your subscription is now active.',
+      color: 'success',
+      icon: 'i-lucide-check-circle'
+    })
+    // Clean up URL
+    navigateTo('/billing', { replace: true })
+  } else if (route.query.canceled === 'true') {
+    toast.add({
+      title: 'Checkout canceled',
+      description: 'No changes were made to your subscription.',
+      color: 'neutral',
+      icon: 'i-lucide-x-circle'
+    })
+    navigateTo('/billing', { replace: true })
+  }
+})
 
 // Fetch billing info
-const { data: billingData, status: fetchStatus, refresh } = await useFetch<BillingInfo>('/api/billing', {
+const { data: billingData, status: fetchStatus, refresh } = await useFetch<BillingInfo & { stripeConfigured: boolean }>('/api/billing', {
   headers: useRequestHeaders(['cookie'])
 })
 
 const subscription = computed(() => billingData.value?.subscription ?? null)
 const plans = computed(() => billingData.value?.plans ?? [])
+const stripeConfigured = computed(() => billingData.value?.stripeConfigured ?? false)
 
 // Local state
 const selectedInterval = ref<BillingInterval>('month')
-const isUpdating = ref(false)
-const showCancelModal = ref(false)
+const isLoading = ref(false)
 
 // Get current plan
 const currentPlan = computed(() => {
-  if (!subscription.value) return null
+  if (!subscription.value) return plans.value.find(p => p.tier === 'free') ?? null
   return plans.value.find(p => p.tier === subscription.value?.planTier) ?? null
+})
+
+const proPlan = computed(() => plans.value.find(p => p.tier === 'pro'))
+
+const isPro = computed(() => {
+  return subscription.value?.planTier === 'pro' && subscription.value?.status === 'active'
 })
 
 // Format price
 function formatPrice(price: number): string {
   if (price === 0) return 'Free'
   return `$${price.toFixed(2)}`
-}
-
-// Get price for selected interval
-function getPriceForInterval(plan: PricingPlan): number {
-  return selectedInterval.value === 'year' ? plan.priceYearly : plan.priceMonthly
 }
 
 // Format date
@@ -42,133 +66,8 @@ function formatDate(dateStr: string): string {
   })
 }
 
-// Check if plan is current
-function isCurrentPlan(plan: PricingPlan): boolean {
-  return subscription.value?.planTier === plan.tier
-}
-
-// Check if plan is upgrade
-function isUpgrade(plan: PricingPlan): boolean {
-  if (!subscription.value) return true
-  const tierOrder: PlanTier[] = ['free', 'starter', 'pro', 'enterprise']
-  const currentIndex = tierOrder.indexOf(subscription.value.planTier)
-  const planIndex = tierOrder.indexOf(plan.tier)
-  return planIndex > currentIndex
-}
-
-// Subscribe or change plan
-async function selectPlan(plan: PricingPlan) {
-  if (isCurrentPlan(plan) && subscription.value?.billingInterval === selectedInterval.value) {
-    return
-  }
-
-  isUpdating.value = true
-
-  try {
-    const response = await $fetch<{ subscription: Subscription }>('/api/billing', {
-      method: 'POST',
-      body: {
-        planTier: plan.tier,
-        billingInterval: selectedInterval.value
-      }
-    })
-
-    if (response.subscription) {
-      await refresh()
-      
-      toast.add({
-        title: 'Subscription updated',
-        description: `You are now on the ${plan.name} plan`,
-        color: 'success',
-        icon: 'i-lucide-check-circle'
-      })
-    }
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Please try again later.'
-    toast.add({
-      title: 'Failed to update subscription',
-      description: message,
-      color: 'error',
-      icon: 'i-lucide-alert-circle'
-    })
-  } finally {
-    isUpdating.value = false
-  }
-}
-
-// Cancel subscription
-async function cancelSubscription() {
-  isUpdating.value = true
-  showCancelModal.value = false
-
-  try {
-    const response = await $fetch<{ subscription: Subscription }>('/api/billing', {
-      method: 'PATCH',
-      body: {
-        cancelAtPeriodEnd: true
-      }
-    })
-
-    if (response.subscription) {
-      await refresh()
-      
-      toast.add({
-        title: 'Subscription canceled',
-        description: 'Your subscription will remain active until the end of your billing period.',
-        color: 'warning',
-        icon: 'i-lucide-calendar-x'
-      })
-    }
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Please try again later.'
-    toast.add({
-      title: 'Failed to cancel subscription',
-      description: message,
-      color: 'error',
-      icon: 'i-lucide-alert-circle'
-    })
-  } finally {
-    isUpdating.value = false
-  }
-}
-
-// Reactivate subscription
-async function reactivateSubscription() {
-  isUpdating.value = true
-
-  try {
-    const response = await $fetch<{ subscription: Subscription }>('/api/billing', {
-      method: 'PATCH',
-      body: {
-        cancelAtPeriodEnd: false
-      }
-    })
-
-    if (response.subscription) {
-      await refresh()
-      
-      toast.add({
-        title: 'Subscription reactivated',
-        description: 'Your subscription will continue after your billing period.',
-        color: 'success',
-        icon: 'i-lucide-check-circle'
-      })
-    }
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Please try again later.'
-    toast.add({
-      title: 'Failed to reactivate subscription',
-      description: message,
-      color: 'error',
-      icon: 'i-lucide-alert-circle'
-    })
-  } finally {
-    isUpdating.value = false
-  }
-}
-
 // Status badge color
-function statusColor(status: Subscription['status']): 'success' | 'warning' | 'error' | 'info' | 'neutral' {
+function statusColor(status: string): 'success' | 'warning' | 'error' | 'info' | 'neutral' {
   switch (status) {
     case 'active':
     case 'trialing':
@@ -187,75 +86,84 @@ function statusColor(status: Subscription['status']): 'success' | 'warning' | 'e
   }
 }
 
-// Get button label for a plan
-function getButtonLabel(plan: PricingPlan): string {
-  if (plan.comingSoon) return 'Coming Soon'
-  if (isCurrentPlan(plan) && subscription.value?.billingInterval === selectedInterval.value) {
-    return 'Current Plan'
-  }
-  if (isCurrentPlan(plan)) {
-    return `Switch to ${selectedInterval.value === 'year' ? 'Yearly' : 'Monthly'}`
-  }
-  if (isUpgrade(plan)) {
-    return `Upgrade to ${plan.name}`
-  }
-  return `Downgrade to ${plan.name}`
-}
+// Redirect to Stripe Checkout
+async function upgradeToPro() {
+  isLoading.value = true
 
-// Transform plans for UPricingPlans component
-const pricingPlans = computed(() => {
-  return plans.value.map(plan => {
-    const price = getPriceForInterval(plan)
-    const isCurrent = isCurrentPlan(plan) && subscription.value?.billingInterval === selectedInterval.value
-    
-    // Transform features to include icons for "Coming Soon" items
-    const features = plan.features.map(feature => {
-      if (feature.includes('Coming Soon')) {
-        return { title: feature, icon: 'i-lucide-clock' }
+  try {
+    const response = await $fetch<{ url: string }>('/api/billing/checkout', {
+      method: 'POST',
+      body: {
+        interval: selectedInterval.value
       }
-      return { title: feature }
     })
 
-    return {
-      title: plan.name,
-      description: plan.description,
-      price: plan.comingSoon ? 'Contact Us' : formatPrice(price),
-      billingCycle: !plan.comingSoon && price > 0 ? `/${selectedInterval.value}` : undefined,
-      billingPeriod: !plan.comingSoon && selectedInterval.value === 'year' && price > 0 
-        ? `${formatPrice(plan.priceYearly / 12)}/mo billed annually` 
-        : undefined,
-      features,
-      badge: plan.comingSoon 
-        ? { label: 'Coming Soon', color: 'neutral' as const }
-        : plan.highlighted 
-          ? { label: 'Recommended', color: 'primary' as const }
-          : undefined,
-      highlight: plan.highlighted && !plan.comingSoon,
-      scale: plan.highlighted && !plan.comingSoon,
-      variant: plan.comingSoon ? 'subtle' as const : 'outline' as const,
-      button: {
-        label: getButtonLabel(plan),
-        color: plan.comingSoon 
-          ? 'neutral' as const 
-          : isCurrent 
-            ? 'neutral' as const 
-            : plan.highlighted 
-              ? 'primary' as const 
-              : 'neutral' as const,
-        variant: plan.comingSoon 
-          ? 'outline' as const 
-          : isCurrent 
-            ? 'outline' as const 
-            : plan.highlighted 
-              ? 'solid' as const 
-              : 'soft' as const,
-        disabled: plan.comingSoon || isCurrent,
-        loading: isUpdating.value,
-        onClick: () => { if (!plan.comingSoon) selectPlan(plan) }
-      }
+    if (response.url) {
+      window.location.href = response.url
     }
-  })
-})
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Please try again later.'
+    toast.add({
+      title: 'Checkout failed',
+      description: message,
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+    isLoading.value = false
+  }
+}
+
+// Redirect to Stripe Customer Portal
+async function manageBilling() {
+  isLoading.value = true
+
+  try {
+    const response = await $fetch<{ url: string }>('/api/billing/portal', {
+      method: 'POST'
+    })
+
+    if (response.url) {
+      window.location.href = response.url
+    }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Please try again later.'
+    toast.add({
+      title: 'Could not open billing portal',
+      description: message,
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+    isLoading.value = false
+  }
+}
+
+// Transform plan for UPricingCard
+function transformPlan(plan: PricingPlan, isCurrent: boolean) {
+  const price = selectedInterval.value === 'year' ? plan.priceYearly : plan.priceMonthly
+
+  return {
+    title: plan.name,
+    description: plan.description,
+    price: plan.comingSoon ? 'Contact Us' : formatPrice(price),
+    billingCycle: !plan.comingSoon && price > 0 ? `/${selectedInterval.value}` : undefined,
+    billingPeriod: !plan.comingSoon && selectedInterval.value === 'year' && price > 0
+      ? `${formatPrice(plan.priceYearly / 12)}/mo billed annually`
+      : undefined,
+    features: plan.features.map(f => ({
+      title: f,
+      icon: f.includes('Coming Soon') ? 'i-lucide-clock' : undefined
+    })),
+    badge: plan.comingSoon
+      ? { label: 'Coming Soon', color: 'neutral' as const }
+      : plan.highlighted
+        ? { label: 'Recommended', color: 'primary' as const }
+        : isCurrent
+          ? { label: 'Current', color: 'success' as const }
+          : undefined,
+    highlight: plan.highlighted && !plan.comingSoon,
+    variant: plan.comingSoon ? 'subtle' as const : 'outline' as const
+  }
+}
 </script>
 
 <template>
@@ -269,7 +177,7 @@ const pricingPlans = computed(() => {
     </template>
 
     <template #body>
-      <div class="p-4 sm:p-6 space-y-8 max-w-6xl mx-auto">
+      <div class="p-4 sm:p-6 space-y-8 max-w-4xl mx-auto">
         <!-- Loading State -->
         <div v-if="fetchStatus === 'pending'" class="flex items-center justify-center py-12">
           <UIcon name="i-lucide-loader-2" class="w-6 h-6 animate-spin text-muted" />
@@ -277,107 +185,172 @@ const pricingPlans = computed(() => {
         </div>
 
         <template v-else>
-          <!-- Current Subscription Card -->
-          <div v-if="subscription" class="space-y-4">
-            <h2 class="text-lg font-semibold text-highlighted">Current Subscription</h2>
-            
-            <UCard>
-              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div class="space-y-1">
-                  <div class="flex items-center gap-2">
-                    <span class="text-xl font-semibold text-highlighted">{{ currentPlan?.name ?? 'Unknown' }} Plan</span>
-                    <UBadge :color="statusColor(subscription.status)" variant="subtle" size="sm">
-                      {{ subscription.status }}
-                    </UBadge>
-                    <UBadge v-if="subscription.cancelAtPeriodEnd" color="warning" variant="subtle" size="sm">
-                      Canceling
+          <!-- Current Subscription Status -->
+          <UCard>
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div class="space-y-2">
+                <div class="flex items-center gap-3">
+                  <div class="p-2 rounded-lg bg-primary/10">
+                    <UIcon
+                      :name="isPro ? 'i-lucide-crown' : 'i-lucide-user'"
+                      class="w-6 h-6 text-primary"
+                    />
+                  </div>
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-xl font-semibold text-highlighted">
+                        {{ currentPlan?.name ?? 'Free' }} Plan
+                      </span>
+                      <UBadge
+                        v-if="subscription"
+                        :color="statusColor(subscription.status)"
+                        variant="subtle"
+                        size="sm"
+                      >
+                        {{ subscription.status }}
+                      </UBadge>
+                      <UBadge
+                        v-if="subscription?.cancelAtPeriodEnd"
+                        color="warning"
+                        variant="subtle"
+                        size="sm"
+                      >
+                        Canceling
+                      </UBadge>
+                    </div>
+                    <p class="text-sm text-muted">
+                      <template v-if="isPro && subscription">
+                        {{ formatPrice(selectedInterval === 'year' ? (proPlan?.priceYearly ?? 0) : (proPlan?.priceMonthly ?? 0)) }}/{{ subscription.billingInterval }}
+                        <span v-if="subscription.cancelAtPeriodEnd">
+                          · Access until {{ formatDate(subscription.currentPeriodEnd) }}
+                        </span>
+                        <span v-else>
+                          · Renews {{ formatDate(subscription.currentPeriodEnd) }}
+                        </span>
+                      </template>
+                      <template v-else>
+                        Free forever · Upgrade anytime
+                      </template>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex gap-2">
+                <UButton
+                  v-if="isPro && subscription?.stripeCustomerId"
+                  color="neutral"
+                  variant="soft"
+                  :loading="isLoading"
+                  @click="manageBilling"
+                >
+                  <UIcon name="i-lucide-settings" class="w-4 h-4 mr-1" />
+                  Manage Billing
+                </UButton>
+              </div>
+            </div>
+          </UCard>
+
+          <!-- Upgrade Section (for free users) -->
+          <template v-if="!isPro">
+            <div class="text-center space-y-4">
+              <h2 class="text-2xl font-bold text-highlighted">Upgrade to Pro</h2>
+              <p class="text-muted max-w-lg mx-auto">
+                Unlock unlimited journal entries, AI-powered features, and court-ready exports.
+              </p>
+
+              <!-- Billing Interval Toggle -->
+              <div class="inline-flex items-center gap-2 p-1 rounded-lg bg-elevated border border-default">
+                <button
+                  :class="[
+                    'px-4 py-2 text-sm font-medium rounded-md transition-all',
+                    selectedInterval === 'month'
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'text-muted hover:text-highlighted'
+                  ]"
+                  @click="selectedInterval = 'month'"
+                >
+                  Monthly
+                </button>
+                <button
+                  :class="[
+                    'px-4 py-2 text-sm font-medium rounded-md transition-all flex items-center gap-1.5',
+                    selectedInterval === 'year'
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'text-muted hover:text-highlighted'
+                  ]"
+                  @click="selectedInterval = 'year'"
+                >
+                  Yearly
+                  <span class="text-xs px-1.5 py-0.5 rounded-full bg-success/20 text-success font-semibold">
+                    Save 17%
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Pro Plan Card -->
+            <div v-if="proPlan" class="max-w-md mx-auto">
+              <UPricingPlan
+                v-bind="transformPlan(proPlan, false)"
+                highlight
+                :button="{
+                  label: stripeConfigured
+                    ? `Subscribe for ${formatPrice(selectedInterval === 'year' ? proPlan.priceYearly : proPlan.priceMonthly)}/${selectedInterval}`
+                    : 'Coming Soon',
+                  loading: isLoading,
+                  disabled: !stripeConfigured,
+                  onClick: upgradeToPro
+                }"
+              />
+            </div>
+
+            <!-- Compare Plans -->
+            <UAccordion
+              :items="[{
+                label: 'Compare all plans',
+                icon: 'i-lucide-list',
+                slot: 'compare'
+              }]"
+              class="mt-8"
+            >
+              <template #compare>
+                <div class="grid md:grid-cols-3 gap-4 pt-4">
+                  <UPricingPlan
+                    v-for="plan in plans"
+                    :key="plan.id"
+                    v-bind="transformPlan(plan, plan.tier === (subscription?.planTier ?? 'free'))"
+                    :class="{ 'opacity-60': plan.comingSoon }"
+                  />
+                </div>
+              </template>
+            </UAccordion>
+          </template>
+
+          <!-- Already Pro -->
+          <template v-else>
+            <UCard variant="subtle" class="border-primary/20 bg-primary/5">
+              <div class="flex items-start gap-4">
+                <div class="p-3 rounded-full bg-primary/10">
+                  <UIcon name="i-lucide-sparkles" class="w-6 h-6 text-primary" />
+                </div>
+                <div class="flex-1">
+                  <h3 class="font-semibold text-highlighted">You're on Pro!</h3>
+                  <p class="text-sm text-muted mt-1">
+                    Enjoy unlimited journal entries, AI-powered features, and priority support.
+                  </p>
+                  <div class="flex flex-wrap gap-2 mt-4">
+                    <UBadge v-for="feature in proPlan?.features.slice(0, 4)" :key="feature" variant="subtle" color="primary">
+                      {{ feature }}
                     </UBadge>
                   </div>
-                  
-                  <p class="text-sm text-muted">
-                    <span v-if="subscription.planTier === 'free'">
-                      Free forever
-                    </span>
-                    <span v-else>
-                      {{ formatPrice(getPriceForInterval(currentPlan!)) }}/{{ subscription.billingInterval }}
-                    </span>
-                  </p>
-                  
-                  <p v-if="subscription.planTier !== 'free'" class="text-xs text-muted">
-                    <span v-if="subscription.cancelAtPeriodEnd">
-                      Access until {{ formatDate(subscription.currentPeriodEnd) }}
-                    </span>
-                    <span v-else>
-                      Renews on {{ formatDate(subscription.currentPeriodEnd) }}
-                    </span>
-                  </p>
-                </div>
-
-                <div class="flex gap-2">
-                  <UButton
-                    v-if="subscription.cancelAtPeriodEnd && subscription.planTier !== 'free'"
-                    color="primary"
-                    variant="soft"
-                    :loading="isUpdating"
-                    @click="reactivateSubscription"
-                  >
-                    Reactivate
-                  </UButton>
-                  
-                  <UButton
-                    v-else-if="subscription.planTier !== 'free'"
-                    color="error"
-                    variant="ghost"
-                    :loading="isUpdating"
-                    @click="showCancelModal = true"
-                  >
-                    Cancel Subscription
-                  </UButton>
                 </div>
               </div>
             </UCard>
-          </div>
+          </template>
 
-          <!-- Billing Interval Toggle -->
-          <div class="flex flex-col items-center space-y-4">
-            <h2 class="text-lg font-semibold text-highlighted">
-              {{ subscription ? 'Change Plan' : 'Choose a Plan' }}
-            </h2>
-            
-            <div class="inline-flex items-center gap-2 p-1 rounded-lg bg-muted/10 border border-default">
-              <button
-                :class="[
-                  'px-4 py-2 text-sm font-medium rounded-md transition-all',
-                  selectedInterval === 'month' 
-                    ? 'bg-primary text-white shadow-sm' 
-                    : 'text-muted hover:text-highlighted'
-                ]"
-                @click="selectedInterval = 'month'"
-              >
-                Monthly
-              </button>
-              <button
-                :class="[
-                  'px-4 py-2 text-sm font-medium rounded-md transition-all flex items-center gap-1.5',
-                  selectedInterval === 'year' 
-                    ? 'bg-primary text-white shadow-sm' 
-                    : 'text-muted hover:text-highlighted'
-                ]"
-                @click="selectedInterval = 'year'"
-              >
-                Yearly
-                <span class="text-xs px-1.5 py-0.5 rounded-full bg-success/20 text-success font-semibold">
-                  Save 17%
-                </span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Pricing Plans using Nuxt UI -->
-          <UPricingPlans :plans="pricingPlans" scale compact class="max-w-5xl mx-auto" />
-
-          <!-- FAQ / Info Section -->
-          <UCard class="mt-8">
+          <!-- Billing Info -->
+          <UCard>
             <template #header>
               <div class="flex items-center gap-2">
                 <UIcon name="i-lucide-info" class="w-5 h-5 text-primary" />
@@ -395,18 +368,18 @@ const pricingPlans = computed(() => {
               </div>
 
               <div class="flex items-start gap-3">
-                <UIcon name="i-lucide-calendar" class="w-4 h-4 mt-0.5 text-primary" />
+                <UIcon name="i-lucide-shield-check" class="w-4 h-4 mt-0.5 text-primary" />
                 <div>
-                  <p class="font-medium text-highlighted">Flexible Billing</p>
-                  <p>Switch between monthly and yearly billing at any time. Changes take effect immediately.</p>
+                  <p class="font-medium text-highlighted">Cancel Anytime</p>
+                  <p>No long-term contracts. Cancel your subscription at any time from the billing portal.</p>
                 </div>
               </div>
 
               <div class="flex items-start gap-3">
-                <UIcon name="i-lucide-shield-check" class="w-4 h-4 mt-0.5 text-primary" />
+                <UIcon name="i-lucide-mail" class="w-4 h-4 mt-0.5 text-primary" />
                 <div>
-                  <p class="font-medium text-highlighted">Cancel Anytime</p>
-                  <p>No long-term contracts. Cancel your subscription at any time and keep access until the end of your billing period.</p>
+                  <p class="font-medium text-highlighted">Questions?</p>
+                  <p>Contact us at <a href="mailto:support@projectdaylight.com" class="text-primary hover:underline">support@projectdaylight.com</a></p>
                 </div>
               </div>
             </div>
@@ -414,60 +387,16 @@ const pricingPlans = computed(() => {
 
           <!-- Development Notice -->
           <UAlert
+            v-if="!stripeConfigured"
             color="warning"
             variant="subtle"
             icon="i-lucide-construction"
-            title="Development Mode"
-            description="This billing page is in development mode. No actual charges will be made. Stripe integration coming soon."
+            title="Stripe Not Configured"
+            description="Set STRIPE_SECRET_KEY and price IDs in your environment to enable billing."
             class="mt-4"
           />
         </template>
       </div>
     </template>
   </UDashboardPanel>
-
-  <!-- Cancel Confirmation Modal -->
-  <UModal v-model:open="showCancelModal">
-    <template #content>
-      <UCard>
-        <template #header>
-          <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-alert-triangle" class="w-5 h-5 text-warning" />
-            <span class="font-semibold text-highlighted">Cancel Subscription?</span>
-          </div>
-        </template>
-
-        <div class="space-y-4">
-          <p class="text-sm text-muted">
-            Are you sure you want to cancel your subscription? You'll continue to have access to {{ currentPlan?.name }} features until {{ subscription ? formatDate(subscription.currentPeriodEnd) : 'the end of your billing period' }}.
-          </p>
-
-          <div class="p-3 rounded-lg bg-warning/10 border border-warning/20">
-            <p class="text-sm text-warning">
-              After cancellation, you'll be downgraded to the Free plan with limited features.
-            </p>
-          </div>
-        </div>
-
-        <template #footer>
-          <div class="flex justify-end gap-2">
-            <UButton
-              color="neutral"
-              variant="ghost"
-              @click="showCancelModal = false"
-            >
-              Keep Subscription
-            </UButton>
-            <UButton
-              color="error"
-              :loading="isUpdating"
-              @click="cancelSubscription"
-            >
-              Yes, Cancel
-            </UButton>
-          </div>
-        </template>
-      </UCard>
-    </template>
-  </UModal>
 </template>

@@ -122,6 +122,7 @@ export interface Subscription {
 export interface BillingInfo {
   subscription: Subscription | null
   plans: PricingPlan[]
+  stripeConfigured?: boolean
 }
 
 export interface CreateSubscriptionPayload {
