@@ -3,7 +3,7 @@
  * 
  * Features:
  * - Auto-detects browser timezone on first visit
- * - Syncs timezone to auth.users metadata (raw_user_meta_data)
+ * - Syncs timezone to profiles table (not raw_user_meta_data)
  * - Provides timezone-aware date utilities
  * - Persists timezone preference
  */
@@ -121,38 +121,15 @@ export function formatDateInTimezone(
 }
 
 export function useTimezone() {
-  const supabase = useSupabaseClient()
   const user = useSupabaseUser()
+  const { profile, isFetched, updateProfile, isLoading: profileLoading } = useProfile()
   
-  // Reactive timezone state
+  // Reactive timezone state - initialized from profile or browser detection
   const userTimezone = useState<string>('user-timezone', () => detectBrowserTimezone())
   const isLoading = ref(false)
   const isSynced = ref(false)
 
-  // Fetch user's saved timezone from auth metadata
-  async function fetchTimezone() {
-    if (!user.value?.id) return
-
-    isLoading.value = true
-    try {
-      // User metadata is already available on the user object
-      const savedTimezone = user.value.user_metadata?.timezone
-      
-      if (savedTimezone && isValidTimezone(savedTimezone)) {
-        userTimezone.value = savedTimezone
-        isSynced.value = true
-      } else {
-        // No timezone saved, auto-detect and save
-        await saveTimezone(detectBrowserTimezone())
-      }
-    } catch (err) {
-      console.error('[useTimezone] Error:', err)
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  // Save timezone to auth user metadata
+  // Save timezone to profiles table
   async function saveTimezone(timezone: string): Promise<boolean> {
     if (!user.value?.id) return false
     if (!isValidTimezone(timezone)) {
@@ -162,42 +139,36 @@ export function useTimezone() {
 
     isLoading.value = true
     try {
-      const { error } = await supabase.auth.updateUser({
-        data: { timezone }
-      })
-
-      if (error) {
-        console.error('[useTimezone] Error saving timezone:', error)
-        return false
-      }
-
+      await updateProfile({ timezone })
       userTimezone.value = timezone
       isSynced.value = true
       return true
     } catch (err) {
-      console.error('[useTimezone] Error:', err)
+      console.error('[useTimezone] Error saving timezone:', err)
       return false
     } finally {
       isLoading.value = false
     }
   }
 
-  // Initialize on auth change
-  watch(user, async (newUser) => {
-    if (newUser?.id) {
-      // Check if user already has timezone in metadata
-      const savedTimezone = newUser.user_metadata?.timezone
-      if (savedTimezone && isValidTimezone(savedTimezone)) {
-        userTimezone.value = savedTimezone
-        isSynced.value = true
-      } else {
-        // Auto-detect and save on first login
-        await saveTimezone(detectBrowserTimezone())
-      }
-    } else {
+  // Sync timezone from profile when it's fetched
+  watch([profile, isFetched], async ([profileData, fetched]) => {
+    if (!user.value?.id) {
       // Reset to browser timezone when logged out
       userTimezone.value = detectBrowserTimezone()
       isSynced.value = false
+      return
+    }
+
+    if (fetched && profileData) {
+      const savedTimezone = profileData.timezone
+      if (savedTimezone && isValidTimezone(savedTimezone)) {
+        userTimezone.value = savedTimezone
+        isSynced.value = true
+      } else if (!savedTimezone) {
+        // No timezone saved, auto-detect and save
+        await saveTimezone(detectBrowserTimezone())
+      }
     }
   }, { immediate: true })
 

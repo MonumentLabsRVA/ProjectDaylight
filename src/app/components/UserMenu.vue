@@ -7,49 +7,20 @@ defineProps<{
 
 const colorMode = useColorMode()
 const supabase = useSupabaseClient()
-const supabaseUser = useSupabaseUser()
 const router = useRouter()
 const toast = useToast()
 
-type JwtUser = {
-  email?: string
-  sub?: string
-  user_metadata?: {
-    full_name?: string
-    name?: string
-    preferred_name?: string
-    avatar_url?: string
-    picture?: string
-    [key: string]: any
+// Use profile composable for user data (prefers profile > OAuth metadata)
+const { displayName, avatarUrl, email } = useProfile()
+
+const user = computed(() => ({
+  name: displayName.value,
+  email: email.value,
+  avatar: {
+    src: avatarUrl.value,
+    alt: displayName.value
   }
-}
-
-const user = computed(() => {
-  const jwtUser = supabaseUser.value as JwtUser | null
-
-  const displayName =
-    jwtUser?.user_metadata?.preferred_name ||
-    jwtUser?.user_metadata?.full_name ||
-    jwtUser?.user_metadata?.name ||
-    jwtUser?.email ||
-    'Account'
-
-  const email = jwtUser?.email || ''
-
-  const avatarSrc =
-    jwtUser?.user_metadata?.avatar_url ||
-    jwtUser?.user_metadata?.picture ||
-    ''
-
-  return {
-    name: displayName,
-    email,
-    avatar: {
-      src: avatarSrc,
-      alt: displayName
-    }
-  }
-})
+}))
 
 async function handleLogout() {
   await supabase.auth.signOut()

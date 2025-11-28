@@ -59,11 +59,17 @@ export default eventHandler(async (event): Promise<HomeResponse> => {
   // Get user's timezone from request header or query param
   let userTimezone = getTimezoneFromRequest(event)
   
-  // Try to get timezone from user's auth metadata
-  // The user object from serverSupabaseUser already has user_metadata
-  const userMetadata = (user as any)?.user_metadata
-  if (userMetadata?.timezone && isValidTimezone(userMetadata.timezone)) {
-    userTimezone = userMetadata.timezone
+  // If no timezone from request, try to get from profiles table
+  if (userTimezone === 'UTC') {
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('timezone')
+      .eq('id', userId)
+      .single()
+    
+    if (profileData?.timezone && isValidTimezone(profileData.timezone)) {
+      userTimezone = profileData.timezone
+    }
   }
 
   try {
