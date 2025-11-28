@@ -23,8 +23,8 @@ const PRICING_PLANS: PricingPlan[] = [
     tier: 'pro',
     name: 'Pro',
     description: 'Everything you need to build your case',
-    priceMonthly: 19.99,
-    priceYearly: 199,
+    priceMonthly: 49,
+    priceYearly: 495,
     features: [
       'Unlimited journal entries',
       'Unlimited evidence uploads',
