@@ -257,7 +257,6 @@ watch(
         <template #left>
           <UButton
             icon="i-lucide-arrow-left"
-            color="neutral"
             variant="ghost"
             to="/journal"
           >

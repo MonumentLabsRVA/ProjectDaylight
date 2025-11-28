@@ -325,7 +325,7 @@ function formatTime(timestamp: string): string {
       </UDashboardNavbar>
 
       <!-- Custom toolbar since UDashboardToolbar might not be available -->
-      <div class="shrink-0 flex items-center justify-between border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 gap-4 overflow-x-auto min-h-[49px] py-2">
+      <div class="shrink-0 flex items-center justify-between border-b px-4 sm:px-6 gap-4 overflow-x-auto min-h-[49px] py-2">
         <!-- Left section with filters -->
         <div class="flex items-center gap-2">
           <!-- Date Range Popover -->

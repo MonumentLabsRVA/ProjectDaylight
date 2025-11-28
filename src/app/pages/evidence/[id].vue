@@ -157,7 +157,6 @@ async function deleteEvidence(close?: () => void) {
         <template #left>
           <UButton
             icon="i-lucide-arrow-left"
-            color="neutral"
             variant="ghost"
             to="/evidence"
           >
