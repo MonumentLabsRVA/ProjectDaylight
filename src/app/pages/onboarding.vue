@@ -159,16 +159,20 @@ const canProceed = computed(() => {
 
 // Mark onboarding as complete
 async function markOnboardingComplete() {
-  await updateProfile({
-    onboarding_completed_at: new Date().toISOString()
+  // Call the API directly to avoid timing issues with useSupabaseUser
+  const response = await $fetch<{ profile: any }>('/api/profile', {
+    method: 'PATCH',
+    body: {
+      onboarding_completed_at: new Date().toISOString()
+    }
   })
   
-  // Clear the cached profile data so it refetches on next navigation
-  const nuxtApp = useNuxtApp()
-  const user = useSupabaseUser()
-  if (user.value) {
-    delete nuxtApp.payload.data[`profile-${user.value.id}`]
+  if (!response?.profile) {
+    throw new Error('Failed to mark onboarding as complete')
   }
+  
+  // Clear all cached profile data so it refetches on next navigation
+  await clearNuxtData((key) => key?.startsWith('profile-'))
 }
 
 // Save to backend
@@ -225,12 +229,22 @@ async function saveOnboarding() {
 
 // Skip to home without saving case data, but mark onboarding as seen
 async function skipToHome() {
+  isSubmitting.value = true
+  
   try {
     await markOnboardingComplete()
+    await router.push('/home')
   } catch (error) {
-    console.warn('[Onboarding] Failed to mark complete on skip:', error)
+    console.error('[Onboarding] Failed to skip onboarding:', error)
+    toast.add({
+      title: 'Something went wrong',
+      description: 'We couldn\'t save your progress. Please try again.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+  } finally {
+    isSubmitting.value = false
   }
-  await router.push('/home')
 }
 </script>
 
@@ -927,6 +941,7 @@ async function skipToHome() {
             v-else
             color="neutral"
             variant="ghost"
+            :loading="isSubmitting"
             @click="skipToHome"
           >
             Skip for now

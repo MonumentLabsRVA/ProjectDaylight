@@ -26,6 +26,9 @@ interface ProfileResponse {
 export function useProfile() {
   const user = useSupabaseUser()
   
+  // Helper to get user ID (could be in .id or .sub depending on context)
+  const getUserId = () => (user.value as any)?.id || (user.value as any)?.sub
+  
   // Reactive profile state
   const profile = useState<Profile | null>('user-profile', () => null)
   const isLoading = ref(false)
@@ -34,7 +37,7 @@ export function useProfile() {
 
   // Fetch profile from API
   async function fetchProfile(): Promise<Profile | null> {
-    if (!user.value?.id) return null
+    if (!getUserId()) return null
 
     isLoading.value = true
     try {
@@ -53,7 +56,7 @@ export function useProfile() {
 
   // Update profile
   async function updateProfile(updates: Partial<Pick<Profile, 'full_name' | 'timezone' | 'avatar_url' | 'onboarding_completed_at'>>): Promise<Profile | null> {
-    if (!user.value?.id) return null
+    if (!getUserId()) return null
 
     isLoading.value = true
     try {
@@ -113,7 +116,8 @@ export function useProfile() {
 
   // Initialize on auth change
   watch(user, async (newUser) => {
-    if (newUser?.id) {
+    const userId = (newUser as any)?.id || (newUser as any)?.sub
+    if (userId) {
       // Fetch profile when user logs in
       if (!isFetched.value) {
         await fetchProfile()

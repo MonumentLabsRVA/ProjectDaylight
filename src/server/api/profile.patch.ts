@@ -1,9 +1,12 @@
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event)
+  const authUser = await serverSupabaseUser(event)
   
-  if (!user) {
+  // Resolve user ID from either .sub (JWT) or .id (Supabase User object)
+  const userId = authUser?.sub || authUser?.id
+  
+  if (!userId) {
     throw createError({
       statusCode: 401,
       statusMessage: 'Unauthorized'
@@ -39,7 +42,7 @@ export default defineEventHandler(async (event) => {
   const { data: existingProfile } = await client
     .from('profiles')
     .select('id')
-    .eq('id', user.id)
+    .eq('id', userId)
     .single()
 
   let profile
@@ -49,7 +52,7 @@ export default defineEventHandler(async (event) => {
     const { data, error } = await client
       .from('profiles')
       .update(updateData)
-      .eq('id', user.id)
+      .eq('id', userId)
       .select()
       .single()
       
@@ -67,8 +70,8 @@ export default defineEventHandler(async (event) => {
     const { data, error } = await client
       .from('profiles')
       .insert({
-        id: user.id,
-        email: user.email,
+        id: userId,
+        email: authUser?.email,
         ...updateData
       })
       .select()
