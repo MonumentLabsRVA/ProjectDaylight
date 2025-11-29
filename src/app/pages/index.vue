@@ -5,8 +5,13 @@ definePageMeta({
   layout: 'landing'
 })
 
-useSeoMeta({
+// Custom title for landing page - template will pass it through since it contains "Daylight"
+useHead({
   title: 'Daylight – Just talk. We handle the rest.',
+  titleTemplate: '' // Override template to use exact title for landing
+})
+
+useSeoMeta({
   description: 'Stop carrying custody documentation in your head. Daylight turns voice notes into organized timelines your lawyer can actually use.',
   ogTitle: 'Daylight – Just talk. We handle the rest.',
   ogDescription: 'Stop carrying custody documentation in your head. Daylight turns voice notes into organized timelines your lawyer can actually use.'

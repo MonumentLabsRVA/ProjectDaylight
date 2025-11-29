@@ -813,18 +813,18 @@ function loadTestText(sample: string) {
 
         <!-- Step 3a: Processing -->
         <UCard v-else-if="state.step === 'processing'" class="mb-6">
-          <div class="py-12 text-center space-y-4">
-            <div class="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
-              <UIcon name="i-lucide-sparkles" class="w-8 h-8 text-primary animate-pulse" />
+          <div class="py-12 text-center space-y-6">
+            <!-- Simple pulsing dots -->
+            <div class="flex items-center justify-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-primary animate-[bounce_1s_ease-in-out_infinite]" />
+              <span class="w-2 h-2 rounded-full bg-primary animate-[bounce_1s_ease-in-out_0.15s_infinite]" />
+              <span class="w-2 h-2 rounded-full bg-primary animate-[bounce_1s_ease-in-out_0.3s_infinite]" />
             </div>
-            <div>
-              <p class="font-semibold text-lg text-highlighted">Turning this into structured events</p>
-              <p class="text-sm text-muted mt-1">{{ state.processingStatus || 'Please wait...' }}</p>
-            </div>
-            <div class="w-48 mx-auto">
-              <div class="h-1.5 bg-muted rounded-full overflow-hidden">
-                <div class="h-full bg-primary rounded-full animate-pulse" style="width: 60%" />
-              </div>
+
+            <!-- Message -->
+            <div class="space-y-1">
+              <p class="font-medium text-highlighted">Analyzing your entry</p>
+              <p class="text-sm text-muted">{{ state.processingStatus || 'Extracting events from your description...' }}</p>
             </div>
           </div>
         </UCard>
@@ -944,5 +944,6 @@ function loadTestText(sample: string) {
     </template>
   </UDashboardPanel>
 </template>
+
 
 

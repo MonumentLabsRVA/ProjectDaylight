@@ -20,7 +20,10 @@ export default defineNuxtConfig({
       htmlAttrs: {
         lang: 'en'
       },
-      titleTemplate: '%s | Daylight',
+      title: 'Daylight',
+      titleTemplate: (titleChunk: string) => {
+        return titleChunk && titleChunk !== 'Daylight' ? `${titleChunk} | Daylight` : 'Daylight'
+      },
       link: [
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
         { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
@@ -136,7 +139,6 @@ export default defineNuxtConfig({
   },
 
   compatibilityDate: '2025-01-15',
-
 
   // Supabase configuration
   supabase: {
