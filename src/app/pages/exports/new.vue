@@ -431,18 +431,19 @@ async function generateAndSaveExport() {
         </template>
       </UDashboardNavbar>
 
-      <!-- Secondary toolbar with back button -->
-      <div class="shrink-0 flex items-center gap-3 px-4 sm:px-6 py-3 border-b border-default bg-elevated/30">
-        <UButton
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          icon="i-lucide-arrow-left"
-          to="/exports"
-        >
-          Exports
-        </UButton>
-      </div>
+      <UDashboardToolbar>
+        <template #left>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            icon="i-lucide-arrow-left"
+            to="/exports"
+          >
+            Back to Exports
+          </UButton>
+        </template>
+      </UDashboardToolbar>
     </template>
 
     <template #body>

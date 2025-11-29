@@ -734,74 +734,17 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <!-- Right: Mock Export Preview -->
+            <!-- Right: Lawyer Client Photo -->
             <div class="lg:pl-8">
-              <UCard variant="outline" class="shadow-xl">
-                <template #header>
-                  <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                      <div class="flex size-10 items-center justify-center rounded-lg bg-primary/10">
-                        <UIcon name="i-lucide-file-text" class="size-5 text-primary" />
-                      </div>
-                      <div>
-                        <p class="font-semibold text-highlighted">Timeline Export</p>
-                        <p class="text-xs text-dimmed">Johnson v. Johnson • Case #2024-FL-1847</p>
-                      </div>
-                    </div>
-                    <UBadge color="success" variant="subtle" size="sm">
-                      Court-Ready
-                    </UBadge>
-                  </div>
-                </template>
-
-                <!-- Mock document preview -->
-                <div class="space-y-4">
-                  <div class="rounded-lg border border-default bg-elevated/30 p-4">
-                    <p class="text-xs font-semibold uppercase tracking-wider text-dimmed">Summary</p>
-                    <p class="mt-2 text-sm text-muted">47 documented events from October 1 – November 24, 2024. Includes 12 custody exchanges, 8 communication records, 4 medical appointments.</p>
-                  </div>
-
-                  <div class="space-y-2">
-                    <div class="flex items-center justify-between rounded-lg bg-elevated/30 px-4 py-3">
-                      <div class="flex items-center gap-3">
-                        <span class="flex size-2 rounded-full bg-error" />
-                        <span class="text-sm text-highlighted">Late Pickups</span>
-                      </div>
-                      <span class="text-sm font-medium text-error">6 incidents</span>
-                    </div>
-                    <div class="flex items-center justify-between rounded-lg bg-elevated/30 px-4 py-3">
-                      <div class="flex items-center gap-3">
-                        <span class="flex size-2 rounded-full bg-warning" />
-                        <span class="text-sm text-highlighted">Schedule Changes</span>
-                      </div>
-                      <span class="text-sm font-medium text-warning">4 incidents</span>
-                    </div>
-                    <div class="flex items-center justify-between rounded-lg bg-elevated/30 px-4 py-3">
-                      <div class="flex items-center gap-3">
-                        <span class="flex size-2 rounded-full bg-success" />
-                        <span class="text-sm text-highlighted">Positive Interactions</span>
-                      </div>
-                      <span class="text-sm font-medium text-success">23 events</span>
-                    </div>
-                  </div>
-                </div>
-
-                <template #footer>
-                  <div class="flex items-center justify-between">
-                    <span class="text-xs text-dimmed">Generated Nov 24, 2024 at 2:34 PM</span>
-                    <div class="flex items-center gap-2">
-                      <UButton size="xs" color="neutral" variant="ghost">
-                        <UIcon name="i-lucide-download" class="size-3.5" />
-                        PDF
-                      </UButton>
-                      <UButton size="xs" color="neutral" variant="ghost">
-                        <UIcon name="i-lucide-share" class="size-3.5" />
-                        Share
-                      </UButton>
-                    </div>
-                  </div>
-                </template>
-              </UCard>
+              <div class="relative overflow-hidden rounded-2xl shadow-2xl">
+                <img
+                  src="/romain-dancre-doplSDELX7E-unsplash.jpg"
+                  alt="Professional signing legal documents"
+                  class="w-full h-auto object-cover"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
             </div>
           </div>
         </div>
