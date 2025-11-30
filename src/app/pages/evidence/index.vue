@@ -106,25 +106,36 @@ function sourceLabel(type: EvidenceItem['sourceType']) {
         </template>
 
         <template #right>
-          <div class="flex flex-wrap items-center gap-2">
-            <UInput
-              v-model="q"
-              icon="i-lucide-search"
-              placeholder="Search evidence"
-              class="w-44 sm:w-64"
-            />
-
-            <USelect
-              v-model="sourceFilter"
-              :items="sourceOptions"
-              class="min-w-32"
-              :ui="{
-                trailingIcon: 'group-data-[state=open]:rotate-180 transition-transform duration-200'
-              }"
-            />
-          </div>
+          <span class="text-sm text-muted hidden sm:inline">
+            {{ filteredEvidence.length }} {{ filteredEvidence.length === 1 ? 'item' : 'items' }}
+          </span>
         </template>
       </UDashboardNavbar>
+
+      <!-- Secondary toolbar for search/filter -->
+      <div class="shrink-0 flex items-center gap-3 px-4 sm:px-6 py-2 border-b border-default overflow-x-auto scrollbar-none">
+        <UInput
+          v-model="q"
+          icon="i-lucide-search"
+          placeholder="Search..."
+          size="sm"
+          class="flex-1 min-w-[120px] max-w-xs"
+        />
+
+        <USelect
+          v-model="sourceFilter"
+          :items="sourceOptions"
+          size="sm"
+          class="w-32 shrink-0"
+          :ui="{
+            trailingIcon: 'group-data-[state=open]:rotate-180 transition-transform duration-200'
+          }"
+        />
+        
+        <span class="text-xs text-muted shrink-0 sm:hidden">
+          {{ filteredEvidence.length }} items
+        </span>
+      </div>
     </template>
 
     <template #body>
@@ -179,66 +190,66 @@ function sourceLabel(type: EvidenceItem['sourceType']) {
         </div>
 
         <!-- Content display -->
-        <div
-          v-else
-          class="grid gap-3 md:grid-cols-2 xl:grid-cols-3"
-        >
+        <div v-else class="space-y-1">
           <NuxtLink
-            v-for="item in filteredEvidence"
+            v-for="(item, index) in filteredEvidence"
             :key="item.id"
             :to="`/evidence/${item.id}`"
             class="block"
           >
-            <UCard
-              :ui="{ 
-                base: 'hover:bg-muted/5 transition-colors cursor-pointer h-full'
-              }"
-            >
-              <div class="flex items-start justify-between gap-3">
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2 mb-1">
-                    <UBadge
-                      color="neutral"
-                      variant="subtle"
-                    >
-                      {{ sourceLabel(item.sourceType) }}
-                    </UBadge>
-                    <p class="text-xs text-muted">
-                      {{ formatDate(item.createdAt) }}
-                    </p>
-                  </div>
+            <div class="flex items-center gap-3 px-2 py-3 hover:bg-muted/5 transition-colors cursor-pointer rounded-lg">
+              <!-- Thumbnail -->
+              <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-muted/30 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                <img
+                  v-if="item.storagePath && item.mimeType?.startsWith('image/')"
+                  :src="`/api/evidence/${item.id}/image`"
+                  :alt="item.originalName"
+                  class="w-full h-full object-cover"
+                  loading="lazy"
+                />
+                <UIcon 
+                  v-else 
+                  :name="item.sourceType === 'photo' ? 'i-lucide-image' : item.sourceType === 'document' ? 'i-lucide-file-text' : 'i-lucide-file'"
+                  class="size-5 sm:size-6 text-muted"
+                />
+              </div>
 
-                  <h3 class="font-medium mb-2">
+              <!-- Content -->
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-0.5">
+                  <h3 class="font-medium text-sm truncate text-highlighted">
                     {{ item.originalName }}
                   </h3>
-
-                  <p class="text-sm text-muted line-clamp-2 mb-3">
-                    {{ item.summary }}
-                  </p>
-
-                  <div v-if="item.tags.length" class="flex flex-wrap gap-1">
-                    <UBadge
-                      v-for="tag in item.tags.slice(0, 4)"
-                      :key="tag"
-                      color="neutral"
-                      variant="outline"
-                      size="xs"
-                    >
-                      {{ tag }}
-                    </UBadge>
-                    <UBadge
-                      v-if="item.tags.length > 4"
-                      color="neutral"
-                      variant="outline"
-                      size="xs"
-                    >
-                      +{{ item.tags.length - 4 }}
-                    </UBadge>
-                  </div>
+                  <UBadge
+                    color="neutral"
+                    variant="subtle"
+                    size="xs"
+                    class="shrink-0"
+                  >
+                    {{ sourceLabel(item.sourceType) }}
+                  </UBadge>
                 </div>
-                <UIcon name="i-lucide-chevron-right" class="size-4 text-muted flex-shrink-0" />
+
+                <p class="text-xs text-muted line-clamp-1 mb-1">
+                  {{ item.summary }}
+                </p>
+
+                <div class="flex items-center gap-2 text-xs text-muted">
+                  <span>{{ formatDate(item.createdAt) }}</span>
+                  <span v-if="item.tags.length" class="hidden sm:inline">·</span>
+                  <span v-if="item.tags.length" class="hidden sm:inline truncate">
+                    {{ item.tags.slice(0, 2).join(', ') }}
+                    <span v-if="item.tags.length > 2">+{{ item.tags.length - 2 }}</span>
+                  </span>
+                </div>
               </div>
-            </UCard>
+
+              <!-- Arrow -->
+              <UIcon name="i-lucide-chevron-right" class="size-4 text-muted flex-shrink-0" />
+            </div>
+            
+            <!-- Separator -->
+            <USeparator v-if="index < filteredEvidence.length - 1" class="mx-2" />
           </NuxtLink>
         </div>
 

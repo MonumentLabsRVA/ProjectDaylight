@@ -48,7 +48,9 @@ function mapEvidenceRowToItem(row: EvidenceRow): EvidenceItem {
     originalName,
     createdAt: row.created_at,
     summary: row.summary || '',
-    tags: row.tags || []
+    tags: row.tags || [],
+    storagePath: row.storage_path || undefined,
+    mimeType: row.mime_type || undefined
   }
 }
 
@@ -68,7 +70,7 @@ export default eventHandler(async (event) => {
 
   const { data, error } = await supabase
     .from('evidence')
-    .select('id, source_type, original_filename, storage_path, summary, tags, created_at')
+    .select('id, source_type, original_filename, storage_path, mime_type, summary, tags, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
 

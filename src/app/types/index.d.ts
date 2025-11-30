@@ -73,6 +73,8 @@ export interface EvidenceItem {
   createdAt: string
   summary: string
   tags: string[]
+  storagePath?: string
+  mimeType?: string
 }
 
 export interface InsightItem {
