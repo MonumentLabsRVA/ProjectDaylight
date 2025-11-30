@@ -1,6 +1,6 @@
 # Project Daylight - Launch-Focused Roadmap
 
-*Last Updated: November 29, 2024*
+*Last Updated: November 30, 2024*
 
 **Goal: Launch in 2-3 weeks with current features + great experience**
 
@@ -34,7 +34,7 @@
 - ~~No payments/subscriptions~~ **FIXED! ✅**
 - ~~No onboarding tutorial for new users~~ **FIXED! ✅**
 - ~~**Feature gating for free vs paid tiers**~~ **FIXED! ✅**
-- Mobile responsiveness needs testing
+- Mobile responsiveness tested → fixes identified (see Priority 6)
 - Error handling needs polish
 - No monitoring/analytics yet
 
@@ -176,17 +176,32 @@
   - [x] Add upgrade prompts where features are locked
   - [x] API-level enforcement (not just UI)
 
-- [ ] **Mobile responsiveness**
-  - [ ] Test landing page on mobile
-  - [ ] Test dashboard/home on mobile
-  - [ ] Test capture flow on mobile (voice recording)
-  - [ ] Test timeline view on mobile
-  - [ ] Test evidence upload on mobile
-  - [ ] Test export flow on mobile
-  - [ ] Test billing page on mobile
-  - [ ] Test onboarding wizard on mobile
-  - [ ] Fix any breaking layouts found
-  - [ ] **Floating "Record" FAB for mobile**
+- [x] **Mobile responsiveness** ← **COMPLETED Nov 30**
+  - [x] Home/Dashboard - ✅ looks good
+  - [x] Onboarding wizard - ✅ looks amazing
+  - [x] Individual export page - ✅ looks good
+  - [x] **Capture flow**
+    - [x] Fix 3 pills at top (Describe/Evidence/Review) - black text on dark pills
+    - [x] Change pills to `variant="outline"` or use lighter fill with proper contrast
+  - [x] **Timeline**
+    - [x] Secondary header bar is crowded, search bar squeezed
+    - [x] Convert to scrollable toolbar with mobile-friendly layout
+    - [x] Add scroll indicator icon if content overflows
+  - [x] **Evidence list**
+    - [x] Search + selector in header crowd out page title
+    - [x] Move search/selector to secondary toolbar
+    - [x] Cleaner, more minimal list item design
+    - [x] Render image thumbnails for evidence items that have them
+    - [x] Remove full borders on tiles, use `USeparator` instead
+  - [x] **Exports list**
+    - [x] Show fewer table columns on small screens
+    - [x] Clip/truncate data in table cells for mobile readability
+    - [x] Stripped-down view showing only key info on small screens
+  - [x] **Billing page**
+    - [x] Combine top 2 cards ("Pro Plan" + "You're on Pro!") into single card
+    - [x] Outline plan details in one consolidated card
+    - [x] Dev-only tier selector already visible (in ClientOnly wrapper)
+  - [ ] **Floating "Record" FAB for mobile** (deferred)
     - Sticky button (bottom-right) for instant voice capture
     - One tap to start recording → creates journal entry
     - Show on all authenticated pages (not landing/auth)
@@ -325,15 +340,16 @@ Every day without paying customers is a day without validation. Launch lean, ite
    - [x] Add "Upgrade to Pro" CTAs where features are locked
    - [ ] Test: Free user hits limit → sees upgrade prompt → upgrades → feature unlocks
 
-2. **Mobile Responsiveness (Priority 6)**
-   - [ ] Test all pages on mobile (iPhone, Android)
-   - [ ] Fix any breaking layouts
-   - [ ] Ensure voice capture works on mobile Safari/Chrome
-   - [ ] Test file uploads on mobile
-   - [ ] **Floating "Record" FAB** - sticky button on mobile for quick voice capture
-     - Always visible (bottom-right corner)
-     - One tap to start recording
-     - Makes capturing moments frictionless on the go
+2. **Mobile Responsiveness (Priority 6)** ← **COMPLETED Nov 30**
+   - [x] Home/Dashboard - ✅ looks good
+   - [x] Onboarding wizard - ✅ looks amazing
+   - [x] Individual export page - ✅ looks good
+   - [x] **Capture flow:** Fixed pills with outline variant and proper contrast
+   - [x] **Timeline:** Redesigned toolbar with scrollable filters and mobile-friendly search
+   - [x] **Evidence list:** Moved search/selector to secondary toolbar; cleaner list design with thumbnails and USeparator
+   - [x] **Exports list:** Responsive columns - show fewer on mobile, truncate data for readability
+   - [x] **Billing page:** Consolidated status cards into one; tier selector already working
+   - [ ] **Floating "Record" FAB** (deferred) - sticky button for quick voice capture
 
 3. **Dashboard Loading UX**
    - [ ] Add `USkeleton` placeholders to all data-heavy pages
@@ -391,4 +407,4 @@ Every day without paying customers is a day without validation. Launch lean, ite
 
 ---
 
-*Last thought: The core product is complete. Voice → Timeline → Export works. Payment infrastructure is ready. Onboarding guides new users. **Feature gating is now complete** - Free tier limits enforced (5 journal entries, 10 evidence uploads, no exports) with upgrade prompts throughout. Next priorities: mobile responsiveness testing, skeleton loading states, and monitoring/analytics setup.*
+*Last thought: The core product is complete. Voice → Timeline → Export works. Payment infrastructure is ready. Onboarding guides new users. **Feature gating is now complete** - Free tier limits enforced (5 journal entries, 10 evidence uploads, no exports) with upgrade prompts throughout. **Mobile responsiveness complete (Nov 30)** - All pages now mobile-friendly: Capture flow pills fixed with outline variant, Timeline has scrollable toolbar, Evidence list has cleaner design with thumbnails and separators, Exports list shows fewer columns on mobile, Billing cards consolidated. Next: Dashboard loading UX (skeleton states) and error handling polish.*
