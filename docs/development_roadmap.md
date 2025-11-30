@@ -201,10 +201,10 @@
     - [x] Combine top 2 cards ("Pro Plan" + "You're on Pro!") into single card
     - [x] Outline plan details in one consolidated card
     - [x] Dev-only tier selector already visible (in ClientOnly wrapper)
-  - [ ] **Floating "Record" FAB for mobile** (deferred)
+  - [x] **Floating "Record" FAB for mobile** ✅
     - Sticky button (bottom-right) for instant voice capture
-    - One tap to start recording → creates journal entry
-    - Show on all authenticated pages (not landing/auth)
+    - One tap to start recording → navigates to journal entry
+    - Show on all authenticated pages (hidden on landing/auth and journal/new)
   
 - [ ] **Dashboard loading UX (skeleton states)**
   - [ ] Pages render immediately with `USkeleton` placeholders
@@ -349,7 +349,7 @@ Every day without paying customers is a day without validation. Launch lean, ite
    - [x] **Evidence list:** Moved search/selector to secondary toolbar; cleaner list design with thumbnails and USeparator
    - [x] **Exports list:** Responsive columns - show fewer on mobile, truncate data for readability
    - [x] **Billing page:** Consolidated status cards into one; tier selector already working
-   - [ ] **Floating "Record" FAB** (deferred) - sticky button for quick voice capture
+   - [x] **Floating "Record" FAB** ✅ - sticky button for quick voice capture on mobile
 
 3. **Dashboard Loading UX**
    - [ ] Add `USkeleton` placeholders to all data-heavy pages
@@ -407,4 +407,4 @@ Every day without paying customers is a day without validation. Launch lean, ite
 
 ---
 
-*Last thought: The core product is complete. Voice → Timeline → Export works. Payment infrastructure is ready. Onboarding guides new users. **Feature gating is now complete** - Free tier limits enforced (5 journal entries, 10 evidence uploads, no exports) with upgrade prompts throughout. **Mobile responsiveness complete (Nov 30)** - All pages now mobile-friendly: Capture flow pills fixed with outline variant, Timeline has scrollable toolbar, Evidence list has cleaner design with thumbnails and separators, Exports list shows fewer columns on mobile, Billing cards consolidated. Next: Dashboard loading UX (skeleton states) and error handling polish.*
+*Last thought: The core product is complete. Voice → Timeline → Export works. Payment infrastructure is ready. Onboarding guides new users. **Feature gating is now complete** - Free tier limits enforced (5 journal entries, 10 evidence uploads, no exports) with upgrade prompts throughout. **Mobile responsiveness complete (Nov 30)** - All pages now mobile-friendly: Capture flow pills fixed with outline variant, Timeline has scrollable toolbar, Evidence list has cleaner design with thumbnails and separators, Exports list shows fewer columns on mobile, Billing cards consolidated. **Floating Record FAB complete (Nov 30)** - Mobile-only FAB in bottom-right for quick voice capture access. Next: Dashboard loading UX (skeleton states) and error handling polish.*

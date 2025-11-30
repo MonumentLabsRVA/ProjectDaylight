@@ -268,6 +268,9 @@ onMounted(async () => {
     />
 
     <slot />
+    
+    <!-- Mobile-only floating action button for quick voice recording -->
+    <RecordFAB />
   </UDashboardGroup>
 </template>
 
