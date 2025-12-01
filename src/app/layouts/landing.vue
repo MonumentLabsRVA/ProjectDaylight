@@ -70,6 +70,7 @@ defineOptions({
 
       <UNavigationMenu
         :items="[
+          { label: 'Help & FAQ', to: '/help' },
           { label: 'Privacy Policy', to: '/privacy' },
           { label: 'Terms of Service', to: '/terms' },
           { label: 'Security', to: '/security' }

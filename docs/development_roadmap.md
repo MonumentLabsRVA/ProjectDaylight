@@ -241,7 +241,6 @@
 - [x] **Legal requirements**
   - ✅ Terms of Service
   - ✅ Privacy Policy
-  - [ ] Cookie consent (if needed - likely not required for US-focused launch)
   - [x] Data deletion process (manual via support email for now)
 
 ---

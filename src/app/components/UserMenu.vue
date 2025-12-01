@@ -50,6 +50,15 @@ const items = computed<DropdownMenuItem[][]>(() => ([[{
   label: 'Settings',
   icon: 'i-lucide-settings',
   to: '/settings'
+}, {
+  label: 'Help & FAQ',
+  icon: 'i-lucide-life-buoy',
+  to: '/help',
+  target: '_blank'
+}, {
+  label: 'Send Feedback',
+  icon: 'i-lucide-message-square-plus',
+  to: '/support/report'
 }], [{
   label: 'Color Mode',
   icon: 'i-lucide-sun-moon',
