@@ -1,6 +1,6 @@
 # Project Daylight - MVP Launch Roadmap
 
-*Last Updated: December 1, 2024*
+*Last Updated: December 1, 2025*
 
 **Goal: Launch polished MVP for law firms to offer their clients**
 
@@ -50,7 +50,30 @@ The core product is **functionally complete**. Voice capture → timeline → ex
 
 ## MVP POLISH SPRINT
 
-### 🎯 Priority 1: Hide Technical Metadata from Users (1-2 days)
+### 🚨 Priority 1: Editable Transcription (IMMEDIATE FIX)
+
+Users need to easily edit transcribed audio after recording.
+
+- [ ] Replace current transcription display with a single free-form text box
+- [ ] User can optionally populate with transcription, or type directly
+- [ ] All content should be directly editable inline
+- [ ] Simple, clean UI — just a text area they can modify before submitting
+
+**Why immediate:** Current flow is confusing. Users should feel in control of what gets recorded.
+
+### 🎯 Priority 2: Background Extraction Jobs
+
+Run extraction jobs asynchronously so users aren't stuck waiting. May require external worker service (e.g., Inngest, QStash, or similar) for serverless environment.
+
+- [ ] Move extraction processing to a background worker
+- [ ] Worker updates job status in database (pending → processing → complete)
+- [ ] On submission: show toast confirming "You're all set! Results will be ready in ~30 seconds"
+- [ ] On completion: push toast notification with clickable link to the journal entry
+- [ ] Handle failure case gracefully with error toast
+
+**Why important:** Current synchronous flow blocks the user. Background processing improves perceived speed and lets users continue working.
+
+### 🎯 Priority 3: Hide Technical Metadata from Users (1-2 days)
 
 Users are seeing developer-facing information that creates confusion and looks unprofessional.
 
@@ -72,7 +95,7 @@ Users are seeing developer-facing information that creates confusion and looks u
 - [ ] Consider hiding or simplifying status badges (draft/processing/review/completed)
 - [ ] Users don't need to know internal processing states
 
-### 🎯 Priority 2: Empty State Polish (1 day)
+### 🎯 Priority 4: Empty State Polish (1 day)
 
 First impressions matter. New law firm clients will see empty states first.
 
@@ -81,7 +104,7 @@ First impressions matter. New law firm clients will see empty states first.
 - [ ] Consider adding illustration or icon for visual appeal
 - [ ] Pages to check: Timeline, Journal, Evidence, Exports, Home
 
-### 🎯 Priority 3: Copy & Tone Review (1 day)
+### 🎯 Priority 5: Copy & Tone Review (1 day)
 
 Ensure all user-facing text is professional and appropriate for legal use case.
 
@@ -90,7 +113,7 @@ Ensure all user-facing text is professional and appropriate for legal use case.
 - [ ] Ensure consistency in terminology (e.g., "journal entry" vs "capture")
 - [ ] Check error messages are helpful, not technical
 
-### 🎯 Priority 4: Loading States (1 day)
+### 🎯 Priority 6: Loading States (1 day)
 
 Professional feel requires smooth loading experience.
 
@@ -157,6 +180,7 @@ Professional feel requires smooth loading experience.
 - [x] Payment flow end-to-end
 - [x] Mobile tested on real devices
 - [x] Stripe in live mode
+- [ ] **Editable transcription (immediate fix)**
 - [ ] **UI polish pass complete (hide metadata)**
 - [ ] **Empty states reviewed**
 - [ ] **Copy tone checked**
