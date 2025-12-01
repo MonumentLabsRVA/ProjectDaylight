@@ -519,43 +519,41 @@ async function deleteExport() {
       </div>
 
       <!-- Export content -->
-      <div v-else class="flex flex-col h-full">
-        <div class="flex-1 overflow-auto p-4 sm:p-6">
-          <div class="max-w-4xl mx-auto">
-            <!-- Metadata chips -->
-            <div class="mb-4 flex flex-wrap items-center gap-3 text-sm text-muted">
-              <div class="flex items-center gap-2">
-                <UIcon
-                  :name="focusOptions[currentExport.focus]?.icon || 'i-lucide-file-text'"
-                  :class="['size-4', focusOptions[currentExport.focus]?.color || 'text-primary']"
-                />
-                <span>
-                  {{ focusOptions[currentExport.focus]?.label || currentExport.focus }}
-                </span>
-              </div>
-
+      <div v-else class="p-4 sm:p-6">
+        <div class="max-w-4xl mx-auto">
+          <!-- Metadata chips -->
+          <div class="mb-4 flex flex-wrap items-center gap-3 text-sm text-muted">
+            <div class="flex items-center gap-2">
+              <UIcon
+                :name="focusOptions[currentExport.focus]?.icon || 'i-lucide-file-text'"
+                :class="['size-4', focusOptions[currentExport.focus]?.color || 'text-primary']"
+              />
               <span>
-                · Created {{ formatDate(currentExport.created_at) }}
-              </span>
-
-              <span v-if="currentExport.metadata?.events_count || currentExport.metadata?.evidence_count">
-                · {{ currentExport.metadata?.events_count || 0 }} events ·
-                {{ currentExport.metadata?.evidence_count || 0 }} evidence
+                {{ focusOptions[currentExport.focus]?.label || currentExport.focus }}
               </span>
             </div>
 
-            <template v-if="!showRendered">
-              <pre class="whitespace-pre-wrap break-words font-mono text-sm leading-relaxed text-highlighted bg-subtle rounded-lg p-4">{{ currentExport.markdown_content }}</pre>
-            </template>
-            <template v-else>
-              <div class="bg-white dark:bg-gray-900 rounded-lg p-6 shadow-sm border border-default">
-                <MDC
-                  :value="currentExport.markdown_content"
-                  class="prose prose-sm dark:prose-invert max-w-none"
-                />
-              </div>
-            </template>
+            <span>
+              · Created {{ formatDate(currentExport.created_at) }}
+            </span>
+
+            <span v-if="currentExport.metadata?.events_count || currentExport.metadata?.evidence_count">
+              · {{ currentExport.metadata?.events_count || 0 }} events ·
+              {{ currentExport.metadata?.evidence_count || 0 }} evidence
+            </span>
           </div>
+
+          <template v-if="!showRendered">
+            <pre class="whitespace-pre-wrap break-words font-mono text-sm leading-relaxed text-highlighted bg-subtle rounded-lg p-4">{{ currentExport.markdown_content }}</pre>
+          </template>
+          <template v-else>
+            <div class="bg-white dark:bg-gray-900 rounded-lg p-6 shadow-sm border border-default">
+              <MDC
+                :value="currentExport.markdown_content"
+                class="prose prose-sm dark:prose-invert max-w-none"
+              />
+            </div>
+          </template>
         </div>
       </div>
     </template>
