@@ -264,10 +264,6 @@ onUnmounted(() => {
   <div class="relative">
     <!-- Hero Section -->
     <section class="relative overflow-hidden bg-default">
-      <!-- Animated gradient orbs - softer in light mode -->
-      <div class="absolute top-1/4 -left-32 w-96 h-96 bg-primary/10 dark:bg-primary/20 rounded-full blur-3xl animate-pulse" />
-      <div class="absolute bottom-1/4 -right-32 w-96 h-96 bg-primary/8 dark:bg-primary/15 rounded-full blur-3xl animate-pulse" style="animation-delay: 1s;" />
-
       <UContainer class="relative z-10">
         <div class="grid items-center gap-12 pt-8 pb-24 lg:grid-cols-2 lg:gap-16">
           <!-- Left: Text content -->
