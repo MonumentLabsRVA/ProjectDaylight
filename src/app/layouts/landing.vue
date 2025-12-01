@@ -26,6 +26,18 @@ defineOptions({
               variant="ghost"
             />
 
+            <!-- Log in button - icon only on mobile, text on desktop -->
+            <NuxtLink to="/auth/login">
+              <UButton
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                icon="i-lucide-log-in"
+                class="sm:hidden"
+                square
+              />
+            </NuxtLink>
+
             <NuxtLink to="/auth/login" class="hidden sm:block">
               <UButton
                 color="neutral"
@@ -36,6 +48,7 @@ defineOptions({
               </UButton>
             </NuxtLink>
 
+            <!-- Get started button - text on all screen sizes -->
             <NuxtLink to="/auth/signup">
               <UButton
                 color="primary"
