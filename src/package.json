@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "build": "nuxt build",
-    "dev": "nuxt dev",
+    "dev": "concurrently -n nuxt,inngest -c blue,magenta \"nuxt dev\" \"npx inngest-cli@latest dev -u http://localhost:3000/api/inngest\"",
+    "dev:nuxt": "nuxt dev",
+    "dev:inngest": "npx inngest-cli@latest dev -u http://localhost:3000/api/inngest",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
@@ -25,6 +27,7 @@
     "better-sqlite3": "^12.4.6",
     "date-fns": "^4.1.0",
     "h3-formidable": "^1.0.0",
+    "inngest": "^3.46.0",
     "jspdf": "^2.5.1",
     "nuxt": "^4.2.1",
     "openai": "^6.9.1",
@@ -34,6 +37,7 @@
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.10.0",
+    "concurrently": "^9.2.1",
     "eslint": "^9.39.1",
     "typescript": "^5.9.3",
     "vue-tsc": "^3.1.3"
