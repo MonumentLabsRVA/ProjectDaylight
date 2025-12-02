@@ -87,6 +87,38 @@ export interface InsightItem {
 
 export type ExportFocus = 'full-timeline' | 'incidents-only' | 'positive-parenting'
 
+// Background job types
+export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed'
+export type JobType = 'journal_extraction' | 'evidence_processing'
+
+export interface JobResultSummary {
+  events_created: number
+  evidence_processed: number
+  action_items_created: number
+  event_ids: string[]
+}
+
+export interface Job {
+  id: string
+  user_id: string
+  type: JobType
+  status: JobStatus
+  journal_entry_id: string | null
+  started_at: string | null
+  completed_at: string | null
+  error_message: string | null
+  result_summary: JobResultSummary | null
+  created_at: string
+  updated_at: string
+}
+
+// API response types
+export interface JournalSubmitResponse {
+  journalEntryId: string
+  jobId: string
+  message: string
+}
+
 // Billing / Subscription types (Stripe-ready structure)
 export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'unpaid' | 'paused'
 export type PlanTier = 'free' | 'alpha' | 'starter' | 'pro' | 'enterprise'

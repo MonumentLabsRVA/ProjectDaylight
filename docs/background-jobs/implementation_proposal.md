@@ -91,49 +91,11 @@ ALTER TABLE journal_entries ADD COLUMN extraction_job_id UUID REFERENCES jobs(id
 
 ---
 
-## 3. Inngest Setup
-
-### `server/inngest/client.ts`
-
-```typescript
-import { Inngest, EventSchemas } from 'inngest'
-
-// Event payload types
-interface JournalExtractionEvent {
-  jobId: string
-  journalEntryId: string
-  userId: string
-  eventText: string
-  referenceDate: string | null
-  evidenceIds: string[]
-}
-
-export const inngest = new Inngest({
-  id: 'daylight',
-  schemas: new EventSchemas().fromRecord<{
-    'journal/extraction.requested': { data: JournalExtractionEvent }
-  }>()
-})
-```
-
-### `server/api/inngest.ts`
-
-```typescript
-import { serve } from 'inngest/nuxt'
-import { inngest } from '../inngest/client'
-import { journalExtractionFunction } from '../inngest/functions/journal-extraction'
-
-export default serve({
-  client: inngest,
-  functions: [journalExtractionFunction]
-})
-```
-
----
-
-## 4. Background Function
+## 3. Background Function
 
 ### `server/inngest/functions/journal-extraction.ts`
+
+> **Note:** Inngest is already configured in `server/inngest/client.ts` and `server/api/inngest.ts`. Just add this function and register it.
 
 Key structure - uses Supabase service role client for background operations:
 
@@ -219,7 +181,7 @@ export const journalExtractionFunction = inngest.createFunction(
 
 ---
 
-## 5. API Route
+## 4. API Route
 
 ### `server/api/journal/submit.post.ts`
 
@@ -309,7 +271,7 @@ export default defineEventHandler(async (event): Promise<JournalSubmitResponse> 
 
 ---
 
-## 6. Frontend Composable
+## 5. Frontend Composable
 
 ### `composables/useJobs.ts`
 
@@ -406,7 +368,7 @@ export function useJobs() {
 
 ---
 
-## 7. Frontend Usage
+## 6. Frontend Usage
 
 ### In `pages/journal/new.vue`
 
@@ -463,33 +425,24 @@ Show processing status inline:
 
 ---
 
-## 8. Environment Setup
+## 7. Environment Setup
 
-```env
-# Add to .env
-INNGEST_EVENT_KEY=your-event-key
-INNGEST_SIGNING_KEY=your-signing-key
-```
-
-```bash
-# Install
-npm install inngest
-```
+> **Already configured.** Inngest is installed and environment variables are set. No additional setup needed.
 
 ---
 
 ## Implementation Order
 
+> **Note:** Inngest is already configured and working. See `server/inngest/client.ts` and the existing `testJob` function for reference.
+
+> **Status:** ✅ Phase 1 (Database & Types) completed — migrations and TypeScript definitions implemented and verified in Supabase.
+
 | Phase | Tasks | Est. |
 |-------|-------|------|
-| 1 | Migrations + types | 2h |
-| 2 | Inngest client + API handler | 1h |
-| 3 | Background function (reuse existing LLM utils) | 4h |
-| 4 | Submit API route | 1h |
-| 5 | `useJobs` composable | 2h |
-| 6 | Update `journal/new.vue` | 2h |
-| 7 | Update journal list/detail pages | 1h |
-| 8 | Testing | 2h |
+| **1. Database & Types** | Migrations (`jobs` table, `journal_entries.extraction_job_id`), TypeScript type definitions | 2h |
+| **2. Backend** | Background function (`journal-extraction.ts`), Submit API route (`/api/journal/submit.post.ts`), register function in Inngest handler | 5h |
+| **3. Frontend** | `useJobs` composable with Realtime subscription, update `journal/new.vue` for async submission, update journal list/detail for status display | 5h |
+| **4. Testing** | End-to-end flow testing, error handling, retry scenarios | 2h |
 
 **Total: ~2 days**
 
@@ -497,11 +450,13 @@ npm install inngest
 
 ## Local Development
 
+Inngest dev server runs alongside the Nuxt dev server. Dashboard available at `localhost:8288`.
+
 ```bash
-# Terminal 1
+# Terminal 1: Nuxt
 npm run dev
 
-# Terminal 2 (Inngest dashboard at localhost:8288)
+# Terminal 2: Inngest (already tested and working)
 npx inngest-cli@latest dev
 ```
 
