@@ -313,6 +313,9 @@ async function uploadEvidence(item: EvidenceItem): Promise<void> {
   try {
     const formData = new FormData()
     formData.append('file', item.file)
+    if (item.annotation.trim()) {
+      formData.append('annotation', item.annotation.trim())
+    }
 
     const uploadResult = await $fetch<{ id: string }>('/api/evidence-upload', {
       method: 'POST',

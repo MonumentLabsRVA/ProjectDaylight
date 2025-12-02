@@ -35,7 +35,7 @@ export default defineEventHandler(async (event) => {
   let tempFilePath: string | undefined
 
   try {
-    const { files } = await readFiles(event)
+    const { files, fields } = await readFiles(event)
     const file = files.file?.[0]
 
     if (!file) {
@@ -89,6 +89,15 @@ export default defineEventHandler(async (event) => {
       sourceType = 'text'
     }
 
+    // Optional user-provided annotation from the upload form
+    let annotation: string | null = null
+    const rawAnnotation = (fields as any)?.annotation
+    if (typeof rawAnnotation === 'string') {
+      annotation = rawAnnotation.trim() || null
+    } else if (Array.isArray(rawAnnotation) && typeof rawAnnotation[0] === 'string') {
+      annotation = rawAnnotation[0].trim() || null
+    }
+
     const { data, error: insertError } = await supabase
       .from('evidence')
       .insert({
@@ -98,6 +107,7 @@ export default defineEventHandler(async (event) => {
         original_filename: originalName,  // Keep original name for display
         mime_type: mimeType,
         summary: `Uploaded file: ${originalName}`,
+        user_annotation: annotation,
         tags: []
       })
       .select('id, source_type, storage_path, original_filename, summary, tags, created_at')
