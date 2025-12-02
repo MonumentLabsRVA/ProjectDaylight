@@ -8,6 +8,10 @@ const toast = useToast()
 // Initialize timezone detection/sync for all authenticated users
 useTimezone()
 
+// Initialize job tracking (for background job notifications)
+const { recoverJobs } = useJobs()
+const user = useSupabaseUser()
+
 const open = ref(false)
 
 interface SearchItem {
@@ -185,11 +189,15 @@ onMounted(async () => {
   const cookie = useCookie('cookie-consent')
   if (cookie.value === 'accepted') {
     loadSearchData()
-    return
+  } else {
+    loadSearchData()
   }
 
-
-  loadSearchData()
+  // Recover any pending/processing jobs for toast notifications
+  const userId = (user.value as any)?.id || (user.value as any)?.sub
+  if (userId) {
+    recoverJobs(userId)
+  }
 })
 </script>
 

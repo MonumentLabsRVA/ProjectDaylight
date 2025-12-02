@@ -472,6 +472,26 @@ watch(
           :ui="{ icon: 'animate-pulse' }"
         />
 
+        <!-- Failed Alert -->
+        <UAlert
+          v-else-if="data.status === 'failed'"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-alert-circle"
+          title="Processing failed"
+          :description="data.processingError || 'An error occurred while processing this entry. You can edit and try again, or delete this entry.'"
+        />
+
+        <!-- Cancelled Alert -->
+        <UAlert
+          v-else-if="data.status === 'cancelled'"
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-x-circle"
+          title="Processing was cancelled"
+          :description="data.processingError || 'This entry was not fully processed. You can edit and resubmit, or delete this entry.'"
+        />
+
         <!-- Main Entry Card -->
         <UCard>
           <div class="space-y-4">
@@ -487,6 +507,26 @@ watch(
                 >
                   <UIcon name="i-lucide-loader-2" class="size-3.5 mr-1 animate-spin" />
                   Processing
+                </UBadge>
+                <!-- Failed status -->
+                <UBadge
+                  v-else-if="data.status === 'failed'"
+                  color="error"
+                  variant="subtle"
+                  size="lg"
+                >
+                  <UIcon name="i-lucide-alert-circle" class="size-3.5 mr-1" />
+                  Failed
+                </UBadge>
+                <!-- Cancelled status -->
+                <UBadge
+                  v-else-if="data.status === 'cancelled'"
+                  color="warning"
+                  variant="subtle"
+                  size="lg"
+                >
+                  <UIcon name="i-lucide-x-circle" class="size-3.5 mr-1" />
+                  Cancelled
                 </UBadge>
                 <!-- Draft status -->
                 <UBadge
@@ -793,7 +833,7 @@ watch(
             <div>
               <p class="text-xs text-muted">Status</p>
               <p class="capitalize">
-                {{ data.status === 'draft' ? 'Draft' : 'Saved' }}
+                {{ data.status }}
               </p>
             </div>
             <div>

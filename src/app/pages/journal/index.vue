@@ -419,23 +419,27 @@ function truncateText(text: string | null, maxLength: number) {
                       : 'hover:bg-muted/5 transition-colors cursor-pointer border-l-4',
                     root: entry.status === 'processing'
                       ? 'border-l-info'
-                      : Array.isArray(entry.eventTypes)
-                        ? (
-                            entry.eventTypes.includes('incident')
-                              ? 'border-l-error'
-                              : entry.eventTypes.includes('medical')
-                                ? 'border-l-info'
-                                : entry.eventTypes.includes('school')
-                                  ? 'border-l-warning'
-                                  : entry.eventTypes.includes('positive')
-                                    ? 'border-l-success'
-                                    : entry.eventTypes.includes('communication')
-                                      ? 'border-l-primary'
-                                      : entry.eventTypes.includes('legal')
-                                        ? 'border-l-neutral'
-                                        : 'border-l-neutral'
-                          )
-                        : 'border-l-neutral'
+                      : entry.status === 'failed'
+                        ? 'border-l-error'
+                        : entry.status === 'cancelled'
+                          ? 'border-l-warning'
+                          : Array.isArray(entry.eventTypes)
+                            ? (
+                                entry.eventTypes.includes('incident')
+                                  ? 'border-l-error'
+                                  : entry.eventTypes.includes('medical')
+                                    ? 'border-l-info'
+                                    : entry.eventTypes.includes('school')
+                                      ? 'border-l-warning'
+                                      : entry.eventTypes.includes('positive')
+                                        ? 'border-l-success'
+                                        : entry.eventTypes.includes('communication')
+                                          ? 'border-l-primary'
+                                          : entry.eventTypes.includes('legal')
+                                            ? 'border-l-neutral'
+                                            : 'border-l-neutral'
+                              )
+                            : 'border-l-neutral'
                   }"
                 >
                   <div class="space-y-3">
@@ -458,7 +462,29 @@ function truncateText(text: string | null, maxLength: number) {
                           Processing
                         </UBadge>
 
-                        <!-- Event type badges (only show when not processing) -->
+                        <!-- Failed status badge -->
+                        <UBadge
+                          v-else-if="entry.status === 'failed'"
+                          color="error"
+                          variant="subtle"
+                          size="xs"
+                        >
+                          <UIcon name="i-lucide-alert-circle" class="size-3 mr-1" />
+                          Failed
+                        </UBadge>
+
+                        <!-- Cancelled status badge -->
+                        <UBadge
+                          v-else-if="entry.status === 'cancelled'"
+                          color="warning"
+                          variant="subtle"
+                          size="xs"
+                        >
+                          <UIcon name="i-lucide-x-circle" class="size-3 mr-1" />
+                          Cancelled
+                        </UBadge>
+
+                        <!-- Event type badges (only show when completed) -->
                         <UBadge
                           v-else-if="Array.isArray(entry.eventTypes) && entry.eventTypes.length"
                           :color="eventTypeColor(entry.eventTypes[0])"
