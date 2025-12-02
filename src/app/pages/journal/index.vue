@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import type { JournalEntry } from '~/server/api/journal'
 import { getDateStringInTimezone } from '~/composables/useTimezone'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 
 const { timezone, formatDate: formatTzDate } = useTimezone()
+const supabase = useSupabaseClient()
+const user = useSupabaseUser()
 
 // Fetch journal entries
 const { data, status, error, refresh } = await useFetch<JournalEntry[]>('/api/journal', {
@@ -14,6 +17,38 @@ const session = useSupabaseSession()
 watch(session, (newSession) => {
   if (newSession?.access_token) {
     refresh()
+  }
+})
+
+// Subscribe to job updates for real-time status refresh
+let jobsChannel: RealtimeChannel | null = null
+
+onMounted(() => {
+  const userId = (user.value as any)?.id || (user.value as any)?.sub
+  if (!userId) return
+
+  // Subscribe to job completion/failure events for this user
+  jobsChannel = supabase
+    .channel('journal-jobs')
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'jobs',
+      filter: `user_id=eq.${userId}`
+    }, (payload) => {
+      const job = payload.new as { status: string }
+      // Refresh the list when a job completes or fails
+      if (job.status === 'completed' || job.status === 'failed') {
+        refresh()
+      }
+    })
+    .subscribe()
+})
+
+onUnmounted(() => {
+  if (jobsChannel) {
+    supabase.removeChannel(jobsChannel)
+    jobsChannel = null
   }
 })
 
@@ -379,24 +414,28 @@ function truncateText(text: string | null, maxLength: number) {
               >
                 <UCard
                   :ui="{
-                    base: 'hover:bg-muted/5 transition-colors cursor-pointer border-l-4',
-                    root: Array.isArray(entry.eventTypes)
-                      ? (
-                          entry.eventTypes.includes('incident')
-                            ? 'border-l-error'
-                            : entry.eventTypes.includes('medical')
-                              ? 'border-l-info'
-                              : entry.eventTypes.includes('school')
-                                ? 'border-l-warning'
-                                : entry.eventTypes.includes('positive')
-                                  ? 'border-l-success'
-                                  : entry.eventTypes.includes('communication')
-                                    ? 'border-l-primary'
-                                    : entry.eventTypes.includes('legal')
-                                      ? 'border-l-neutral'
-                                      : 'border-l-neutral'
-                        )
-                      : 'border-l-neutral'
+                    base: entry.status === 'processing' 
+                      ? 'hover:bg-muted/5 transition-colors cursor-pointer border-l-4 animate-pulse' 
+                      : 'hover:bg-muted/5 transition-colors cursor-pointer border-l-4',
+                    root: entry.status === 'processing'
+                      ? 'border-l-info'
+                      : Array.isArray(entry.eventTypes)
+                        ? (
+                            entry.eventTypes.includes('incident')
+                              ? 'border-l-error'
+                              : entry.eventTypes.includes('medical')
+                                ? 'border-l-info'
+                                : entry.eventTypes.includes('school')
+                                  ? 'border-l-warning'
+                                  : entry.eventTypes.includes('positive')
+                                    ? 'border-l-success'
+                                    : entry.eventTypes.includes('communication')
+                                      ? 'border-l-primary'
+                                      : entry.eventTypes.includes('legal')
+                                        ? 'border-l-neutral'
+                                        : 'border-l-neutral'
+                          )
+                        : 'border-l-neutral'
                   }"
                 >
                   <div class="space-y-3">
@@ -408,8 +447,20 @@ function truncateText(text: string | null, maxLength: number) {
                     <!-- Entry metadata -->
                     <div class="flex flex-wrap items-center justify-between gap-2">
                       <div class="flex items-center gap-2">
+                        <!-- Processing status badge -->
                         <UBadge
-                          v-if="Array.isArray(entry.eventTypes) && entry.eventTypes.length"
+                          v-if="entry.status === 'processing'"
+                          color="info"
+                          variant="subtle"
+                          size="xs"
+                        >
+                          <UIcon name="i-lucide-loader-2" class="animate-spin size-3 mr-1" />
+                          Processing
+                        </UBadge>
+
+                        <!-- Event type badges (only show when not processing) -->
+                        <UBadge
+                          v-else-if="Array.isArray(entry.eventTypes) && entry.eventTypes.length"
                           :color="eventTypeColor(entry.eventTypes[0])"
                           variant="subtle"
                           size="xs"

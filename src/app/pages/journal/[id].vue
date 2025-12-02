@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { JournalEntryDetail } from '~/server/api/journal/[id]'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 
 const route = useRoute()
 const router = useRouter()
@@ -7,6 +8,7 @@ const session = useSupabaseSession()
 const supabase = useSupabaseClient()
 const toast = useToast()
 const { formatDate: formatTzDate } = useTimezone()
+const user = useSupabaseUser()
 
 const entryId = computed(() => route.params.id as string)
 
@@ -27,6 +29,38 @@ watch(session, (newSession) => {
 watch(error, async (err: any) => {
   if (err?.statusCode === 404) {
     await router.push('/journal')
+  }
+})
+
+// Subscribe to job updates for real-time status refresh when viewing a processing entry
+let jobsChannel: RealtimeChannel | null = null
+
+onMounted(() => {
+  const userId = (user.value as any)?.id || (user.value as any)?.sub
+  if (!userId) return
+
+  // Subscribe to job updates for this user
+  jobsChannel = supabase
+    .channel(`journal-detail-${entryId.value}`)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'jobs',
+      filter: `journal_entry_id=eq.${entryId.value}`
+    }, (payload) => {
+      const job = payload.new as { status: string }
+      // Refresh when job status changes
+      if (job.status === 'completed' || job.status === 'failed' || job.status === 'processing') {
+        refresh()
+      }
+    })
+    .subscribe()
+})
+
+onUnmounted(() => {
+  if (jobsChannel) {
+    supabase.removeChannel(jobsChannel)
+    jobsChannel = null
   }
 })
 
@@ -427,14 +461,36 @@ watch(
 
       <!-- Content -->
       <div v-else-if="data" class="p-6 space-y-6 max-w-4xl">
+        <!-- Processing Alert -->
+        <UAlert
+          v-if="data.status === 'processing'"
+          color="info"
+          variant="subtle"
+          icon="i-lucide-sparkles"
+          title="Analyzing your entry"
+          description="We're extracting events and processing any evidence. This usually takes 30-60 seconds. This page will update automatically when complete."
+          :ui="{ icon: 'animate-pulse' }"
+        />
+
         <!-- Main Entry Card -->
         <UCard>
           <div class="space-y-4">
             <!-- Header -->
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div class="flex items-center gap-3">
+                <!-- Processing status -->
                 <UBadge
-                  v-if="data.status === 'draft'"
+                  v-if="data.status === 'processing'"
+                  color="info"
+                  variant="subtle"
+                  size="lg"
+                >
+                  <UIcon name="i-lucide-loader-2" class="size-3.5 mr-1 animate-spin" />
+                  Processing
+                </UBadge>
+                <!-- Draft status -->
+                <UBadge
+                  v-else-if="data.status === 'draft'"
                   color="neutral"
                   variant="subtle"
                   size="lg"
@@ -443,6 +499,7 @@ watch(
                   <UIcon name="i-lucide-pencil" class="size-3.5 mr-1" />
                   Draft
                 </UBadge>
+                <!-- Completed/default status -->
                 <UBadge
                   v-else
                   color="primary"

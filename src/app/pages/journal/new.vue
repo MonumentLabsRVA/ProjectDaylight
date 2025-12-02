@@ -2,15 +2,19 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useObjectUrl } from '@vueuse/core'
 import { getDateStringInTimezone, detectBrowserTimezone } from '~/composables/useTimezone'
+import type { JournalSubmitResponse } from '~/types'
 
 // Subscription check for feature gating
 const { 
   canCreateJournalEntry, 
   journalEntriesRemaining,
   isFree,
-  limits,
   incrementJournalEntryCount 
 } = useSubscription()
+
+// Job tracking for background processing
+const { trackJob } = useJobs()
+const toast = useToast()
 
 // =============================================================================
 // Types
@@ -24,15 +28,12 @@ interface EvidenceItem {
   fileName: string
   mimeType: string
   isUploading: boolean
-  isProcessing: boolean
-  isProcessed: boolean
   uploadedEvidenceId: string | null
-  extractionSummary: string | null
   error: string | null
 }
 
 interface CaptureState {
-  step: 'event' | 'evidence' | 'processing' | 'review'
+  step: 'event' | 'evidence'
   eventText: string
   referenceDate: string
   evidence: EvidenceItem[]
@@ -40,8 +41,6 @@ interface CaptureState {
   hasRecording: boolean
   recordingBlob: Blob | null
   transcript: string
-  extractionResult: any | null
-  processingStatus: string
   error: string | null
 }
 
@@ -64,8 +63,6 @@ const state = ref<CaptureState>({
   hasRecording: false,
   recordingBlob: null,
   transcript: '',
-  extractionResult: null,
-  processingStatus: '',
   error: null
 })
 
@@ -110,16 +107,6 @@ const canRecord = computed(() => {
 })
 
 const hasEvidence = computed(() => state.value.evidence.length > 0)
-
-const evidenceWithExtractions = computed(() => {
-  return state.value.evidence
-    .filter(e => e.isProcessed && e.extractionSummary)
-    .map(e => ({
-      evidenceId: e.uploadedEvidenceId,
-      annotation: e.annotation,
-      summary: e.extractionSummary
-    }))
-})
 
 // =============================================================================
 // Lifecycle
@@ -280,10 +267,7 @@ function addEvidence() {
         fileName: file.name,
         mimeType: file.type,
         isUploading: false,
-        isProcessing: false,
-        isProcessed: false,
         uploadedEvidenceId: null,
-        extractionSummary: null,
         error: null
       })
     }
@@ -295,7 +279,7 @@ function addEvidence() {
 function removeEvidence(id: string) {
   const index = state.value.evidence.findIndex(e => e.id === id)
   if (index !== -1) {
-    const item = state.value.evidence[index]
+    const item = state.value.evidence[index]!
     if (item.previewUrl && item.previewUrl.startsWith('blob:')) {
       URL.revokeObjectURL(item.previewUrl)
     }
@@ -314,7 +298,7 @@ function updateAnnotation(id: string, annotation: string) {
 // Processing Functions
 // =============================================================================
 
-async function uploadAndProcessEvidence(item: EvidenceItem): Promise<void> {
+async function uploadEvidence(item: EvidenceItem): Promise<void> {
   if (!item.file) {
     item.error = 'No file to upload'
     return
@@ -323,7 +307,6 @@ async function uploadAndProcessEvidence(item: EvidenceItem): Promise<void> {
   const accessToken = supabaseSession.value?.access_token
     || (await supabase.auth.getSession()).data.session?.access_token
 
-  // Step 1: Upload the file
   item.isUploading = true
   item.error = null
 
@@ -338,65 +321,26 @@ async function uploadAndProcessEvidence(item: EvidenceItem): Promise<void> {
     })
 
     item.uploadedEvidenceId = uploadResult.id
-    item.isUploading = false
-
-    // Step 2: Process with LLM
-    item.isProcessing = true
-
-    const processResult = await $fetch<{ extraction: any }>('/api/capture/process-evidence', {
-      method: 'POST',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-      body: {
-        evidenceId: uploadResult.id,
-        userAnnotation: item.annotation
-      }
-    })
-
-    item.extractionSummary = processResult.extraction?.summary || 'Processed successfully'
-    item.isProcessed = true
   } catch (e: any) {
-    console.error('Evidence processing error:', e)
-    item.error = e?.data?.statusMessage || 'Failed to process evidence'
+    console.error('Evidence upload error:', e)
+    item.error = e?.data?.statusMessage || 'Failed to upload evidence'
   } finally {
     item.isUploading = false
-    item.isProcessing = false
   }
 }
 
-async function processAllEvidence(): Promise<void> {
-  state.value.processingStatus = 'Processing evidence...'
-
-  // Process evidence items sequentially to avoid overwhelming the API
+async function uploadAllEvidence(): Promise<string[]> {
+  // Upload evidence items sequentially
   for (const item of state.value.evidence) {
-    if (!item.isProcessed && !item.error) {
-      state.value.processingStatus = `Processing: ${item.fileName}...`
-      await uploadAndProcessEvidence(item)
+    if (!item.uploadedEvidenceId && !item.error) {
+      await uploadEvidence(item)
     }
   }
-}
-
-async function extractEvents(): Promise<void> {
-  state.value.processingStatus = 'Extracting events from your description...'
-
-  const accessToken = supabaseSession.value?.access_token
-    || (await supabase.auth.getSession()).data.session?.access_token
-
-  try {
-    const result = await $fetch<any>('/api/capture/extract-events', {
-      method: 'POST',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-      body: {
-        eventText: effectiveEventText.value,
-        referenceDate: state.value.referenceDate,
-        evidenceSummaries: evidenceWithExtractions.value
-      }
-    })
-
-    state.value.extractionResult = result
-  } catch (e: any) {
-    console.error('Event extraction error:', e)
-    throw new Error(e?.data?.statusMessage || 'Failed to extract events')
-  }
+  
+  // Return IDs of successfully uploaded evidence
+  return state.value.evidence
+    .filter(e => e.uploadedEvidenceId)
+    .map(e => e.uploadedEvidenceId!)
 }
 
 async function submitCapture() {
@@ -404,98 +348,49 @@ async function submitCapture() {
 
   isSubmitting.value = true
   state.value.error = null
-  state.value.step = 'processing'
 
   try {
-    // Step 1: Process all evidence (if any)
-    if (hasEvidence.value) {
-      await processAllEvidence()
+    // Step 1: Upload all evidence first (fast, synchronous)
+    const evidenceIds = hasEvidence.value ? await uploadAllEvidence() : []
+
+    // Check if any evidence failed to upload
+    const failedEvidence = state.value.evidence.filter(e => e.error)
+    if (failedEvidence.length > 0) {
+      state.value.error = `Failed to upload ${failedEvidence.length} file(s). Please try again.`
+      return
     }
 
-    // Step 2: Extract events using the event text + evidence summaries
-    await extractEvents()
-
-    // Move to review step
-    state.value.step = 'review'
-  } catch (e: any) {
-    console.error('Capture submission error:', e)
-    state.value.error = e?.message || 'Failed to process entry'
-    state.value.step = 'evidence'
-  } finally {
-    isSubmitting.value = false
-    state.value.processingStatus = ''
-  }
-}
-
-async function confirmAndSave() {
-  if (!state.value.extractionResult) return
-
-  isSubmitting.value = true
-  state.value.error = null
-
-  const accessToken = supabaseSession.value?.access_token
-    || (await supabase.auth.getSession()).data.session?.access_token
-
-  try {
-    // Save the extracted events to the database
-    const result = await $fetch<{ createdEventIds: string[]; linkedEvidenceCount: number; journalEntryId?: string | null }>('/api/capture/save-events', {
+    // Step 2: Submit for background processing
+    const result = await $fetch<JournalSubmitResponse>('/api/journal/submit', {
       method: 'POST',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
       body: {
-        extraction: state.value.extractionResult.extraction,
-        evidenceIds: state.value.evidence
-          .filter(e => e.uploadedEvidenceId)
-          .map(e => e.uploadedEvidenceId),
-        // Include journal entry data
         eventText: effectiveEventText.value,
-        referenceDate: state.value.referenceDate
+        referenceDate: state.value.referenceDate,
+        evidenceIds
       }
     })
 
-    // Increment usage count on success
+    // Step 3: Track job for toast notification
+    trackJob({ id: result.jobId, journal_entry_id: result.journalEntryId })
+
+    // Step 4: Increment usage count
     incrementJournalEntryCount()
 
-    // Prefer navigating to the newly created journal entry if available
-    if (result.journalEntryId) {
-      await navigateTo(`/journal/${result.journalEntryId}`)
-    } else {
-      // Fallback to timeline if journal entry record wasn't created for some reason
-      await navigateTo('/timeline')
-    }
+    // Step 5: Show confirmation toast
+    toast.add({
+      title: 'Entry submitted!',
+      description: 'You\'ll be notified when processing completes.',
+      icon: 'i-lucide-clock',
+      color: 'info'
+    })
+
+    // Step 6: Navigate to journal list
+    await navigateTo('/journal')
   } catch (e: any) {
-    console.error('Save error:', e)
-    state.value.error = e?.data?.statusMessage || 'Failed to save entry'
+    console.error('Capture submission error:', e)
+    state.value.error = e?.data?.statusMessage || e?.message || 'Failed to submit entry'
   } finally {
     isSubmitting.value = false
-  }
-}
-
-function goBackToEdit() {
-  state.value.step = 'evidence'
-  state.value.extractionResult = null
-}
-
-function startNewCapture() {
-  // Clean up
-  state.value.evidence.forEach(e => {
-    if (e.previewUrl && e.previewUrl.startsWith('blob:')) {
-      URL.revokeObjectURL(e.previewUrl)
-    }
-  })
-
-  // Reset state
-  state.value = {
-    step: 'event',
-    eventText: '',
-    referenceDate: getDateStringInTimezone(new Date(), detectBrowserTimezone()),
-    evidence: [],
-    isRecording: false,
-    hasRecording: false,
-    recordingBlob: null,
-    transcript: '',
-    extractionResult: null,
-    processingStatus: '',
-    error: null
   }
 }
 
@@ -517,18 +412,6 @@ function goBackToEvent() {
 // Helpers
 // =============================================================================
 
-function eventColor(type: string): 'primary' | 'success' | 'info' | 'warning' | 'error' | 'neutral' {
-  switch (type) {
-    case 'incident': return 'error'
-    case 'positive': return 'success'
-    case 'medical': return 'info'
-    case 'school': return 'warning'
-    case 'communication': return 'primary'
-    case 'legal': return 'neutral'
-    default: return 'neutral'
-  }
-}
-
 // Test data loaders
 function loadTestText(sample: string) {
   const samples: Record<string, string> = {
@@ -536,7 +419,7 @@ function loadTestText(sample: string) {
     positive: `Had a wonderful day with the kids today. We made pancakes together for breakfast, then went to the library for story time. Sarah checked out three chapter books. In the afternoon, Tommy rode his bike without training wheels for the first time! Both kids were in bed by 8:00 PM after baths and bedtime stories.`,
     neutral: `Today's custody exchange at 5:00 PM at Walmart parking lot. Other parent arrived at 5:02 PM. Children had their overnight bags with clothes, toiletries, and homework. Brief conversation about upcoming school events. Exchange completed at 5:08 PM without incident.`
   }
-  state.value.eventText = samples[sample] || samples.incident
+  state.value.eventText = samples[sample] ?? samples.incident!
 }
 </script>
 
@@ -598,20 +481,7 @@ function loadTestText(sample: string) {
               class="w-5 h-5 rounded-full flex items-center justify-center text-xs"
               :class="state.step === 'evidence' ? 'bg-white/20' : 'bg-muted'"
             >2</span>
-            <span class="hidden sm:inline">Evidence</span>
-          </div>
-          <UIcon name="i-lucide-chevron-right" class="text-muted size-4" />
-          <div
-            class="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors border"
-            :class="state.step === 'processing' || state.step === 'review' 
-              ? 'bg-primary text-white border-primary' 
-              : 'bg-transparent text-muted border-default'"
-          >
-            <span 
-              class="w-5 h-5 rounded-full flex items-center justify-center text-xs"
-              :class="state.step === 'processing' || state.step === 'review' ? 'bg-white/20' : 'bg-muted'"
-            >3</span>
-            <span class="hidden sm:inline">Review</span>
+            <span class="hidden sm:inline">Evidence & Submit</span>
           </div>
         </div>
 
@@ -817,7 +687,7 @@ function loadTestText(sample: string) {
                 </div>
 
                 <!-- Status -->
-                <div v-if="item.isUploading || item.isProcessing || item.isProcessed || item.error" class="px-4 py-2 bg-muted/30 border-t border-default">
+                <div v-if="item.isUploading || item.uploadedEvidenceId || item.error" class="px-4 py-2 bg-muted/30 border-t border-default">
                   <div v-if="item.error" class="flex items-center gap-2 text-error text-xs">
                     <UIcon name="i-lucide-alert-circle" />
                     {{ item.error }}
@@ -826,13 +696,9 @@ function loadTestText(sample: string) {
                     <UIcon name="i-lucide-loader-2" class="animate-spin" />
                     Uploading...
                   </div>
-                  <div v-else-if="item.isProcessing" class="flex items-center gap-2 text-info text-xs">
-                    <UIcon name="i-lucide-sparkles" class="animate-pulse" />
-                    Analyzing with AI...
-                  </div>
-                  <div v-else-if="item.isProcessed" class="flex items-center gap-2 text-success text-xs">
+                  <div v-else-if="item.uploadedEvidenceId" class="flex items-center gap-2 text-success text-xs">
                     <UIcon name="i-lucide-check-circle" />
-                    Processed
+                    Ready
                   </div>
                 </div>
               </div>
@@ -862,146 +728,16 @@ function loadTestText(sample: string) {
               </UButton>
               <UButton
                 color="primary"
-                icon="i-lucide-sparkles"
+                icon="i-lucide-send"
                 :loading="isSubmitting"
                 :disabled="!canSubmit"
                 @click="submitCapture"
               >
-                {{ hasEvidence ? 'Process & Extract Events' : 'Extract Events' }}
+                Submit Entry
               </UButton>
             </div>
           </template>
         </UCard>
-
-        <!-- Step 3a: Processing -->
-        <UCard v-else-if="state.step === 'processing'" class="mb-6">
-          <div class="py-12 text-center space-y-6">
-            <!-- Simple pulsing dots -->
-            <div class="flex items-center justify-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-primary animate-[bounce_1s_ease-in-out_infinite]" />
-              <span class="w-2 h-2 rounded-full bg-primary animate-[bounce_1s_ease-in-out_0.15s_infinite]" />
-              <span class="w-2 h-2 rounded-full bg-primary animate-[bounce_1s_ease-in-out_0.3s_infinite]" />
-            </div>
-
-            <!-- Message -->
-            <div class="space-y-1">
-              <p class="font-medium text-highlighted">Analyzing your entry</p>
-              <p class="text-sm text-muted">{{ state.processingStatus || 'Extracting events from your description...' }}</p>
-            </div>
-          </div>
-        </UCard>
-
-        <!-- Step 3b: Review -->
-        <UCard v-else-if="state.step === 'review'" class="mb-6">
-          <template #header>
-            <div>
-              <p class="font-semibold text-lg text-highlighted">Review Extracted Events</p>
-              <p class="text-sm text-muted mt-1">
-                These events will be saved into your Daylight timeline and linked to this journal entry.
-              </p>
-            </div>
-          </template>
-
-          <div class="space-y-6">
-            <!-- Extracted Events -->
-            <div v-if="state.extractionResult?.extraction?.events?.length" class="space-y-4">
-              <div
-                v-for="(event, index) in state.extractionResult.extraction.events"
-                :key="index"
-                class="border border-default rounded-lg p-4 space-y-3"
-              >
-                <div class="flex items-start justify-between gap-3">
-                  <div class="flex-1">
-                    <div class="flex items-center gap-2 mb-1">
-                      <p class="font-medium text-highlighted">{{ event.title || 'Untitled Event' }}</p>
-                      <UBadge
-                        :color="eventColor(event.type)"
-                        variant="subtle"
-                        size="xs"
-                        class="uppercase"
-                      >
-                        {{ event.type }}
-                      </UBadge>
-                    </div>
-                    <p class="text-sm text-muted">{{ event.description }}</p>
-                  </div>
-                  <div class="text-right text-xs text-muted">
-                    <p v-if="event.primary_timestamp">
-                      {{ new Date(event.primary_timestamp).toLocaleDateString() }}
-                    </p>
-                    <p v-if="event.location" class="mt-1">{{ event.location }}</p>
-                  </div>
-                </div>
-
-                <!-- Flags -->
-                <div class="flex flex-wrap gap-2">
-                  <UBadge v-if="event.child_involved" color="warning" variant="soft" size="xs">
-                    Child involved
-                  </UBadge>
-                  <UBadge v-if="event.custody_relevance?.agreement_violation" color="error" variant="soft" size="xs">
-                    Agreement violation
-                  </UBadge>
-                  <UBadge v-if="event.custody_relevance?.safety_concern" color="error" variant="soft" size="xs">
-                    Safety concern
-                  </UBadge>
-                </div>
-              </div>
-            </div>
-
-            <!-- No Events -->
-            <div v-else class="py-8 text-center">
-              <UIcon name="i-lucide-inbox" class="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-              <p class="text-muted">No events were extracted from your description.</p>
-            </div>
-
-            <!-- Linked Evidence -->
-            <div v-if="hasEvidence && evidenceWithExtractions.length" class="space-y-2">
-              <p class="text-xs font-medium text-muted uppercase tracking-wide">Linked Evidence</p>
-              <div class="flex flex-wrap gap-2">
-                <UBadge
-                  v-for="(ev, idx) in state.evidence.filter(e => e.isProcessed)"
-                  :key="idx"
-                  color="info"
-                  variant="soft"
-                >
-                  {{ ev.fileName }}
-                </UBadge>
-              </div>
-            </div>
-          </div>
-
-          <template #footer>
-            <div class="flex items-center justify-between">
-              <UButton
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-pencil"
-                @click="goBackToEdit"
-              >
-                Edit
-              </UButton>
-              <UButton
-                color="primary"
-                icon="i-lucide-check"
-                :loading="isSubmitting"
-                :disabled="!state.extractionResult?.extraction?.events?.length || (isFree && !canCreateJournalEntry)"
-                @click="confirmAndSave"
-              >
-                Save Entry
-              </UButton>
-            </div>
-          </template>
-        </UCard>
-
-        <!-- Limit reached alert (backup for review step) -->
-        <UAlert
-          v-if="state.step === 'review' && isFree && !canCreateJournalEntry"
-          color="error"
-          variant="subtle"
-          icon="i-lucide-alert-circle"
-          title="Free plan limit reached (5 journal entries). Upgrade to Pro for unlimited entries."
-          class="mb-6"
-        />
 
         <!-- Error Alert -->
         <UAlert

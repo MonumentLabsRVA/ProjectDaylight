@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "nuxt build",
+    "predev": "pkill -f 'inngest-cli.*dev' || true",
     "dev": "concurrently -n nuxt,inngest -c blue,magenta \"nuxt dev\" \"npx inngest-cli@latest dev -u http://localhost:3000/api/inngest\"",
     "dev:nuxt": "nuxt dev",
     "dev:inngest": "npx inngest-cli@latest dev -u http://localhost:3000/api/inngest",

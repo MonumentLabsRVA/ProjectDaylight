@@ -438,12 +438,13 @@ Show processing status inline:
 > **Status:**
 > - ✅ Phase 1 (Database & Types) completed — migrations and TypeScript definitions implemented and verified in Supabase.
 > - ✅ Phase 2 (Backend) completed — `journalExtractionFunction` Inngest function, `/api/journal/submit.post.ts` route, and handler registration implemented.
+> - ✅ Phase 3 (Frontend) completed — `useJobs` composable, async submission flow, status display in list/detail views.
 
 | Phase | Tasks | Est. |
 |-------|-------|------|
 | **1. Database & Types** ✅ | Migrations (`jobs` table, `journal_entries.extraction_job_id`), TypeScript type definitions | 2h |
 | **2. Backend** ✅ | Background function (`journal-extraction.ts`), Submit API route (`/api/journal/submit.post.ts`), register function in Inngest handler | 5h |
-| **3. Frontend** | `useJobs` composable with Realtime subscription, update `journal/new.vue` for async submission, update journal list/detail for status display | 5h |
+| **3. Frontend** ✅ | `useJobs` composable with Realtime subscription, update `journal/new.vue` for async submission, update journal list/detail for status display | 5h |
 | **4. Testing** | End-to-end flow testing, error handling, retry scenarios | 2h |
 
 **Total: ~2 days**
