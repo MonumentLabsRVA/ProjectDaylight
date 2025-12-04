@@ -225,23 +225,22 @@ ${contextParts.join('\n')}
 
 Generate a summary following the structure and requirements specified in your instructions.`
 
-    const response = await openai.chat.completions.create({
+    const response = await openai.responses.create({
       model: 'gpt-5',
-      messages: [
+      input: [
         {
           role: 'system',
-          content: systemPrompt
+          content: [{ type: 'input_text', text: systemPrompt }]
         },
         {
           role: 'user',
-          content: userPrompt
+          content: [{ type: 'input_text', text: userPrompt }]
         }
       ],
-      max_tokens: 800,  // Increased for more comprehensive summaries
       temperature: 0.3   // Lower temperature for more consistent, fact-based output
     })
 
-    const summary = response.choices[0]?.message?.content || 'Unable to generate summary.'
+    const summary = response.output_text || 'Unable to generate summary.'
 
     // Return the summary along with token usage info
     return {
@@ -252,9 +251,9 @@ Generate a summary following the structure and requirements specified in your in
         evidenceAnalyzed: evidence.length,
         generatedAt: new Date().toISOString(),
         usage: response.usage ? {
-          prompt_tokens: response.usage.prompt_tokens,
-          completion_tokens: response.usage.completion_tokens,
-          total_tokens: response.usage.total_tokens
+          prompt_tokens: response.usage.input_tokens,
+          completion_tokens: response.usage.output_tokens,
+          total_tokens: response.usage.input_tokens + response.usage.output_tokens
         } : null
       }
     }
