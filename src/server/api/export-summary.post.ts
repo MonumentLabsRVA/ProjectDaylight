@@ -236,8 +236,7 @@ Generate a summary following the structure and requirements specified in your in
           role: 'user',
           content: [{ type: 'input_text', text: userPrompt }]
         }
-      ],
-      temperature: 0.3   // Lower temperature for more consistent, fact-based output
+      ]
     })
 
     const summary = response.output_text || 'Unable to generate summary.'
