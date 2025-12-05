@@ -423,9 +423,86 @@ function goBackToEvent() {
 // Test data loaders
 function loadTestText(sample: string) {
   const samples: Record<string, string> = {
-    incident: `Tonight the kids were scheduled to be dropped off at 6:00 PM per our custody agreement. Other parent arrived at 6:45 PM with no prior notice. When they arrived, I could smell alcohol on their breath. The children mentioned they hadn't eaten dinner yet. Sarah said "Daddy forgot to feed us again" and looked upset. Tommy was crying and said his tummy hurt from being hungry. I took a photo of the sign-in sheet showing the time.`,
-    positive: `Had a wonderful day with the kids today. We made pancakes together for breakfast, then went to the library for story time. Sarah checked out three chapter books. In the afternoon, Tommy rode his bike without training wheels for the first time! Both kids were in bed by 8:00 PM after baths and bedtime stories.`,
-    neutral: `Today's custody exchange at 5:00 PM at Walmart parking lot. Other parent arrived at 5:02 PM. Children had their overnight bags with clothes, toiletries, and homework. Brief conversation about upcoming school events. Exchange completed at 5:08 PM without incident.`
+    incident: `What a stressful day. I need to document everything while it's still fresh in my mind.
+
+This morning started off okay. I got the kids up at 7:00 AM for school like usual. Sarah seemed tired and said she didn't sleep well at dad's house over the weekend. When I asked why, she said "Daddy's new girlfriend was over and they were being loud until really late." I didn't push her on it but made a mental note. Tommy didn't want to eat breakfast and when I checked his backpack, I found the homework folder I sent with him on Friday was completely empty - none of the assignments were done.
+
+I texted Michael at 8:15 AM asking about the homework situation. His response was just "they said they didn't have any" which is frustrating because I specifically told him about the math worksheet and reading log when I dropped them off. I have the text screenshots saved.
+
+The real issue happened this evening. Per our custody agreement, Michael was supposed to drop the kids off at my house at 6:00 PM. By 6:30 PM he still hadn't shown up and wasn't responding to my calls or texts. I sent three text messages and called twice - no answer. I was starting to get really worried.
+
+He finally pulled into the driveway at 7:15 PM - over an hour late with no explanation or advance notice. When I went outside to get the kids, I immediately noticed he seemed off. His eyes were red and he was slurring his words slightly. When he got close to hand me Sarah's bag, I could definitely smell alcohol on his breath. It wasn't subtle.
+
+I asked him if he'd been drinking and he got defensive and said "I had one beer at dinner, relax." But based on his behavior it seemed like more than that. I didn't want to start a fight in front of the kids so I just took them inside.
+
+Once we were inside, the kids both seemed upset. Tommy was crying and said his tummy hurt. When I asked if they'd eaten dinner, Sarah said "No, daddy said we'd eat when we got home but then he forgot and we just watched TV." So they hadn't eaten since lunch. I made them sandwiches right away and they both scarfed them down like they were starving.
+
+While I was making dinner, Sarah told me more about the weekend. She said Michael's girlfriend Amanda was there the whole time and that Amanda yelled at Tommy for spilling juice on Saturday. Sarah said Tommy cried and Michael didn't do anything about it. I'm concerned about this new person being around my kids and how she's treating them.
+
+I checked Sarah's overnight bag and her clothes from Friday were still in there, unworn - meaning she wore the same outfit all weekend. Tommy's bag was missing his toothbrush entirely. These might seem like small things but it's part of a pattern of neglect I've been noticing.
+
+I took photos of the clock when he arrived (7:15 PM), saved all the text messages, and made notes about the alcohol smell and the kids' statements. I also took a picture of Tommy's empty homework folder and Sarah's unchanged overnight bag. My neighbor Janet was outside gardening and saw the whole exchange - she mentioned to me later that she thought Michael "looked intoxicated." I should ask her if she'd be willing to write a statement.
+
+The kids are in bed now. Tomorrow is a school day and I'm going to have to email Mrs. Patterson about the missing homework again. This is the third time this has happened when they've come back from his house.
+
+I really need to talk to my lawyer about this. The pattern is getting worse. Late drop-offs, not feeding them, not doing homework, possible drinking and driving with the kids in the car. I'm scared for their safety.`,
+
+    positive: `Today was such a wonderful day with the kids and I want to write it all down so I remember it.
+
+We started the morning slowly since it's Saturday. I let the kids sleep in until about 8:30 AM, then we all made pancakes together as a family. Sarah mixed the batter and Tommy got to flip one (with my help of course). We made them into fun shapes - Tommy wanted a dinosaur and Sarah made a heart. They both ate a full breakfast which made me happy since sometimes getting them to eat in the morning is a struggle.
+
+After breakfast, we did some tidying up around the house. I've been trying to teach them responsibility with age-appropriate chores. Sarah helped me sort laundry and Tommy's job was to put all his toys back in his toy bin. They did great and I gave them each a sticker for their chore charts.
+
+Around 10:30 AM, we headed to the library for their Saturday morning story time. Sarah has been really into chapter books lately, so we spent some extra time in the kids' section. She checked out three books from the Magic Tree House series. Tommy picked out two picture books about trucks. The librarian, Mrs. Chen, commented on how well-behaved they were and what good readers they're becoming. That made me so proud.
+
+For lunch, we had a picnic at Memorial Park. The weather was perfect - sunny but not too hot. The kids played on the playground for about an hour. Tommy made a new friend, a little boy named Marcus, and they played on the swings together. I got some great photos of both kids on the slide and swings. Sarah found a "fairy garden" near some trees and spent a long time examining bugs and leaves. I love seeing her curiosity about nature.
+
+The big highlight of the day happened around 3:00 PM. Tommy has been working on riding his bike without training wheels for weeks. We've been practicing in the driveway after school. Today, something just clicked - he took off down the sidewalk, pedaling all by himself, without any help from me! He was so proud of himself he was literally jumping up and down afterward. I recorded a video of him riding and called my mom so he could tell her all about it. Sarah was cheering him on the whole time, being such a supportive big sister.
+
+We came home and I let them have some screen time while I made dinner - chicken nuggets and veggie sticks, their favorite. During dinner, we talked about their week and what they're looking forward to. Sarah has a spelling test on Wednesday and she's been studying hard. Tommy is excited about show-and-tell on Friday - he wants to bring his new bike helmet to show his class.
+
+After dinner, we had a family game night and played Candy Land. Tommy won the first game and Sarah won the second. No fighting or meltdowns, which doesn't always happen, so that was nice.
+
+Bath time was smooth. I let them have a few extra minutes to play with their bath toys. Tommy's been really into his rubber ducks lately. Sarah likes to practice holding her breath underwater.
+
+We read two bedtime stories - "Goodnight Moon" for Tommy and a chapter from Sarah's new library book. Both kids were asleep by 8:00 PM on the dot. 
+
+I'm so grateful for days like this. The kids seem happy, healthy, and well-adjusted. We have a good routine going. I want to document these positive moments too, not just the difficult ones. Days like today remind me why I'm fighting so hard in this custody situation - to give my kids stability, structure, and lots of love.
+
+Tomorrow is church in the morning, then Michael picks them up at 5:00 PM for his week. I've already packed their bags with everything they need - clothes for each day, toothbrushes, homework folders, their favorite stuffed animals. I included a note with their school schedule and Sarah's spelling words.`,
+
+    neutral: `Standard weekly custody exchange today. Want to document it since I'm trying to keep records of everything.
+
+Per our court-ordered custody agreement, the exchange was scheduled for 5:00 PM at the Walmart parking lot on Main Street. This is the neutral location we agreed to use.
+
+I arrived at 4:50 PM and parked in our usual spot near the garden center entrance. I had both kids with me - Sarah (8) and Tommy (5). They had their overnight bags packed with:
+- 5 days worth of clothes each
+- Pajamas
+- Toothbrushes and toothpaste  
+- Sarah's homework folder with her assignments for the week
+- Tommy's show-and-tell item (his toy fire truck)
+- Their favorite stuffed animals (Sarah's bunny, Tommy's bear)
+- A note with upcoming school events and reminders
+
+Michael pulled in at 5:02 PM, so just a couple minutes late but nothing significant. He parked next to my car as usual.
+
+The exchange itself was brief and civil. Michael asked how the kids' week was and I gave him a quick update - Sarah has a spelling test Wednesday and Tommy has a dentist appointment next Thursday at 3:30 PM that I'll be taking him to. He acknowledged both and said he'd remind Sarah to study.
+
+The kids gave me hugs and said goodbye. They seemed comfortable and didn't show any hesitation about going with their dad, which is good. Tommy was excited to tell his dad about learning to ride his bike without training wheels.
+
+We didn't discuss anything contentious. I avoided bringing up the late drop-off from two weeks ago since I've already documented that and sent it to my lawyer. Keeping exchanges neutral and conflict-free is what the parenting coordinator recommended.
+
+Exchange completed at 5:08 PM. Kids were with their dad and I drove home.
+
+A few observations for the record:
+- Michael appeared sober and appropriate
+- His car looked clean and had proper car seats installed
+- He was polite and didn't make any negative comments
+- The kids' demeanor was normal
+
+I'll get the kids back next Sunday at 6:00 PM at the same location. I've already marked it in my calendar and set a reminder. I also sent Michael a confirmation text about the pickup time and he acknowledged it.
+
+Nothing concerning to report from this exchange. Just want to keep the documentation consistent whether things go well or poorly.`
   }
   state.value.eventText = samples[sample] ?? samples.incident!
 }

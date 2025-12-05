@@ -95,7 +95,10 @@ export function useJobs() {
           color: 'success',
           actions: job.journal_entry_id ? [{
             label: 'View',
-            click: () => navigateTo(`/journal/${job.journal_entry_id}`)
+            onClick: (event) => {
+              event?.stopPropagation()
+              navigateTo(`/journal/${job.journal_entry_id}`)
+            }
           }] : undefined
         })
       }
