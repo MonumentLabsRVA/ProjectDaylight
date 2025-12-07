@@ -5,7 +5,7 @@ import { Analytics } from '@vercel/analytics/nuxt';
 
 <template>
   <UApp>
-    <NuxtLoadingIndicator color="neutral" />
+    <NuxtLoadingIndicator />
 
     <NuxtLayout>
       <NuxtPage />
