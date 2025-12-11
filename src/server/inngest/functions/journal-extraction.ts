@@ -225,7 +225,7 @@ async function extractEventsFromText(
   // Load richer case context
   let caseContext = 'The speaker is involved in a family court / custody / divorce matter.'
 
-  const { data: caseRow } = await supabase
+  const { data: rawCaseRow } = await supabase
     .from('cases')
     .select(
       [
@@ -251,6 +251,10 @@ async function extractEventsFromText(
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
+
+  // The Supabase client typing for this query falls back to a generic error type,
+  // so explicitly assert the correct row shape from our generated Database types.
+  const caseRow = rawCaseRow as Database['public']['Tables']['cases']['Row'] | null
 
   if (caseRow) {
     const lines: string[] = ['CASE CONTEXT:']
@@ -643,14 +647,16 @@ export const journalExtractionFunction = inngest.createFunction(
     onFailure: async ({ event, error }) => {
       const supabase = createServiceClient()
 
+      const failedEvent = event as unknown as JournalExtractionEvent
+
       // Mark job as failed
-      await supabase
+      await (supabase as any)
         .from('jobs')
         .update({
           status: 'failed',
           error_message: error.message
         })
-        .eq('id', (event as JournalExtractionEvent).data.jobId)
+        .eq('id', failedEvent.data.jobId)
 
       // Also update journal entry status if possible
       await supabase
@@ -660,19 +666,20 @@ export const journalExtractionFunction = inngest.createFunction(
           processing_error: error.message,
           updated_at: new Date().toISOString()
         })
-        .eq('id', (event as JournalExtractionEvent).data.journalEntryId)
+        .eq('id', failedEvent.data.journalEntryId)
     }
   },
   { event: 'journal/extraction.requested' },
   async ({ event, step }) => {
+    const extractionEvent = event as unknown as JournalExtractionEvent
     const { jobId, journalEntryId, userId, eventText, referenceDate, evidenceIds = [] } =
-      (event as JournalExtractionEvent).data
+      extractionEvent.data
 
     const supabase = createServiceClient()
 
     // Step 1: Mark processing
     await step.run('mark-processing', async () => {
-      await supabase
+      await (supabase as any)
         .from('jobs')
         .update({
           status: 'processing',
@@ -737,7 +744,7 @@ export const journalExtractionFunction = inngest.createFunction(
         })
         .eq('id', journalEntryId)
 
-      await supabase
+      await (supabase as any)
         .from('jobs')
         .update({
           status: 'completed',
