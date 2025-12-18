@@ -114,3 +114,6 @@ Thats the whole setup: one command to run Nuxt + Inngest, with `predev` cleanin
 
 
 
+
+
+

@@ -530,46 +530,46 @@ extraction
 ### Phase 1: Database Schema Changes
 **Goal:** Prepare the database for new extraction features without breaking existing data.
 
-- [ ] **1.1** Create migration `0039_extraction_event_types_v2.sql`
-  - [ ] Add `type_v2` column to events table (text, nullable)
-  - [ ] Add CHECK constraint for valid new types
-  - [ ] Keep existing `type` column intact
+- [x] **1.1** Create migration `0039_extraction_event_types_v2.sql`
+  - [x] Add `type_v2` column to events table (text, nullable)
+  - [x] Add CHECK constraint for valid new types
+  - [x] Keep existing `type` column intact
 
-- [ ] **1.2** Create migration `0040_welfare_impact_restructure.sql`
-  - [ ] Add `welfare_category` column (text, nullable)
-  - [ ] Add `welfare_direction` column (text, nullable)
-  - [ ] Add `welfare_severity` column (text, nullable)
-  - [ ] Keep existing `welfare_impact` column intact
+- [x] **1.2** Create migration `0040_welfare_impact_restructure.sql`
+  - [x] Add `welfare_category` column (text, nullable)
+  - [x] Add `welfare_direction` column (text, nullable)
+  - [x] Add `welfare_severity` column (text, nullable)
+  - [x] Keep existing `welfare_impact` column intact
 
-- [ ] **1.3** Create migration `0041_child_statements_coparent.sql`
-  - [ ] Add `child_statements` column (jsonb, default '[]')
-  - [ ] Add `coparent_interaction` column (jsonb, nullable)
-  - [ ] Add `patterns_noted_v2` column (jsonb, default '[]')
+- [x] **1.3** Create migration `0041_child_statements_coparent.sql`
+  - [x] Add `child_statements` column (jsonb, default '[]')
+  - [x] Add `coparent_interaction` column (jsonb, nullable)
+  - [x] Add `patterns_noted_v2` column (jsonb, default '[]')
 
-- [ ] **1.4** Run all migrations in dev environment
-- [ ] **1.5** Verify existing data is unaffected
+- [x] **1.4** Run all migrations in dev environment
+- [x] **1.5** Verify existing data is unaffected
 
 ---
 
 ### Phase 2: State Guidance Utility
 **Goal:** Create jurisdiction-specific legal guidance system.
 
-- [ ] **2.1** Create `src/server/utils/state-guidance.ts`
-  - [ ] Define `StateGuidance` interface
-  - [ ] Implement Virginia guidance (VA Code § 20-124.3)
-  - [ ] Implement California guidance (Family Code § 3011)
-  - [ ] Implement `_default` fallback guidance
-  - [ ] Create `getStateGuidance()` function
-  - [ ] Create `normalizeStateName()` helper (handle abbreviations)
+- [x] **2.1** Create `src/server/utils/state-guidance.ts`
+  - [x] Define `StateGuidance` interface
+  - [x] Implement Virginia guidance (VA Code § 20-124.3)
+  - [x] Implement California guidance (Family Code § 3011)
+  - [x] Implement `_default` fallback guidance
+  - [x] Create `getStateGuidance()` function
+  - [x] Create `normalizeStateName()` helper (handle abbreviations)
 
-- [ ] **2.2** Add state abbreviation mappings
-  - [ ] VA, CA, TX, NY, FL, PA minimum
-  - [ ] Title case normalization for full names
+- [x] **2.2** Add state abbreviation mappings
+  - [x] VA, CA, TX, NY, FL, PA minimum
+  - [x] Title case normalization for full names
 
-- [ ] **2.3** Write unit tests for state guidance
-  - [ ] Test abbreviation normalization
-  - [ ] Test fallback to default
-  - [ ] Test Virginia-specific guidance retrieval
+- [x] **2.3** Write unit tests for state guidance
+  - [x] Test abbreviation normalization
+  - [x] Test fallback to default
+  - [x] Test Virginia-specific guidance retrieval
 
 ---
 
@@ -699,7 +699,7 @@ extraction
 | Phase | Status | Notes |
 |-------|--------|-------|
 | 1. Database Schema | ⬜ Not Started | |
-| 2. State Guidance | ⬜ Not Started | |
+| 2. State Guidance | ✅ Completed | Implemented utility, abbreviation handling, and basic tests |
 | 3. Extraction Code | ⬜ Not Started | |
 | 4. UI & Testing | ⬜ Not Started | |
 
