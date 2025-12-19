@@ -305,21 +305,6 @@ const eventStats = computed(() => {
   }
 })
 
-if (process.client) {
-  watchEffect(() => {
-    // eslint-disable-next-line no-console
-    console.log(
-      '[Timeline] /api/timeline result:',
-      {
-        status: status.value,
-        error: error.value,
-        count: (data.value ?? []).length,
-        items: data.value
-      }
-    )
-  })
-}
-
 function formatDate(value: string) {
   return formatTzDate(value, {
     month: 'short',

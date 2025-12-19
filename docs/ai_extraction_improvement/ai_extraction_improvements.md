@@ -655,41 +655,41 @@ extraction
 
 #### 4B: Testing Protocol
 
-- [ ] **4.4** Test Case 1: Simple entry (baseline)
-  - [ ] Verify minimal output, null/empty new fields
-  - [ ] No over-extraction
+- [x] **4.4** Test Case 1: Simple entry (baseline)
+  - [x] Verify minimal output, null/empty new fields
+  - [x] No over-extraction
 
-- [ ] **4.5** Test Case 2: Complex multi-event entry
-  - [ ] Multiple event types extracted
-  - [ ] Child statements captured
-  - [ ] Coparent tone analysis present
-  - [ ] Pattern detection working
-  - [ ] Response time < 30s
+- [x] **4.5** Test Case 2: Complex multi-event entry
+  - [x] Multiple event types extracted
+  - [x] Child statements captured
+  - [x] Coparent tone analysis present
+  - [x] Pattern detection working
+  - [x] Response time < 30s
 
-- [ ] **4.6** Test Case 3: Long narrative (2000+ words)
-  - [ ] Completes without timeout
-  - [ ] Quality consistent throughout
-  - [ ] No hallucinations
+- [x] **4.6** Test Case 3: Long narrative (2000+ words)
+  - [x] Completes without timeout
+  - [x] Quality consistent throughout
+  - [x] No hallucinations
 
-- [ ] **4.7** Test Case 4: Edge cases
-  - [ ] Entry with no custody-relevant content
-  - [ ] Entry with only positive parenting
-  - [ ] Entry with multiple child statements
-  - [ ] Entry with extensive co-parent communication
+- [x] **4.7** Test Case 4: Edge cases
+  - [x] Entry with no custody-relevant content
+  - [x] Entry with only positive parenting
+  - [x] Entry with multiple child statements
+  - [x] Entry with extensive co-parent communication
 
-- [ ] **4.8** Backward compatibility verification
-  - [ ] Old events display correctly
-  - [ ] Old event types map to new system
-  - [ ] No data corruption
+- [x] **4.8** Backward compatibility verification
+  - [x] Old events display correctly
+  - [x] Old event types map to new system
+  - [x] No data corruption
 
 #### 4C: Data Migration (Post-Verification)
 
-- [ ] **4.9** Create backfill migration for existing events
-  - [ ] Map old type → type_v2
-  - [ ] Map old welfare_impact → new columns
-  - [ ] Run in batches to avoid locks
+- [x] **4.9** Create backfill migration for existing events
+  - [x] Map old type → type_v2
+  - [x] Map old welfare_impact → new columns
+  - [x] Run in batches to avoid locks
 
-- [ ] **4.10** Verify backfill completed correctly
+- [x] **4.10** Verify backfill completed correctly
 - [x] **4.11** Update application to read from new columns with fallback
 
 ---
@@ -701,7 +701,7 @@ extraction
 | 1. Database Schema | ✅ Completed | |
 | 2. State Guidance | ✅ Completed | Implemented utility, abbreviation handling, and basic tests |
 | 3. Extraction Code | ✅ Completed | Schemas, prompts, DB writes, and types updated |
-| 4. UI & Testing | 🚧 In Progress | Phase 4A UI updates implemented; testing & backfill pending |
+| 4. UI & Testing | ✅ Completed | UI, testing, and backfill completed |
 
 ---
 

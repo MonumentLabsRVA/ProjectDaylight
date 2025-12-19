@@ -63,21 +63,6 @@ const filteredEvidence = computed(() => {
   })
 })
 
-if (process.client) {
-  watchEffect(() => {
-    // eslint-disable-next-line no-console
-    console.log(
-      '[Evidence] /api/evidence result:',
-      {
-        status: status.value,
-        error: error.value,
-        count: (data.value ?? []).length,
-        items: data.value
-      }
-    )
-  })
-}
-
 function formatDate(value: string) {
   return new Date(value).toLocaleString(undefined, {
     month: 'short',
