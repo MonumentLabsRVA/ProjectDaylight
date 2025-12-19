@@ -79,6 +79,10 @@ const sourceTypeIcons: Record<string, string> = {
 const isSaving = ref(false)
 const isDeleting = ref(false)
 
+// Delete options state
+const deleteEvidence = ref(false)
+const deleteEvents = ref(true) // Default to deleting generated events
+
 // Evidence upload state
 const addEvidenceModalOpen = ref(false)
 const evidenceFile = ref<File | null>(null)
@@ -207,7 +211,11 @@ async function deleteEntry(close?: () => void) {
 
   try {
     await $fetch(`/api/journal/${entryId.value}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      body: {
+        deleteEvidence: deleteEvidence.value,
+        deleteEvents: deleteEvents.value
+      }
     })
 
     if (close) close()
@@ -217,6 +225,11 @@ async function deleteEntry(close?: () => void) {
   } finally {
     isDeleting.value = false
   }
+}
+
+function resetDeleteOptions() {
+  deleteEvidence.value = false
+  deleteEvents.value = true
 }
 
 function formatDate(value: string) {
@@ -380,7 +393,9 @@ watch(
             <UModal
               v-if="status === 'success' && data"
               title="Delete Entry"
+              description="Choose what else to delete along with this journal entry."
               :ui="{ footer: 'justify-end' }"
+              @close="resetDeleteOptions"
             >
               <UButton
                 icon="i-lucide-trash-2"
@@ -392,13 +407,39 @@ watch(
               </UButton>
 
               <template #body>
-                <div class="space-y-3">
+                <div class="space-y-4">
                   <p class="text-sm">
-                    This will permanently delete this journal entry. Any events extracted from this entry will remain, but the entry itself will be gone.
+                    This will permanently delete this journal entry.
                   </p>
-                  <p class="text-xs text-muted">
-                    Evidence files attached to this entry will not be deleted and can still be accessed from the Evidence page.
-                  </p>
+
+                  <!-- Delete options -->
+                  <div class="space-y-3 p-3 rounded-lg bg-muted/5 border border-default">
+                    <p class="text-xs font-medium text-highlighted">Also delete:</p>
+
+                    <UCheckbox
+                      v-model="deleteEvents"
+                      label="Generated events"
+                      :ui="{ label: 'text-sm' }"
+                    >
+                      <template #description>
+                        <span class="text-xs text-muted">
+                          Events extracted from this journal entry will be removed from your timeline.
+                        </span>
+                      </template>
+                    </UCheckbox>
+
+                    <UCheckbox
+                      v-model="deleteEvidence"
+                      label="Attached evidence"
+                      :ui="{ label: 'text-sm' }"
+                    >
+                      <template #description>
+                        <span class="text-xs text-muted">
+                          Evidence files will be permanently deleted. Uncheck to keep them accessible from the Evidence page.
+                        </span>
+                      </template>
+                    </UCheckbox>
+                  </div>
                 </div>
               </template>
 

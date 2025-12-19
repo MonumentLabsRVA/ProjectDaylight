@@ -57,7 +57,12 @@ export default defineEventHandler(async (event): Promise<JournalEntryDetail> => 
   }
 
   if (method === 'DELETE') {
-    await deleteJournalEntry(client, userId, id)
+    const body = await readBody(event).catch(() => ({}))
+    const options = {
+      deleteEvidence: body?.deleteEvidence === true,
+      deleteEvents: body?.deleteEvents !== false // Default to true
+    }
+    await deleteJournalEntry(client, userId, id, options)
     return { success: true } as any
   }
 
@@ -205,13 +210,93 @@ async function updateJournalEntry(
 async function deleteJournalEntry(
   client: Awaited<ReturnType<typeof serverSupabaseClient<Database>>>,
   userId: string,
-  id: string
+  id: string,
+  options: { deleteEvidence: boolean; deleteEvents: boolean }
 ): Promise<void> {
-  // Delete journal_entry_evidence links first
+  // Get evidence IDs linked to this journal entry (for potential deletion)
+  const { data: evidenceLinks } = await client
+    .from('journal_entry_evidence')
+    .select('evidence_id')
+    .eq('journal_entry_id', id)
+
+  const evidenceIds = evidenceLinks?.map(link => link.evidence_id) || []
+
+  // Get event IDs from the job result (for potential deletion)
+  let eventIds: string[] = []
+  if (options.deleteEvents) {
+    const { data: job } = await client
+      .from('jobs')
+      .select('result_summary')
+      .eq('journal_entry_id', id)
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (job?.result_summary && typeof job.result_summary === 'object') {
+      const summary = job.result_summary as { event_ids?: string[] }
+      eventIds = summary.event_ids || []
+    }
+  }
+
+  // Delete events if requested (and we found any)
+  if (options.deleteEvents && eventIds.length > 0) {
+    // Delete related records first (cascade doesn't handle all of these)
+    await client
+      .from('event_participants')
+      .delete()
+      .in('event_id', eventIds)
+
+    await client
+      .from('evidence_mentions')
+      .delete()
+      .in('event_id', eventIds)
+
+    await client
+      .from('event_evidence')
+      .delete()
+      .in('event_id', eventIds)
+
+    await client
+      .from('action_items')
+      .delete()
+      .in('event_id', eventIds)
+
+    // Delete the events themselves
+    const { error: eventsError } = await client
+      .from('events')
+      .delete()
+      .in('id', eventIds)
+      .eq('user_id', userId)
+
+    if (eventsError) {
+      console.error('Error deleting events:', eventsError)
+    }
+  }
+
+  // Delete journal_entry_evidence links
   await client
     .from('journal_entry_evidence')
     .delete()
     .eq('journal_entry_id', id)
+
+  // Delete evidence files if requested
+  if (options.deleteEvidence && evidenceIds.length > 0) {
+    // First remove any event_evidence links to this evidence
+    await client
+      .from('event_evidence')
+      .delete()
+      .in('evidence_id', evidenceIds)
+
+    // Delete the evidence records
+    const { error: evidenceError } = await client
+      .from('evidence')
+      .delete()
+      .in('id', evidenceIds)
+      .eq('user_id', userId)
+
+    if (evidenceError) {
+      console.error('Error deleting evidence:', evidenceError)
+    }
+  }
 
   // Delete the journal entry
   const { error: deleteError } = await client
