@@ -70,6 +70,12 @@ export interface TimelineEvent {
   id: string
   timestamp: string
   type: EventType
+  /**
+   * Granular extraction-focused event type written by the AI extraction system.
+   * When present, this should be used for UI labels, icons, and filtering.
+   * Falls back to a mapping from the legacy `type` when missing.
+   */
+  extractionType?: ExtractionEventType | null
   title: string
   description: string
   participants: string[]

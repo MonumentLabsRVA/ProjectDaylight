@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import type { EventType } from '~/types'
+import type { ChildStatement, CoparentInteraction, CoparentTone, EventType, ExtractionEventType } from '~/types'
 import type { Database } from '~/types/database.types'
 
-type WelfareImpact = Database['public']['Enums']['welfare_impact']
+type LegacyWelfareImpact = Database['public']['Enums']['welfare_impact']
 
 interface EventDetailResponse {
   id: string
   timestamp: string
   type: EventType
+  /**
+   * New granular extraction event type when available.
+   * Falls back to a mapping from the legacy `type` when missing.
+   */
+  extractionType?: ExtractionEventType | null
   title: string
   description: string
   participants: string[]
@@ -19,10 +24,17 @@ interface EventDetailResponse {
   agreementViolation?: boolean
   safetyConcern?: boolean
   welfareImpact?: string
+  welfareCategory?: string | null
+  welfareDirection?: string | null
+  welfareSeverity?: string | null
   durationMinutes?: number
   timestampPrecision?: string
   createdAt: string
   updatedAt: string
+
+  // Enriched AI extraction fields
+  childStatements?: ChildStatement[]
+  coparentInteraction?: CoparentInteraction | null
   
   // Related data
   evidenceDetails?: Array<{
@@ -100,13 +112,41 @@ watch(error, async (err: any) => {
   }
 })
 
-const typeColors: Record<EventType, 'success' | 'error' | 'info' | 'warning' | 'neutral'> = {
-  positive: 'success',
-  incident: 'error',
+const legacyToExtractionTypeMap: Record<EventType, ExtractionEventType> = {
+  positive: 'parenting_time',
+  incident: 'coparent_conflict',
+  medical: 'medical',
+  school: 'school',
+  communication: 'communication',
+  legal: 'legal'
+}
+
+const extractionTypeColors: Record<ExtractionEventType, 'success' | 'error' | 'info' | 'warning' | 'neutral' | 'primary'> = {
+  parenting_time: 'primary',
+  caregiving: 'success',
+  household: 'neutral',
+  coparent_conflict: 'error',
+  gatekeeping: 'warning',
+  communication: 'info',
   medical: 'info',
   school: 'warning',
-  communication: 'info',
   legal: 'neutral'
+}
+
+function formatExtractionEventType(type: ExtractionEventType): string {
+  const map: Record<ExtractionEventType, string> = {
+    parenting_time: 'Parenting time',
+    caregiving: 'Caregiving',
+    household: 'Household / chores',
+    coparent_conflict: 'Co-parent conflict',
+    gatekeeping: 'Gatekeeping',
+    communication: 'Communication',
+    medical: 'Medical',
+    school: 'School',
+    legal: 'Legal / court'
+  }
+
+  return map[type] || type
 }
 
 const eventTypeOptions: { label: string; value: EventType }[] = [
@@ -117,6 +157,13 @@ const eventTypeOptions: { label: string; value: EventType }[] = [
   { label: 'Communication', value: 'communication' },
   { label: 'Legal / court', value: 'legal' }
 ]
+
+const toneColors: Record<CoparentTone, 'neutral' | 'success' | 'warning' | 'error'> = {
+  neutral: 'neutral',
+  cooperative: 'success',
+  defensive: 'warning',
+  hostile: 'error'
+}
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString(undefined, {
@@ -157,7 +204,7 @@ const evidenceStatusColors: Record<string, 'success' | 'warning' | 'error'> = {
   need_to_create: 'error'
 }
 
-const welfareImpactOptions: { label: string; value: WelfareImpact }[] = [
+const welfareImpactOptions: { label: string; value: LegacyWelfareImpact }[] = [
   { label: 'None / neutral', value: 'none' },
   { label: 'Minor impact', value: 'minor' },
   { label: 'Moderate impact', value: 'moderate' },
@@ -187,6 +234,56 @@ const editableTimestamp = computed({
     data.value.timestamp = new Date(value).toISOString()
   }
 })
+
+const hasStructuredWelfareImpact = computed(() => {
+  const value = data.value
+  if (!value) return false
+  return Boolean(value.welfareCategory || value.welfareDirection || value.welfareSeverity)
+})
+
+const extractionType = computed<ExtractionEventType | null>(() => {
+  if (!data.value) return null
+  const fromApi = (data.value as any).extractionType as ExtractionEventType | null | undefined
+  if (fromApi) {
+    return fromApi
+  }
+
+  return legacyToExtractionTypeMap[data.value.type]
+})
+
+function formatWelfareCategory(category: string | null | undefined) {
+  if (!category) return 'None'
+  const map: Record<string, string> = {
+    routine: 'Routine / schedule',
+    emotional: 'Emotional',
+    medical: 'Medical',
+    educational: 'Educational',
+    social: 'Social',
+    safety: 'Safety',
+    none: 'No impact'
+  }
+  return map[category] ?? category
+}
+
+function formatWelfareDirection(direction: string | null | undefined) {
+  if (!direction) return 'Neutral'
+  const map: Record<string, string> = {
+    positive: 'Positive',
+    negative: 'Negative',
+    neutral: 'Neutral'
+  }
+  return map[direction] ?? direction
+}
+
+function formatWelfareSeverity(severity: string | null | undefined) {
+  if (!severity) return 'Not specified'
+  const map: Record<string, string> = {
+    minimal: 'Minimal',
+    moderate: 'Moderate',
+    significant: 'Significant'
+  }
+  return map[severity] ?? severity
+}
 
 const editableLocation = computed({
   get() {
@@ -228,7 +325,7 @@ const editableType = computed<EventType>({
   }
 })
 
-const editableWelfareImpact = computed<WelfareImpact>({
+const editableWelfareImpact = computed<LegacyWelfareImpact>({
   get() {
     // Default to 'unknown' so the select always has a value
     return (data.value?.welfareImpact as WelfareImpact | undefined) ?? 'unknown'
@@ -652,12 +749,12 @@ async function deleteEventHandler(deleteEvidence: boolean, close?: () => void) {
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div class="flex items-center gap-3">
                 <UBadge
-                  :color="typeColors[data.type]"
+                  :color="extractionType ? extractionTypeColors[extractionType] : 'neutral'"
                   variant="subtle"
                   size="lg"
                   class="capitalize"
                 >
-                  {{ data.type }}
+                  {{ extractionType ? formatExtractionEventType(extractionType) : data.type }}
                 </UBadge>
                 <h1 class="text-xl font-semibold">{{ data.title }}</h1>
               </div>
@@ -714,8 +811,68 @@ async function deleteEventHandler(deleteEvidence: boolean, close?: () => void) {
               </UBadge>
             </div>
 
+            <!-- Co-parent Interaction Analysis -->
+            <div v-if="data.coparentInteraction" class="flex flex-wrap items-center gap-2">
+              <p class="text-xs text-muted">Co-parent interaction:</p>
+              <UBadge
+                v-if="data.coparentInteraction.your_tone"
+                :color="toneColors[data.coparentInteraction.your_tone]"
+                variant="outline"
+                size="xs"
+                class="capitalize"
+              >
+                Your tone: {{ data.coparentInteraction.your_tone }}
+              </UBadge>
+              <UBadge
+                v-if="data.coparentInteraction.their_tone"
+                :color="toneColors[data.coparentInteraction.their_tone]"
+                variant="outline"
+                size="xs"
+                class="capitalize"
+              >
+                Their tone: {{ data.coparentInteraction.their_tone }}
+              </UBadge>
+              <UBadge
+                v-if="data.coparentInteraction.your_response_appropriate !== null && data.coparentInteraction.your_response_appropriate !== undefined"
+                :color="data.coparentInteraction.your_response_appropriate ? 'success' : 'warning'"
+                variant="subtle"
+                size="xs"
+              >
+                Your response was {{ data.coparentInteraction.your_response_appropriate ? 'appropriate' : 'not appropriate' }}
+              </UBadge>
+            </div>
+
             <!-- Welfare Impact -->
-            <div v-if="data.welfareImpact && data.welfareImpact !== 'unknown'" class="flex items-center gap-2">
+            <div v-if="hasStructuredWelfareImpact" class="space-y-1">
+              <p class="text-xs text-muted">Welfare Impact:</p>
+              <div class="flex flex-wrap items-center gap-2 text-xs">
+                <UBadge
+                  v-if="data.welfareCategory"
+                  color="neutral"
+                  variant="subtle"
+                  size="xs"
+                >
+                  Category: {{ formatWelfareCategory(data.welfareCategory) }}
+                </UBadge>
+                <UBadge
+                  v-if="data.welfareDirection"
+                  :color="data.welfareDirection === 'positive' ? 'success' : data.welfareDirection === 'negative' ? 'error' : 'neutral'"
+                  variant="subtle"
+                  size="xs"
+                >
+                  Direction: {{ formatWelfareDirection(data.welfareDirection) }}
+                </UBadge>
+                <UBadge
+                  v-if="data.welfareSeverity"
+                  :color="data.welfareSeverity === 'significant' ? 'error' : data.welfareSeverity === 'moderate' ? 'warning' : 'neutral'"
+                  variant="outline"
+                  size="xs"
+                >
+                  Severity: {{ formatWelfareSeverity(data.welfareSeverity) }}
+                </UBadge>
+              </div>
+            </div>
+            <div v-else-if="data.welfareImpact && data.welfareImpact !== 'unknown'" class="flex items-center gap-2">
               <p class="text-xs text-muted">Welfare Impact:</p>
               <UBadge
                 :color="data.welfareImpact === 'positive' ? 'success' : 
@@ -727,6 +884,37 @@ async function deleteEventHandler(deleteEvidence: boolean, close?: () => void) {
               >
                 {{ data.welfareImpact }}
               </UBadge>
+            </div>
+          </div>
+        </UCard>
+
+        <!-- Child Statements -->
+        <UCard v-if="data.childStatements?.length">
+          <template #header>
+            <h2 class="text-lg font-medium">Child Statements</h2>
+          </template>
+
+          <div class="space-y-3">
+            <div
+              v-for="(statement, index) in data.childStatements"
+              :key="index"
+              class="p-3 rounded-lg bg-muted/5"
+            >
+              <p class="text-sm italic">
+                “{{ statement.statement }}”
+              </p>
+              <p v-if="statement.context" class="text-xs text-muted mt-1">
+                Context: {{ statement.context }}
+              </p>
+              <div class="mt-2">
+                <UBadge
+                  :color="statement.concerning ? 'error' : 'neutral'"
+                  variant="subtle"
+                  size="xs"
+                >
+                  {{ statement.concerning ? 'Concerning' : 'Not marked as concerning' }}
+                </UBadge>
+              </div>
             </div>
           </div>
         </UCard>

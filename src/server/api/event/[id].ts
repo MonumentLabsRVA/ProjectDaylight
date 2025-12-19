@@ -2,7 +2,15 @@ import type { TimelineEvent } from '~/types'
 import type { Tables } from '~/types/database.types'
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 
-type EventRow = Tables<'events'>
+type EventRow = Tables<'events'> & {
+  // New granular type and enrichment fields added in recent migrations
+  type_v2?: string | null
+  welfare_category?: string | null
+  welfare_direction?: string | null
+  welfare_severity?: string | null
+  child_statements?: any[] | null
+  coparent_interaction?: any | null
+}
 type EventParticipantRow = Tables<'event_participants'>
 type EventEvidenceRow = Tables<'event_evidence'>
 type EvidenceMentionRow = Tables<'evidence_mentions'>
@@ -12,14 +20,22 @@ type EventEvidenceSuggestionRow = Tables<'event_evidence_suggestions'>
 
 interface EventDetailResponse extends TimelineEvent {
   // Additional fields from the database
+  extractionType?: string
   childInvolved?: boolean
   agreementViolation?: boolean
   safetyConcern?: boolean
   welfareImpact?: string
+  welfareCategory?: string | null
+  welfareDirection?: string | null
+  welfareSeverity?: string | null
   durationMinutes?: number
   timestampPrecision?: string
   createdAt: string
   updatedAt: string
+
+  // Enriched AI extraction fields
+  childStatements?: any[]
+  coparentInteraction?: any | null
   
   // Related data
   evidenceDetails?: Array<{
@@ -94,6 +110,7 @@ function mapEventToDetailResponse(
     id: row.id,
     timestamp: row.primary_timestamp || row.created_at,
     type: row.type as TimelineEvent['type'],
+    extractionType: (row as any).type_v2 as string | undefined,
     title: row.title || 'Untitled Event',
     description: row.description || '',
     participants,
@@ -105,10 +122,17 @@ function mapEventToDetailResponse(
     agreementViolation: row.agreement_violation || undefined,
     safetyConcern: row.safety_concern || undefined,
     welfareImpact: row.welfare_impact || undefined,
+    welfareCategory: (row as any).welfare_category || undefined,
+    welfareDirection: (row as any).welfare_direction || undefined,
+    welfareSeverity: (row as any).welfare_severity || undefined,
     durationMinutes: row.duration_minutes || undefined,
     timestampPrecision: row.timestamp_precision || undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+
+    // AI enrichment fields
+    childStatements: (row as any).child_statements || [],
+    coparentInteraction: (row as any).coparent_interaction || null,
     
     // Related data
     evidenceDetails: evidenceRows.map(e => ({

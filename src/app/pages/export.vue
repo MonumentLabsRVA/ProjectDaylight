@@ -4,6 +4,7 @@ import type {
   EvidenceSourceType,
   TimelineEvent,
   EventType,
+  ExtractionEventType,
   SavedExport,
   ExportFocus,
   ExportMetadata
@@ -137,6 +138,24 @@ const exportFocusOptions: { label: string; value: ExportFocus; description: stri
   description: 'Highlight your stability, routines, and positive involvement.'
 }]
 
+const legacyToExtractionTypeMap: Record<EventType, ExtractionEventType> = {
+  positive: 'parenting_time',
+  incident: 'coparent_conflict',
+  medical: 'medical',
+  school: 'school',
+  communication: 'communication',
+  legal: 'legal'
+}
+
+function getExtractionType(event: TimelineEvent): ExtractionEventType {
+  const fromApi = (event as any).extractionType as ExtractionEventType | null | undefined
+  if (fromApi) {
+    return fromApi
+  }
+
+  return legacyToExtractionTypeMap[event.type]
+}
+
 function applyCase(row: CaseRow | null) {
   if (!row) return
 
@@ -260,26 +279,37 @@ function formatRelativeDate(value: string) {
   }
 }
 
-function formatEventType(type: EventType) {
-  const map: Record<EventType, string> = {
-    positive: 'Positive parenting',
-    incident: 'Incident',
+function formatEventType(type: EventType, extractionType?: ExtractionEventType | null) {
+  const effective = extractionType || legacyToExtractionTypeMap[type]
+
+  const map: Record<ExtractionEventType, string> = {
+    parenting_time: 'Parenting time',
+    caregiving: 'Caregiving',
+    household: 'Household / chores',
+    coparent_conflict: 'Co-parent conflict',
+    gatekeeping: 'Gatekeeping',
+    communication: 'Communication',
     medical: 'Medical',
     school: 'School',
-    communication: 'Communication',
     legal: 'Legal / court'
   }
 
-  return map[type] || type
+  return map[effective] || effective
 }
 
 const filteredEvents = computed(() => {
   let events = (timelineData.value || []) as TimelineEvent[]
 
   if (exportFocus.value === 'incidents-only') {
-    events = events.filter(event => event.type === 'incident')
+    events = events.filter((event) => {
+      const extractionType = getExtractionType(event)
+      return extractionType === 'coparent_conflict' || extractionType === 'gatekeeping'
+    })
   } else if (exportFocus.value === 'positive-parenting') {
-    events = events.filter(event => event.type === 'positive')
+    events = events.filter((event) => {
+      const extractionType = getExtractionType(event)
+      return extractionType === 'parenting_time' || extractionType === 'caregiving'
+    })
   }
 
   return events
@@ -368,7 +398,7 @@ function buildMarkdown() {
   } else {
     events.forEach((event, index) => {
       lines.push(
-        `${index + 1}. ${formatDate(event.timestamp)} — **${event.title}** (${formatEventType(event.type)})`
+        `${index + 1}. ${formatDate(event.timestamp)} — **${event.title}** (${formatEventType(event.type, (event as any).extractionType as ExtractionEventType | null | undefined)})`
       )
 
       if (event.description) {

@@ -2,9 +2,45 @@ import type { TimelineEvent } from '~/types'
 import type { Tables } from '~/types/database.types'
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 
-type EventRow = Tables<'events'>
+type EventRow = Tables<'events'> & {
+  // New granular event type column added in migration 0039
+  type_v2?: string | null
+}
 type EventParticipantRow = Tables<'event_participants'>
 type EventEvidenceRow = Tables<'event_evidence'>
+
+type ExtractionEventType =
+  | 'parenting_time'
+  | 'caregiving'
+  | 'household'
+  | 'coparent_conflict'
+  | 'gatekeeping'
+  | 'communication'
+  | 'medical'
+  | 'school'
+  | 'legal'
+
+function mapLegacyTypeToExtractionType(legacyType: EventRow['type']): ExtractionEventType {
+  const mapping: Record<EventRow['type'], ExtractionEventType> = {
+    incident: 'coparent_conflict',
+    positive: 'parenting_time',
+    medical: 'medical',
+    school: 'school',
+    communication: 'communication',
+    legal: 'legal'
+  }
+
+  return mapping[legacyType] ?? 'parenting_time'
+}
+
+function getExtractionTypeFromRow(row: EventRow): ExtractionEventType {
+  const typeV2 = (row as any).type_v2 as string | null | undefined
+  if (typeV2) {
+    return typeV2 as ExtractionEventType
+  }
+
+  return mapLegacyTypeToExtractionType(row.type)
+}
 
 function mapEventToTimelineEvent(
   row: EventRow,
@@ -15,6 +51,7 @@ function mapEventToTimelineEvent(
     id: row.id,
     timestamp: (row.primary_timestamp as string | null) ?? (row.created_at as string),
     type: row.type as TimelineEvent['type'],
+    extractionType: getExtractionTypeFromRow(row),
     title: row.title,
     description: row.description,
     participants: participants.length ? participants : ['You'],
@@ -43,7 +80,7 @@ export default eventHandler(async (event) => {
   } = await supabase
     .from('events')
     .select(
-      'id, type, title, description, primary_timestamp, location, created_at'
+      'id, type, type_v2, title, description, primary_timestamp, location, created_at'
     )
     .eq('user_id', userId)
     .order('primary_timestamp', { ascending: false, nullsFirst: false })

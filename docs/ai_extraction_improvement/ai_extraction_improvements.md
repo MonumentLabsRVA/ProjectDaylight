@@ -639,19 +639,19 @@ extraction
 
 #### 4A: UI Updates
 
-- [ ] **4.1** Update event type display/filtering
-  - [ ] Map new types to display labels
-  - [ ] Update any type badges/icons
-  - [ ] Handle both old and new types during transition
+- [x] **4.1** Update event type display/filtering
+  - [x] Map new types to display labels
+  - [x] Update any type badges/icons
+  - [x] Handle both old and new types during transition
 
-- [ ] **4.2** Update event detail view
-  - [ ] Display child statements when present
-  - [ ] Display coparent interaction analysis
-  - [ ] Display structured welfare impact
+- [x] **4.2** Update event detail view
+  - [x] Display child statements when present
+  - [x] Display coparent interaction analysis
+  - [x] Display structured welfare impact
 
-- [ ] **4.3** Update timeline/list views
-  - [ ] Filter by new event types
-  - [ ] Group appropriately
+- [x] **4.3** Update timeline/list views
+  - [x] Filter by new event types
+  - [x] Group appropriately
 
 #### 4B: Testing Protocol
 
@@ -690,7 +690,7 @@ extraction
   - [ ] Run in batches to avoid locks
 
 - [ ] **4.10** Verify backfill completed correctly
-- [ ] **4.11** Update application to read from new columns with fallback
+- [x] **4.11** Update application to read from new columns with fallback
 
 ---
 
@@ -698,10 +698,10 @@ extraction
 
 | Phase | Status | Notes |
 |-------|--------|-------|
-| 1. Database Schema | ⬜ Not Started | |
+| 1. Database Schema | ✅ Completed | |
 | 2. State Guidance | ✅ Completed | Implemented utility, abbreviation handling, and basic tests |
 | 3. Extraction Code | ✅ Completed | Schemas, prompts, DB writes, and types updated |
-| 4. UI & Testing | ⬜ Not Started | |
+| 4. UI & Testing | 🚧 In Progress | Phase 4A UI updates implemented; testing & backfill pending |
 
 ---
 

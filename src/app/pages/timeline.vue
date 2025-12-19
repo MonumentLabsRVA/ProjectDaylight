@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { EventType, TimelineEvent } from '~/types'
+import type { EventType, ExtractionEventType, TimelineEvent } from '~/types'
 import { 
   getDateStringInTimezone, 
   getStartOfDayInTimezone 
@@ -25,7 +25,7 @@ watch(session, (newSession) => {
 })
 
 // Filter states
-const selectedTypes = ref<EventType[]>([])
+const selectedTypes = ref<ExtractionEventType[]>([])
 const dateRange = ref<{ start: string | null; end: string | null }>({
   start: null,
   end: null
@@ -45,40 +45,94 @@ const datePresets = [
 
 const selectedPreset = ref('all')
 
-// Type options with icons and colors
+// Helper to map legacy UI event types (incident, positive, etc.)
+// to the new, more granular extraction event types used by the AI.
+const legacyToExtractionTypeMap: Record<EventType, ExtractionEventType> = {
+  positive: 'parenting_time',
+  incident: 'coparent_conflict',
+  medical: 'medical',
+  school: 'school',
+  communication: 'communication',
+  legal: 'legal'
+}
+
+function getExtractionType(event: TimelineEvent): ExtractionEventType {
+  const fromApi = (event as any).extractionType as ExtractionEventType | null | undefined
+  if (fromApi) {
+    return fromApi
+  }
+
+  return legacyToExtractionTypeMap[event.type]
+}
+
+function formatEventType(type: ExtractionEventType): string {
+  const map: Record<ExtractionEventType, string> = {
+    parenting_time: 'Parenting time',
+    caregiving: 'Caregiving',
+    household: 'Household / chores',
+    coparent_conflict: 'Co-parent conflict',
+    gatekeeping: 'Gatekeeping',
+    communication: 'Communication',
+    medical: 'Medical',
+    school: 'School',
+    legal: 'Legal / court'
+  }
+
+  return map[type] || type
+}
+
+// Type options with icons and colors (using extraction event types)
 const typeOptions = [
   {
-    value: 'positive' as EventType,
-    label: 'Positive Parenting',
+    value: 'parenting_time' as ExtractionEventType,
+    label: 'Parenting time',
     icon: 'i-lucide-heart',
+    color: 'primary' as const
+  },
+  {
+    value: 'caregiving' as ExtractionEventType,
+    label: 'Caregiving',
+    icon: 'i-lucide-baby',
     color: 'success' as const
   },
   {
-    value: 'incident' as EventType,
-    label: 'Incidents',
+    value: 'household' as ExtractionEventType,
+    label: 'Household / chores',
+    icon: 'i-lucide-home',
+    color: 'neutral' as const
+  },
+  {
+    value: 'coparent_conflict' as ExtractionEventType,
+    label: 'Co-parent conflict',
     icon: 'i-lucide-alert-triangle',
     color: 'error' as const
   },
   {
-    value: 'medical' as EventType,
+    value: 'gatekeeping' as ExtractionEventType,
+    label: 'Gatekeeping',
+    icon: 'i-lucide-shield-alert',
+    color: 'warning' as const
+  },
+  {
+    value: 'medical' as ExtractionEventType,
     label: 'Medical',
     icon: 'i-lucide-stethoscope',
     color: 'info' as const
   },
   {
-    value: 'school' as EventType,
+    value: 'school' as ExtractionEventType,
     label: 'School',
     icon: 'i-lucide-backpack',
     color: 'warning' as const
   },
   {
-    value: 'communication' as EventType,
+    value: 'communication' as ExtractionEventType,
     label: 'Communication',
     icon: 'i-lucide-message-circle',
     color: 'primary' as const
   },
   {
-    value: 'legal' as EventType,
+    value: 'legal' as ExtractionEventType,
     label: 'Legal/Court',
     icon: 'i-lucide-gavel',
     color: 'neutral' as const
@@ -90,12 +144,15 @@ const sortOptions = [
   { label: 'Oldest First', value: 'oldest', icon: 'i-lucide-arrow-up' }
 ]
 
-const typeColors: Record<EventType, 'success' | 'error' | 'info' | 'warning' | 'neutral' | 'primary'> = {
-  positive: 'success',
-  incident: 'error',
+const typeColors: Record<ExtractionEventType, 'success' | 'error' | 'info' | 'warning' | 'neutral' | 'primary'> = {
+  parenting_time: 'primary',
+  caregiving: 'success',
+  household: 'neutral',
+  coparent_conflict: 'error',
+  gatekeeping: 'warning',
+  communication: 'primary',
   medical: 'info',
   school: 'warning',
-  communication: 'primary',
   legal: 'neutral'
 }
 
@@ -163,7 +220,7 @@ function selectDatePreset(preset: string) {
 }
 
 // Toggle type selection
-function toggleType(type: EventType) {
+function toggleType(type: ExtractionEventType) {
   const index = selectedTypes.value.indexOf(type)
   if (index > -1) {
     selectedTypes.value.splice(index, 1)
@@ -203,9 +260,12 @@ const filteredEvents = computed(() => {
     )
   }
 
-  // Filter by event types
+  // Filter by event types (using granular extraction event types)
   if (selectedTypes.value.length > 0) {
-    events = events.filter(event => selectedTypes.value.includes(event.type))
+    events = events.filter((event) => {
+      const extractionType = getExtractionType(event)
+      return selectedTypes.value.includes(extractionType)
+    })
   }
 
   // Filter by date range (using user's timezone for accurate date comparison)
@@ -468,7 +528,7 @@ function formatTime(timestamp: string): string {
                       variant="subtle"
                       :color="type.color"
                     >
-                      {{ data.filter(e => e.type === type.value).length }}
+                      {{ data.filter(e => getExtractionType(e) === type.value).length }}
                     </UBadge>
                   </label>
                 </div>
@@ -603,13 +663,13 @@ function formatTime(timestamp: string): string {
                 <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
                   <div class="flex items-center gap-2 min-w-0">
                     <UBadge
-                      :color="typeColors[event.type]"
+                      :color="typeColors[getExtractionType(event)]"
                       variant="subtle"
                       size="xs"
                       class="capitalize shrink-0"
                     >
-                      <UIcon :name="typeOptions.find(t => t.value === event.type)?.icon" class="size-3.5 mr-1" />
-                      {{ event.type }}
+                      <UIcon :name="typeOptions.find(t => t.value === getExtractionType(event))?.icon" class="size-3.5 mr-1" />
+                      {{ formatEventType(getExtractionType(event)) }}
                     </UBadge>
 
                     <p class="font-medium text-highlighted truncate">
