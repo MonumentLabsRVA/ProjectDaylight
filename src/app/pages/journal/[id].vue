@@ -7,6 +7,7 @@ const router = useRouter()
 const session = useSupabaseSession()
 const supabase = useSupabaseClient()
 const toast = useToast()
+const { trackJob } = useJobs()
 const { formatDate: formatTzDate } = useTimezone()
 const user = useSupabaseUser()
 
@@ -78,6 +79,7 @@ const sourceTypeIcons: Record<string, string> = {
 // Edit state
 const isSaving = ref(false)
 const isDeleting = ref(false)
+const isReprocessing = ref(false)
 
 // Delete options state
 const deleteEvidence = ref(false)
@@ -227,6 +229,47 @@ async function deleteEntry(close?: () => void) {
   }
 }
 
+async function redoExtraction() {
+  if (!entryId.value || !data.value) return
+  if (data.value.status === 'processing') return
+
+  isReprocessing.value = true
+
+  try {
+    const result = await $fetch<{
+      journalEntryId: string
+      jobId: string
+      message?: string
+    }>(`/api/journal/${entryId.value}/reprocess`, {
+      method: 'POST'
+    })
+
+    trackJob({
+      id: result.jobId,
+      journal_entry_id: result.journalEntryId
+    })
+
+    toast.add({
+      title: 'Redoing AI extraction',
+      description:
+        'We are analyzing this entry again. This usually takes 30–60 seconds and will update automatically when complete.',
+      color: 'info',
+      icon: 'i-lucide-sparkles'
+    })
+
+    await refresh()
+  } catch (err: any) {
+    console.error('Failed to redo extraction:', err)
+    toast.add({
+      title: 'Could not redo extraction',
+      description: err?.data?.statusMessage || err?.message || 'Please try again.',
+      color: 'error'
+    })
+  } finally {
+    isReprocessing.value = false
+  }
+}
+
 function resetDeleteOptions() {
   deleteEvidence.value = false
   deleteEvents.value = true
@@ -314,6 +357,20 @@ watch(
 
         <template #right>
           <div class="flex items-center gap-2">
+            <!-- Redo AI Extraction -->
+            <UButton
+              v-if="status === 'success' && data"
+              color="primary"
+              variant="outline"
+              size="sm"
+              icon="i-lucide-sparkles"
+              :loading="isReprocessing"
+              :disabled="data.status === 'processing'"
+              @click="redoExtraction"
+            >
+              Redo AI Extraction
+            </UButton>
+
             <!-- Edit Modal -->
             <UModal
               v-if="status === 'success' && data"
