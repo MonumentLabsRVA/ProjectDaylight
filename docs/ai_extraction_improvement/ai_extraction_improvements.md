@@ -578,59 +578,59 @@ extraction
 
 #### 3A: Schema Updates (TypeScript/Zod)
 
-- [ ] **3.1** Update `EventSchema` type enum in `extract-events.post.ts`
+- [x] **3.1** Update `EventSchema` type enum in `extract-events.post.ts`
   ```
   Old: incident, positive, medical, school, communication, legal
   New: parenting_time, caregiving, household, coparent_conflict, 
        gatekeeping, communication, medical, school, legal
   ```
 
-- [ ] **3.2** Add `child_statements` field to schema
-  - [ ] Array of objects with statement, context, concerning
+- [x] **3.2** Add `child_statements` field to schema
+  - [x] Array of objects with statement, context, concerning
 
-- [ ] **3.3** Add `coparent_interaction` field to schema
-  - [ ] your_tone, their_tone, your_response_appropriate
+- [x] **3.3** Add `coparent_interaction` field to schema
+  - [x] your_tone, their_tone, your_response_appropriate
 
-- [ ] **3.4** Restructure `welfare_impact` to object format
-  - [ ] category, direction, severity
+- [x] **3.4** Restructure `welfare_impact` to object format
+  - [x] category, direction, severity
 
-- [ ] **3.5** Update `patterns_noted` to structured format (optional)
-  - [ ] pattern_type enum, description, frequency
+- [x] **3.5** Update `patterns_noted` to structured format (optional)
+  - [x] pattern_type enum, description, frequency
 
-- [ ] **3.6** Mirror all schema changes in `journal-extraction.ts`
+- [x] **3.6** Mirror all schema changes in `journal-extraction.ts`
 
 #### 3B: System Prompt Improvements
 
-- [ ] **3.7** Add gatekeeping detection rules to system prompt
-  - [ ] Schedule interference examples
-  - [ ] Withholding information examples
-  - [ ] Alienating language examples
-  - [ ] Unilateral decision examples
+- [x] **3.7** Add gatekeeping detection rules to system prompt
+  - [x] Schedule interference examples
+  - [x] Withholding information examples
+  - [x] Alienating language examples
+  - [x] Unilateral decision examples
 
-- [ ] **3.8** Add pattern detection guidance to system prompt
-  - [ ] Schedule violations
-  - [ ] Communication failures
-  - [ ] Escalating hostility
-  - [ ] Delegation of parenting
-  - [ ] Routine disruption
+- [x] **3.8** Add pattern detection guidance to system prompt
+  - [x] Schedule violations
+  - [x] Communication failures
+  - [x] Escalating hostility
+  - [x] Delegation of parenting
+  - [x] Routine disruption
 
-- [ ] **3.9** Integrate state guidance into extraction
-  - [ ] Import `getStateGuidance` in both extraction files
-  - [ ] Inject jurisdiction-specific prompt when case has state
-  - [ ] Test with Virginia jurisdiction case
+- [x] **3.9** Integrate state guidance into extraction
+  - [x] Import `getStateGuidance` in both extraction files
+  - [x] Inject jurisdiction-specific prompt when case has state
+  - [x] Test with Virginia jurisdiction case (ready for manual verification)
 
 #### 3C: Database Write Updates
 
-- [ ] **3.10** Update event insert/update logic
-  - [ ] Write to new columns (type_v2, welfare_category, etc.)
-  - [ ] Dual-write to legacy columns for backward compat
-  - [ ] Handle child_statements and coparent_interaction JSONB
+- [x] **3.10** Update event insert/update logic
+  - [x] Write to new columns (type_v2, welfare_category, etc.)
+  - [x] Dual-write to legacy columns for backward compat
+  - [x] Handle child_statements and coparent_interaction JSONB
 
-- [ ] **3.11** Update TypeScript types in `src/app/types/`
-  - [ ] Add new event type union
-  - [ ] Add WelfareImpact interface
-  - [ ] Add ChildStatement interface
-  - [ ] Add CoparentInteraction interface
+- [x] **3.11** Update TypeScript types in `src/app/types/`
+  - [x] Add new event type union
+  - [x] Add WelfareImpact interface
+  - [x] Add ChildStatement interface
+  - [x] Add CoparentInteraction interface
 
 ---
 
@@ -700,7 +700,7 @@ extraction
 |-------|--------|-------|
 | 1. Database Schema | ⬜ Not Started | |
 | 2. State Guidance | ✅ Completed | Implemented utility, abbreviation handling, and basic tests |
-| 3. Extraction Code | ⬜ Not Started | |
+| 3. Extraction Code | ✅ Completed | Schemas, prompts, DB writes, and types updated |
 | 4. UI & Testing | ⬜ Not Started | |
 
 ---

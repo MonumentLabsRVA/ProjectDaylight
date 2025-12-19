@@ -1,6 +1,7 @@
 import OpenAI from 'openai'
 import { zodTextFormat } from 'openai/helpers/zod'
 import { z } from 'zod'
+import { getStateGuidance } from '../../utils/state-guidance'
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 
 /**
@@ -37,10 +38,74 @@ const ParticipantsSchema = z.object({
   professionals: z.array(z.string()).describe('Professionals involved')
 })
 
+const ChildStatementSchema = z.object({
+  statement: z
+    .string()
+    .describe('Direct quote or paraphrased statement from the child'),
+  context: z
+    .string()
+    .describe('When and where the statement was made'),
+  concerning: z
+    .boolean()
+    .describe('Whether this statement indicates alienation, coaching, or distress')
+})
+
+const CoparentInteractionSchema = z
+  .object({
+    your_tone: z
+      .enum(['neutral', 'cooperative', 'defensive', 'hostile'])
+      .nullable(),
+    their_tone: z
+      .enum(['neutral', 'cooperative', 'defensive', 'hostile'])
+      .nullable(),
+    your_response_appropriate: z
+      .boolean()
+      .nullable()
+      .describe("Whether the user's response was appropriate to the situation")
+  })
+  .nullable()
+  .describe('Analysis of co-parent interaction tone when applicable')
+
+const PatternNotedSchema = z.object({
+  pattern_type: z.enum([
+    'schedule_violation',
+    'communication_failure',
+    'escalating_hostility',
+    'delegation_of_parenting',
+    'routine_disruption',
+    'information_withholding',
+    'unilateral_decisions'
+  ]),
+  description: z.string(),
+  frequency: z.enum(['first_time', 'recurring', 'chronic']).nullable()
+})
+
+const WelfareImpactSchema = z
+  .object({
+    category: z.enum([
+      'routine', // Daily routines, schedules
+      'emotional', // Emotional wellbeing, stress, anxiety
+      'medical', // Physical health, medical care
+      'educational', // School, learning, development
+      'social', // Friendships, activities, extracurriculars
+      'safety', // Physical safety, supervision
+      'none' // No impact on child welfare
+    ]),
+    direction: z.enum(['positive', 'negative', 'neutral']),
+    severity: z.enum(['minimal', 'moderate', 'significant']).nullable()
+  })
+  .describe('Impact on child welfare with category, direction, and severity')
+
 const CustodyRelevanceSchema = z.object({
-  agreement_violation: z.boolean().nullable().describe('Whether this violates a custody agreement'),
-  safety_concern: z.boolean().nullable().describe('Whether there are safety concerns'),
-  welfare_impact: z.enum(['none', 'minor', 'moderate', 'significant', 'positive', 'unknown']).describe('Impact on child welfare')
+  agreement_violation: z
+    .boolean()
+    .nullable()
+    .describe('Whether this violates a custody agreement'),
+  safety_concern: z
+    .boolean()
+    .nullable()
+    .describe('Whether there are safety concerns'),
+  welfare_impact: WelfareImpactSchema
 })
 
 const EvidenceMentionedSchema = z.object({
@@ -50,17 +115,45 @@ const EvidenceMentionedSchema = z.object({
 })
 
 const EventSchema = z.object({
-  type: z.enum(['incident', 'positive', 'medical', 'school', 'communication', 'legal']).describe('Type of event'),
+  type: z
+    .enum([
+      'parenting_time', // Actual engaged time with child (reading, playing, activities)
+      'caregiving', // Meals, baths, bedtime routines, medical care
+      'household', // Chores, maintenance, logistics
+      'coparent_conflict', // Disputes, violations, hostility between parents
+      'gatekeeping', // Interference, withholding info, alienating language
+      'communication', // Neutral coordination (scheduling, logistics)
+      'medical', // Medical appointments, health decisions, medications
+      'school', // School events, homework, academic matters
+      'legal' // Court filings, attorney communications, legal proceedings
+    ])
+    .describe('Type of event'),
   title: z.string().describe('Brief factual summary'),
   description: z.string().describe('Detailed factual narrative'),
-  primary_timestamp: z.string().nullable().describe('ISO-8601 timestamp or null if unknown'),
-  timestamp_precision: z.enum(['exact', 'day', 'approximate', 'unknown']).describe('How precise the timestamp is'),
-  duration_minutes: z.number().nullable().describe('Duration in minutes if applicable'),
+  primary_timestamp: z
+    .string()
+    .nullable()
+    .describe('ISO-8601 timestamp or null if unknown'),
+  timestamp_precision: z
+    .enum(['exact', 'day', 'approximate', 'unknown'])
+    .describe('How precise the timestamp is'),
+  duration_minutes: z
+    .number()
+    .nullable()
+    .describe('Duration in minutes if applicable'),
   location: z.string().nullable().describe('Location where event occurred'),
   participants: ParticipantsSchema,
   child_involved: z.boolean().describe('Whether a child was involved'),
   evidence_mentioned: z.array(EvidenceMentionedSchema),
-  patterns_noted: z.array(z.string()),
+  child_statements: z
+    .array(ChildStatementSchema)
+    .describe('Direct quotes or paraphrased statements from the child')
+    .default([]),
+  coparent_interaction: CoparentInteractionSchema,
+  patterns_noted: z
+    .array(PatternNotedSchema)
+    .describe('Patterns relevant to custody with type and frequency')
+    .default([]),
   custody_relevance: CustodyRelevanceSchema
 })
 
@@ -214,6 +307,19 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    // Jurisdiction-specific legal guidance (if we know the state)
+    let jurisdictionGuidance = ''
+    if (caseRow?.jurisdiction_state) {
+      const guidance = getStateGuidance(caseRow.jurisdiction_state)
+      if (guidance.state !== 'Unknown') {
+        jurisdictionGuidance = [
+          '',
+          'JURISDICTION-SPECIFIC GUIDANCE:',
+          guidance.promptGuidance
+        ].join('\n')
+      }
+    }
+
     // Build temporal guidance
     let recordingTimestampIso: string
     if (referenceDate) {
@@ -258,13 +364,20 @@ export default defineEventHandler(async (event) => {
       ? `The speaker is ${userDisplayName}. When they say "I" or "me", they refer to ${userDisplayName}.`
       : 'The speaker is the user. References to "I" or "me" refer to the same person.'
 
-    const systemPrompt = [
+    const systemPromptLines: string[] = [
       'You are an extraction engine for Project Daylight.',
       'Given a description of events from a parent in a custody situation, extract factual, legally relevant information.',
       'Do not provide advice, opinions, or legal conclusions.',
       '',
       speakerLine,
-      caseContext,
+      caseContext
+    ]
+
+    if (jurisdictionGuidance) {
+      systemPromptLines.push(jurisdictionGuidance)
+    }
+
+    systemPromptLines.push(
       '',
       temporalGuidance,
       evidenceContext,
@@ -275,8 +388,19 @@ export default defineEventHandler(async (event) => {
       '- Prefer under-extraction to guessing.',
       '- Keep tone neutral and factual.',
       '- You may extract multiple events from a single description.',
-      '- Cross-reference the attached evidence to corroborate details.'
-    ].join('\n')
+      '- Cross-reference the attached evidence to corroborate details.',
+      '- Flag "gatekeeping" behaviors explicitly: schedule interference, withholding information (medical, school, location), controlling access to the child\'s belongings, alienating language to or about the other parent in the child\'s presence, and unilateral decisions about the child\'s schedule or activities.',
+      '- Note patterns relevant to custody, including:',
+      '  - Repeated schedule violations (late pickups, early dropoffs, missed exchanges)',
+      '  - Consistent failure to communicate about the child\'s welfare',
+      '  - Escalating hostility in co-parent interactions',
+      '  - Delegation of parenting to third parties (new partners, grandparents doing primary care)',
+      '  - Disruption of the child\'s routine (bedtime, meals, activities)',
+      '  - Withholding of medical or school information',
+      '  - Pattern of unilateral decision-making about major issues.'
+    )
+
+    const systemPrompt = systemPromptLines.join('\n')
 
     const openai = new OpenAI({
       apiKey: config.openai.apiKey

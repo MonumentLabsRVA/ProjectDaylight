@@ -53,6 +53,19 @@ export interface Range {
 
 export type EventType = 'positive' | 'incident' | 'medical' | 'school' | 'communication' | 'legal'
 
+// New extraction-focused event types used by the AI extraction system.
+// These are more granular and custody-specific than the legacy UI types.
+export type ExtractionEventType =
+  | 'parenting_time'
+  | 'caregiving'
+  | 'household'
+  | 'coparent_conflict'
+  | 'gatekeeping'
+  | 'communication'
+  | 'medical'
+  | 'school'
+  | 'legal'
+
 export interface TimelineEvent {
   id: string
   timestamp: string
@@ -75,6 +88,39 @@ export interface EvidenceItem {
   tags: string[]
   storagePath?: string
   mimeType?: string
+}
+
+// Structured welfare impact used in AI extraction
+export type WelfareImpactCategory =
+  | 'routine'
+  | 'emotional'
+  | 'medical'
+  | 'educational'
+  | 'social'
+  | 'safety'
+  | 'none'
+
+export type WelfareImpactDirection = 'positive' | 'negative' | 'neutral'
+export type WelfareImpactSeverity = 'minimal' | 'moderate' | 'significant'
+
+export interface WelfareImpact {
+  category: WelfareImpactCategory
+  direction: WelfareImpactDirection
+  severity: WelfareImpactSeverity | null
+}
+
+export interface ChildStatement {
+  statement: string
+  context: string
+  concerning: boolean
+}
+
+export type CoparentTone = 'neutral' | 'cooperative' | 'defensive' | 'hostile'
+
+export interface CoparentInteraction {
+  your_tone: CoparentTone | null
+  their_tone: CoparentTone | null
+  your_response_appropriate: boolean | null
 }
 
 export interface InsightItem {

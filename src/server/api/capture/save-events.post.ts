@@ -3,12 +3,21 @@ import { canCreateJournalEntry } from '../../utils/subscription'
 
 /**
  * POST /api/capture/save-events
- * 
+ *
  * Saves the extracted events to the database and links them to evidence.
  * This is called after the user reviews and confirms the extraction.
- * 
+ *
  * Feature gating: Free users limited to 5 journal entries.
+ *
+ * NOTE: The extraction schema here is aligned with the LLM extraction
+ * schema used in `extract-events.post.ts` and the background
+ * `journal-extraction` Inngest function. We dual-write to both the new
+ * structured columns (type_v2, welfare_*, child_statements, etc.) and
+ * the legacy enum columns for backward compatibility.
  */
+
+type ExtractionEvidenceType = 'text' | 'email' | 'photo' | 'document' | 'recording' | 'other'
+type ExtractionEvidenceStatus = 'have' | 'need_to_get' | 'need_to_create'
 
 interface ExtractionParticipants {
   primary?: string[]
@@ -16,20 +25,80 @@ interface ExtractionParticipants {
   professionals?: string[]
 }
 
+interface ExtractionChildStatement {
+  statement: string
+  context: string
+  concerning: boolean
+}
+
+type ExtractionTone = 'neutral' | 'cooperative' | 'defensive' | 'hostile'
+
+interface ExtractionCoparentInteraction {
+  your_tone: ExtractionTone | null
+  their_tone: ExtractionTone | null
+  your_response_appropriate: boolean | null
+}
+
+type ExtractionPatternType =
+  | 'schedule_violation'
+  | 'communication_failure'
+  | 'escalating_hostility'
+  | 'delegation_of_parenting'
+  | 'routine_disruption'
+  | 'information_withholding'
+  | 'unilateral_decisions'
+
+type ExtractionPatternFrequency = 'first_time' | 'recurring' | 'chronic'
+
+interface ExtractionPatternNoted {
+  pattern_type: ExtractionPatternType
+  description: string
+  frequency: ExtractionPatternFrequency | null
+}
+
+type ExtractionWelfareCategory =
+  | 'routine'
+  | 'emotional'
+  | 'medical'
+  | 'educational'
+  | 'social'
+  | 'safety'
+  | 'none'
+
+type ExtractionWelfareDirection = 'positive' | 'negative' | 'neutral'
+type ExtractionWelfareSeverity = 'minimal' | 'moderate' | 'significant'
+
+interface ExtractionWelfareImpact {
+  category: ExtractionWelfareCategory
+  direction: ExtractionWelfareDirection
+  severity: ExtractionWelfareSeverity | null
+}
+
 interface ExtractionCustodyRelevance {
   agreement_violation?: boolean | null
   safety_concern?: boolean | null
-  welfare_impact?: string | null
+  welfare_impact?: ExtractionWelfareImpact
 }
 
 interface ExtractionEvidenceMention {
-  type: 'text' | 'email' | 'photo' | 'document' | 'recording' | 'other'
+  type: ExtractionEvidenceType
   description: string
-  status: 'have' | 'need_to_get' | 'need_to_create'
+  status: ExtractionEvidenceStatus
 }
 
+type ExtractionEventType =
+  | 'parenting_time'
+  | 'caregiving'
+  | 'household'
+  | 'coparent_conflict'
+  | 'gatekeeping'
+  | 'communication'
+  | 'medical'
+  | 'school'
+  | 'legal'
+
 interface ExtractionEvent {
-  type: 'incident' | 'positive' | 'medical' | 'school' | 'communication' | 'legal'
+  type: ExtractionEventType
   title: string
   description: string
   primary_timestamp?: string | null
@@ -39,7 +108,9 @@ interface ExtractionEvent {
   participants?: ExtractionParticipants
   child_involved?: boolean
   evidence_mentioned?: ExtractionEvidenceMention[]
-  patterns_noted?: string[]
+  child_statements?: ExtractionChildStatement[]
+  coparent_interaction?: ExtractionCoparentInteraction | null
+  patterns_noted?: ExtractionPatternNoted[]
   custody_relevance?: ExtractionCustodyRelevance
 }
 
@@ -148,22 +219,38 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Insert events
-    const eventsToInsert = events.map((e) => ({
-      user_id: userId,
-      recording_id: null,
-      type: e.type,
-      title: e.title || 'Untitled event',
-      description: e.description,
-      primary_timestamp: e.primary_timestamp ?? null,
-      timestamp_precision: e.timestamp_precision ?? 'unknown',
-      duration_minutes: e.duration_minutes ?? null,
-      location: e.location ?? null,
-      child_involved: e.child_involved ?? false,
-      agreement_violation: e.custody_relevance?.agreement_violation ?? null,
-      safety_concern: e.custody_relevance?.safety_concern ?? null,
-      welfare_impact: (e.custody_relevance?.welfare_impact as any) ?? 'unknown'
-    }))
+    // Insert events (dual-write to legacy and new schema columns)
+    const eventsToInsert = events.map((e) => {
+      const welfareImpact = e.custody_relevance?.welfare_impact
+
+      return {
+        user_id: userId,
+        recording_id: null,
+        // New granular type column
+        type_v2: e.type,
+        // Legacy type column for backward compatibility
+        type: mapNewToLegacyType(e.type),
+        title: e.title || 'Untitled event',
+        description: e.description,
+        primary_timestamp: e.primary_timestamp ?? null,
+        timestamp_precision: e.timestamp_precision ?? 'unknown',
+        duration_minutes: e.duration_minutes ?? null,
+        location: e.location ?? null,
+        child_involved: e.child_involved ?? false,
+        agreement_violation: e.custody_relevance?.agreement_violation ?? null,
+        safety_concern: e.custody_relevance?.safety_concern ?? null,
+        // New structured welfare impact columns
+        welfare_category: welfareImpact?.category ?? null,
+        welfare_direction: welfareImpact?.direction ?? null,
+        welfare_severity: welfareImpact?.severity ?? null,
+        // Legacy welfare_impact enum for backward compatibility
+        welfare_impact: mapNewToLegacyWelfare(welfareImpact) ?? 'unknown',
+        // New JSONB enrichment fields
+        child_statements: e.child_statements ?? [],
+        coparent_interaction: e.coparent_interaction ?? null,
+        patterns_noted_v2: e.patterns_noted ?? []
+      }
+    })
 
     const { data: insertedEvents, error: insertEventsError } = await supabase
       .from('events')
@@ -331,4 +418,40 @@ export default defineEventHandler(async (event) => {
     })
   }
 })
+
+function mapNewToLegacyType(newType: ExtractionEventType): 'incident' | 'positive' | 'medical' | 'school' | 'communication' | 'legal' {
+  const mapping: Record<ExtractionEventType, 'incident' | 'positive' | 'medical' | 'school' | 'communication' | 'legal'> = {
+    parenting_time: 'positive',
+    caregiving: 'positive',
+    household: 'positive',
+    coparent_conflict: 'incident',
+    gatekeeping: 'incident',
+    communication: 'communication',
+    medical: 'medical',
+    school: 'school',
+    legal: 'legal'
+  }
+
+  return mapping[newType] ?? 'incident'
+}
+
+function mapNewToLegacyWelfare(
+  welfareImpact: ExtractionWelfareImpact | undefined
+): 'none' | 'minor' | 'moderate' | 'significant' | 'positive' | 'unknown' | null {
+  if (!welfareImpact) return null
+
+  if (welfareImpact.direction === 'positive') {
+    return 'positive'
+  }
+
+  if (welfareImpact.direction === 'neutral') {
+    return 'none'
+  }
+
+  if (welfareImpact.severity === 'minimal') return 'minor'
+  if (welfareImpact.severity === 'moderate') return 'moderate'
+  if (welfareImpact.severity === 'significant') return 'significant'
+
+  return 'unknown'
+}
 

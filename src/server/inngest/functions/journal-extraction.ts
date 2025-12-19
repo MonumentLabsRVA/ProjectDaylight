@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { inngest } from '../client'
 import type { Database } from '~/types/database.types'
+import { getStateGuidance } from '../../utils/state-guidance'
 
 type PublicClient = SupabaseClient<Database, 'public'>
 
@@ -25,49 +26,24 @@ interface EvidenceSummary {
   summary: string
 }
 
-interface ExtractionParticipants {
-  primary?: string[]
-  witnesses?: string[]
-  professionals?: string[]
-}
+type ExtractionEvidenceType = 'text' | 'email' | 'photo' | 'document' | 'recording' | 'other'
+type ExtractionEvidenceStatus = 'have' | 'need_to_get' | 'need_to_create'
 
-interface ExtractionCustodyRelevance {
-  agreement_violation?: boolean | null
-  safety_concern?: boolean | null
-  welfare_impact?: string | null
-}
+type ExtractionEventType =
+  | 'parenting_time'
+  | 'caregiving'
+  | 'household'
+  | 'coparent_conflict'
+  | 'gatekeeping'
+  | 'communication'
+  | 'medical'
+  | 'school'
+  | 'legal'
 
 interface ExtractionEvidenceMention {
-  type: 'text' | 'email' | 'photo' | 'document' | 'recording' | 'other'
+  type: ExtractionEvidenceType
   description: string
-  status: 'have' | 'need_to_get' | 'need_to_create'
-}
-
-interface ExtractionEvent {
-  type: 'incident' | 'positive' | 'medical' | 'school' | 'communication' | 'legal'
-  title: string
-  description: string
-  primary_timestamp?: string | null
-  timestamp_precision?: 'exact' | 'day' | 'approximate' | 'unknown'
-  duration_minutes?: number | null
-  location?: string | null
-  participants?: ExtractionParticipants
-  child_involved?: boolean
-  evidence_mentioned?: ExtractionEvidenceMention[]
-  patterns_noted?: string[]
-  custody_relevance?: ExtractionCustodyRelevance
-}
-
-interface ExtractionActionItem {
-  priority: 'urgent' | 'high' | 'normal' | 'low'
-  type: 'document' | 'contact' | 'file' | 'obtain' | 'other'
-  description: string
-  deadline?: string | null
-}
-
-interface ExtractionPayload {
-  events?: ExtractionEvent[]
-  action_items?: ExtractionActionItem[]
+  status: ExtractionEvidenceStatus
 }
 
 interface JobResultSummary {
@@ -77,39 +53,133 @@ interface JobResultSummary {
   event_ids: string[]
 }
 
-// Shared Zod schemas reused from the capture extraction endpoint
+// Shared Zod schemas (aligned with capture extraction endpoint)
 const ParticipantsSchema = z.object({
   primary: z.array(z.enum(['co-parent', 'child', 'self', 'other'])).describe('Primary participants'),
   witnesses: z.array(z.string()).describe('Witnesses present'),
   professionals: z.array(z.string()).describe('Professionals involved')
 })
 
+const ChildStatementSchema = z.object({
+  statement: z
+    .string()
+    .describe('Direct quote or paraphrased statement from the child'),
+  context: z
+    .string()
+    .describe('When and where the statement was made'),
+  concerning: z
+    .boolean()
+    .describe('Whether this statement indicates alienation, coaching, or distress')
+})
+
+const CoparentInteractionSchema = z
+  .object({
+    your_tone: z
+      .enum(['neutral', 'cooperative', 'defensive', 'hostile'])
+      .nullable(),
+    their_tone: z
+      .enum(['neutral', 'cooperative', 'defensive', 'hostile'])
+      .nullable(),
+    your_response_appropriate: z
+      .boolean()
+      .nullable()
+      .describe("Whether the user's response was appropriate to the situation")
+  })
+  .nullable()
+  .describe('Analysis of co-parent interaction tone when applicable')
+
+const PatternNotedSchema = z.object({
+  pattern_type: z.enum([
+    'schedule_violation',
+    'communication_failure',
+    'escalating_hostility',
+    'delegation_of_parenting',
+    'routine_disruption',
+    'information_withholding',
+    'unilateral_decisions'
+  ]),
+  description: z.string(),
+  frequency: z.enum(['first_time', 'recurring', 'chronic']).nullable()
+})
+
+const WelfareImpactSchema = z
+  .object({
+    category: z.enum([
+      'routine', // Daily routines, schedules
+      'emotional', // Emotional wellbeing, stress, anxiety
+      'medical', // Physical health, medical care
+      'educational', // School, learning, development
+      'social', // Friendships, activities, extracurriculars
+      'safety', // Physical safety, supervision
+      'none' // No impact on child welfare
+    ]),
+    direction: z.enum(['positive', 'negative', 'neutral']),
+    severity: z.enum(['minimal', 'moderate', 'significant']).nullable()
+  })
+  .describe('Impact on child welfare with category, direction, and severity')
+
 const CustodyRelevanceSchema = z.object({
-  agreement_violation: z.boolean().nullable().describe('Whether this violates a custody agreement'),
-  safety_concern: z.boolean().nullable().describe('Whether there are safety concerns'),
-  welfare_impact: z
-    .enum(['none', 'minor', 'moderate', 'significant', 'positive', 'unknown'])
-    .describe('Impact on child welfare')
+  agreement_violation: z
+    .boolean()
+    .nullable()
+    .describe('Whether this violates a custody agreement'),
+  safety_concern: z
+    .boolean()
+    .nullable()
+    .describe('Whether there are safety concerns'),
+  welfare_impact: WelfareImpactSchema
 })
 
 const EvidenceMentionedSchema = z.object({
-  type: z.enum(['text', 'email', 'photo', 'document', 'recording', 'other']).describe('Type of evidence'),
+  type: z
+    .enum(['text', 'email', 'photo', 'document', 'recording', 'other'])
+    .describe('Type of evidence'),
   description: z.string().describe('Description of the evidence'),
-  status: z.enum(['have', 'need_to_get', 'need_to_create']).describe('Current status of the evidence')
+  status: z
+    .enum(['have', 'need_to_get', 'need_to_create'])
+    .describe('Current status of the evidence')
 })
 
 const EventSchema = z.object({
-  type: z.enum(['incident', 'positive', 'medical', 'school', 'communication', 'legal']).describe('Type of event'),
+  type: z
+    .enum([
+      'parenting_time', // Actual engaged time with child (reading, playing, activities)
+      'caregiving', // Meals, baths, bedtime routines, medical care
+      'household', // Chores, maintenance, logistics
+      'coparent_conflict', // Disputes, violations, hostility between parents
+      'gatekeeping', // Interference, withholding info, alienating language
+      'communication', // Neutral coordination (scheduling, logistics)
+      'medical', // Medical appointments, health decisions, medications
+      'school', // School events, homework, academic matters
+      'legal' // Court filings, attorney communications, legal proceedings
+    ])
+    .describe('Type of event'),
   title: z.string().describe('Brief factual summary'),
   description: z.string().describe('Detailed factual narrative'),
-  primary_timestamp: z.string().nullable().describe('ISO-8601 timestamp or null if unknown'),
-  timestamp_precision: z.enum(['exact', 'day', 'approximate', 'unknown']).describe('How precise the timestamp is'),
-  duration_minutes: z.number().nullable().describe('Duration in minutes if applicable'),
+  primary_timestamp: z
+    .string()
+    .nullable()
+    .describe('ISO-8601 timestamp or null if unknown'),
+  timestamp_precision: z
+    .enum(['exact', 'day', 'approximate', 'unknown'])
+    .describe('How precise the timestamp is'),
+  duration_minutes: z
+    .number()
+    .nullable()
+    .describe('Duration in minutes if applicable'),
   location: z.string().nullable().describe('Location where event occurred'),
   participants: ParticipantsSchema,
   child_involved: z.boolean().describe('Whether a child was involved'),
   evidence_mentioned: z.array(EvidenceMentionedSchema),
-  patterns_noted: z.array(z.string()),
+  child_statements: z
+    .array(ChildStatementSchema)
+    .describe('Direct quotes or paraphrased statements from the child')
+    .default([]),
+  coparent_interaction: CoparentInteractionSchema,
+  patterns_noted: z
+    .array(PatternNotedSchema)
+    .describe('Patterns relevant to custody with type and frequency')
+    .default([]),
   custody_relevance: CustodyRelevanceSchema
 })
 
@@ -134,6 +204,7 @@ const ExtractionSchema = z.object({
 })
 
 type ExtractionResult = z.infer<typeof ExtractionSchema>
+type ExtractionPayload = ExtractionResult['extraction']
 
 function createServiceClient(): PublicClient {
   // Use process.env directly instead of useRuntimeConfig() because Inngest functions
@@ -306,6 +377,19 @@ async function extractEventsFromText(
     }
   }
 
+  // Jurisdiction-specific legal guidance (if we know the state)
+  let jurisdictionGuidance = ''
+  if (caseRow?.jurisdiction_state) {
+    const guidance = getStateGuidance(caseRow.jurisdiction_state)
+    if (guidance.state !== 'Unknown') {
+      jurisdictionGuidance = [
+        '',
+        'JURISDICTION-SPECIFIC GUIDANCE:',
+        guidance.promptGuidance
+      ].join('\n')
+    }
+  }
+
   // Temporal guidance
   let recordingTimestampIso: string
   if (trimmedReferenceDate) {
@@ -350,13 +434,20 @@ async function extractEventsFromText(
     ? `The speaker is ${userDisplayName}. When they say "I" or "me", they refer to ${userDisplayName}.`
     : 'The speaker is the user. References to "I" or "me" refer to the same person.'
 
-  const systemPrompt = [
+  const systemPromptLines: string[] = [
     'You are an extraction engine for Project Daylight.',
     'Given a description of events from a parent in a custody situation, extract factual, legally relevant information.',
     'Do not provide advice, opinions, or legal conclusions.',
     '',
     speakerLine,
-    caseContext,
+    caseContext
+  ]
+
+  if (jurisdictionGuidance) {
+    systemPromptLines.push(jurisdictionGuidance)
+  }
+
+  systemPromptLines.push(
     '',
     temporalGuidance,
     evidenceContext,
@@ -367,8 +458,19 @@ async function extractEventsFromText(
     '- Prefer under-extraction to guessing.',
     '- Keep tone neutral and factual.',
     '- You may extract multiple events from a single description.',
-    '- Cross-reference the attached evidence to corroborate details.'
-  ].join('\n')
+    '- Cross-reference the attached evidence to corroborate details.',
+    '- Flag "gatekeeping" behaviors explicitly: schedule interference, withholding information (medical, school, location), controlling access to the child\'s belongings, alienating language to or about the other parent in the child\'s presence, and unilateral decisions about the child\'s schedule or activities.',
+    '- Note patterns relevant to custody, including:',
+    '  - Repeated schedule violations (late pickups, early dropoffs, missed exchanges)',
+    '  - Consistent failure to communicate about the child\'s welfare',
+    '  - Escalating hostility in co-parent interactions',
+    '  - Delegation of parenting to third parties (new partners, grandparents doing primary care)',
+    '  - Disruption of the child\'s routine (bedtime, meals, activities)',
+    '  - Withholding of medical or school information',
+    '  - Pattern of unilateral decision-making about major issues.'
+  )
+
+  const systemPrompt = systemPromptLines.join('\n')
 
   const openai = new OpenAI({
     apiKey: openaiApiKey
@@ -401,6 +503,53 @@ async function extractEventsFromText(
   return extraction.extraction as ExtractionPayload
 }
 
+function mapNewToLegacyType(
+  newType: ExtractionEventType
+): 'incident' | 'positive' | 'medical' | 'school' | 'communication' | 'legal' {
+  const mapping: Record<ExtractionEventType, 'incident' | 'positive' | 'medical' | 'school' | 'communication' | 'legal'> = {
+    parenting_time: 'positive',
+    caregiving: 'positive',
+    household: 'positive',
+    coparent_conflict: 'incident',
+    gatekeeping: 'incident',
+    communication: 'communication',
+    medical: 'medical',
+    school: 'school',
+    legal: 'legal'
+  }
+
+  return mapping[newType] || 'incident'
+}
+
+function mapNewToLegacyWelfare(
+  welfareImpact: {
+    category: string
+    direction: 'positive' | 'negative' | 'neutral'
+    severity: 'minimal' | 'moderate' | 'significant' | null
+  } | null | undefined
+): 'none' | 'minor' | 'moderate' | 'significant' | 'positive' | 'unknown' | null {
+  if (!welfareImpact) {
+    return null
+  }
+
+  if (welfareImpact.direction === 'positive') {
+    // Preserve a single positive bucket in the legacy enum
+    return 'positive'
+  }
+
+  if (welfareImpact.direction === 'neutral') {
+    // Neutral/no meaningful impact
+    return 'none'
+  }
+
+  // Negative direction: map severity
+  if (welfareImpact.severity === 'minimal') return 'minor'
+  if (welfareImpact.severity === 'moderate') return 'moderate'
+  if (welfareImpact.severity === 'significant') return 'significant'
+
+  return 'unknown'
+}
+
 async function saveExtractedEvents(
   supabase: PublicClient,
   userId: string,
@@ -420,22 +569,38 @@ async function saveExtractedEvents(
     }
   }
 
-  // Insert events
-  const eventsToInsert = events.map((e) => ({
-    user_id: userId,
-    recording_id: null,
-    type: e.type,
-    title: e.title || 'Untitled event',
-    description: e.description,
-    primary_timestamp: e.primary_timestamp ?? null,
-    timestamp_precision: e.timestamp_precision ?? 'unknown',
-    duration_minutes: e.duration_minutes ?? null,
-    location: e.location ?? null,
-    child_involved: e.child_involved ?? false,
-    agreement_violation: e.custody_relevance?.agreement_violation ?? null,
-    safety_concern: e.custody_relevance?.safety_concern ?? null,
-    welfare_impact: (e.custody_relevance?.welfare_impact as any) ?? 'unknown'
-  }))
+  // Insert events (dual-write to legacy and new schema columns)
+  const eventsToInsert = events.map((e) => {
+    const welfareImpact = e.custody_relevance?.welfare_impact
+
+    return {
+      user_id: userId,
+      recording_id: null,
+      // New granular type column
+      type_v2: e.type,
+      // Legacy type column for backward compatibility
+      type: mapNewToLegacyType(e.type),
+      title: e.title || 'Untitled event',
+      description: e.description,
+      primary_timestamp: e.primary_timestamp ?? null,
+      timestamp_precision: e.timestamp_precision ?? 'unknown',
+      duration_minutes: e.duration_minutes ?? null,
+      location: e.location ?? null,
+      child_involved: e.child_involved ?? false,
+      agreement_violation: e.custody_relevance?.agreement_violation ?? null,
+      safety_concern: e.custody_relevance?.safety_concern ?? null,
+      // New structured welfare impact columns
+      welfare_category: welfareImpact?.category ?? null,
+      welfare_direction: welfareImpact?.direction ?? null,
+      welfare_severity: welfareImpact?.severity ?? null,
+      // Legacy welfare_impact enum for backward compatibility
+      welfare_impact: mapNewToLegacyWelfare(welfareImpact) ?? 'unknown',
+      // New JSONB enrichment fields
+      child_statements: e.child_statements ?? [],
+      coparent_interaction: e.coparent_interaction ?? null,
+      patterns_noted_v2: e.patterns_noted ?? []
+    }
+  })
 
   const { data: insertedEvents, error: insertEventsError } = await supabase
     .from('events')
@@ -460,9 +625,9 @@ async function saveExtractedEvents(
   const evidenceMentionsToInsert: {
     user_id: string
     event_id: string
-    type: ExtractionEvidenceMention['type']
+    type: ExtractionEvidenceType
     description: string
-    status: ExtractionEvidenceMention['status']
+    status: ExtractionEvidenceStatus
   }[] = []
 
   createdEventIds.forEach((eventId, index) => {
