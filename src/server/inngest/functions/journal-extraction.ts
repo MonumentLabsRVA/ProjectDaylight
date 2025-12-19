@@ -478,7 +478,6 @@ async function extractEventsFromText(
 
   const response = await openai.responses.parse({
     model: 'gpt-5.2',
-    reasoning: {effort: 'high'},
     text: {
       format: zodTextFormat(ExtractionSchema, 'extraction')
     },

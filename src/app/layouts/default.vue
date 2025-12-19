@@ -30,68 +30,98 @@ interface SearchGroup {
   items: SearchItem[]
 }
 
-const links = [[{
-  label: 'Home',
-  icon: 'i-lucide-house',
-  to: '/home',
-  onSelect: () => {
-    open.value = false
+const links = [
+  [{
+    label: 'Home',
+    icon: 'i-lucide-house',
+    to: '/home',
+    onSelect: () => {
+      open.value = false
+    }
+  }, {
+    label: 'Case',
+    icon: 'i-lucide-briefcase',
+    to: '/case',
+    onSelect: () => {
+      open.value = false
+    }
+  }], 
+  [{
+    label: 'Journal',
+    icon: 'i-lucide-book-open',
+    children: [{
+      label: 'All Entries',
+      icon: 'i-lucide-list',
+      to: '/journal',
+      onSelect: () => {
+        open.value = false
+      }
+    }, {
+      label: 'New Entry',
+      icon: 'i-lucide-plus',
+      to: '/journal/new',
+      onSelect: () => {
+        open.value = false
+      }
+    }]
+  }, {
+    label: 'Timeline',
+    icon: 'i-lucide-calendar-clock',
+    to: '/timeline',
+    onSelect: () => {
+      open.value = false
+    }
+  }, {
+    label: 'Evidence',
+    icon: 'i-lucide-folder-open',
+    to: '/evidence',
+    onSelect: () => {
+      open.value = false
+    }
+  }], 
+  [{
+    label: 'Exports',
+    icon: 'i-lucide-file-down',
+    children: [{
+      label: 'All Exports',
+      icon: 'i-lucide-list',
+      to: '/exports',
+      onSelect: () => {
+        open.value = false
+      }
+    }, {
+      label: 'New Export',
+      icon: 'i-lucide-plus',
+      to: '/exports/new',
+      onSelect: () => {
+        open.value = false
+      }
+    }]
+  }]
+] satisfies NavigationMenuItem[][]
+
+function extractSearchItems(items: NavigationMenuItem[]): SearchItem[] {
+  const result: SearchItem[] = []
+  for (const item of items) {
+    if (item.to) {
+      result.push({
+        label: item.label,
+        icon: item.icon,
+        to: item.to as string,
+        onSelect: () => { open.value = false }
+      })
+    }
+    if (item.children) {
+      result.push(...extractSearchItems(item.children))
+    }
   }
-}, {
-  label: 'Case',
-  icon: 'i-lucide-briefcase',
-  to: '/case',
-  onSelect: () => {
-    open.value = false
-  }
-}, {
-  label: 'Journal',
-  icon: 'i-lucide-book-open',
-  to: '/journal',
-  onSelect: () => {
-    open.value = false
-  }
-}, {
-  label: 'New journal entry',
-  icon: 'i-lucide-pen-line',
-  to: '/journal/new',
-  onSelect: () => {
-    open.value = false
-  }
-}, {
-  label: 'Timeline',
-  icon: 'i-lucide-calendar-clock',
-  to: '/timeline',
-  onSelect: () => {
-    open.value = false
-  }
-}, {
-  label: 'Evidence',
-  icon: 'i-lucide-folder-open',
-  to: '/evidence',
-  onSelect: () => {
-    open.value = false
-  }
-}, {
-  label: 'Exports',
-  icon: 'i-lucide-file-down',
-  to: '/exports',
-  onSelect: () => {
-    open.value = false
-  }
-}, {
-  label: 'New export',
-  icon: 'i-lucide-plus',
-  to: '/exports/new',
-  onSelect: () => {
-    open.value = false
-  }
-}]] satisfies NavigationMenuItem[][]
+  return result
+}
 
 const searchGroups = ref<SearchGroup[]>([{
   id: 'links',
   label: 'Go to',
-  items: links.flat()
+  items: extractSearchItems(links.flat())
 }])
 
 const searchLoading = ref(false)
@@ -160,7 +190,7 @@ async function loadSearchData() {
     const groups: SearchGroup[] = [{
       id: 'links',
       label: 'Go to',
-      items: links.flat()
+      items: extractSearchItems(links.flat())
     }]
 
     if (eventItems.length) {
@@ -229,7 +259,7 @@ onMounted(async () => {
 
         <UNavigationMenu
           :collapsed="collapsed"
-          :items="links[0]"
+          :items="links"
           orientation="vertical"
           tooltip
           popover
@@ -253,5 +283,3 @@ onMounted(async () => {
     <RecordFAB />
   </UDashboardGroup>
 </template>
-
-
