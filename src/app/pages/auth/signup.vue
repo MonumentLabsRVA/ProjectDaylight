@@ -16,6 +16,14 @@ const router = useRouter()
 const loading = ref(false)
 const formError = ref<string | null>(null)
 const successMessage = ref<string | null>(null)
+const showEmailForm = ref(false)
+const initialEmail = ref('')
+
+function expandEmailForm() {
+  showEmailForm.value = true
+  // Sync the initial email to the form state
+  state.email = initialEmail.value
+}
 
 type Schema = typeof state
 
@@ -110,7 +118,21 @@ watchEffect(() => {
         </p>
       </div>
 
+      <!-- Initial compact email input -->
+      <div v-if="!showEmailForm" class="relative">
+        <UIcon name="i-lucide-mail" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted size-4" />
+        <input
+          v-model="initialEmail"
+          type="email"
+          placeholder="Email"
+          class="w-full pl-9 pr-3 py-2 text-sm rounded-md border border-default bg-default text-highlighted placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary hover:ring-2 hover:ring-primary/50 cursor-pointer transition-shadow"
+          @focus="expandEmailForm"
+        />
+      </div>
+
+      <!-- Expanded email form -->
       <UForm
+        v-else
         :state="state"
         :validate="validate"
         class="space-y-4"
