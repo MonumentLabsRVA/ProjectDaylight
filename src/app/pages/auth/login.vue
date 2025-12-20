@@ -18,11 +18,27 @@ const loading = ref(false)
 const formError = ref<string | null>(null)
 const showEmailForm = ref(false)
 const initialEmail = ref('')
+const emailInputRef = ref<any | null>(null)
 
-function expandEmailForm() {
+async function expandEmailForm() {
   showEmailForm.value = true
   // Sync the initial email to the form state
   state.email = initialEmail.value
+
+  await nextTick()
+  const component = emailInputRef.value as any
+  const el =
+    component?.$el?.querySelector?.('input') ||
+    component?.$el ||
+    component
+
+  if (el && typeof el.focus === 'function') {
+    el.focus()
+    if (typeof el.setSelectionRange === 'function') {
+      const length = el.value?.length ?? 0
+      el.setSelectionRange(length, length)
+    }
+  }
 }
 
 type Schema = typeof state
@@ -147,6 +163,7 @@ watchEffect(() => {
 
         <UFormField label="Email" name="email" required>
           <UInput
+            ref="emailInputRef"
             v-model="state.email"
             type="email"
             placeholder="name@example.com"
