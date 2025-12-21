@@ -8,10 +8,6 @@ interface EventDetailResponse {
   id: string
   timestamp: string
   type: EventType
-  /**
-   * New granular extraction event type when available.
-   * Falls back to a mapping from the legacy `type` when missing.
-   */
   extractionType?: ExtractionEventType | null
   title: string
   description: string
@@ -19,7 +15,6 @@ interface EventDetailResponse {
   location?: string
   evidenceIds?: string[]
   
-  // Additional fields
   childInvolved?: boolean
   agreementViolation?: boolean
   safetyConcern?: boolean
@@ -32,11 +27,9 @@ interface EventDetailResponse {
   createdAt: string
   updatedAt: string
 
-  // Enriched AI extraction fields
   childStatements?: ChildStatement[]
   coparentInteraction?: CoparentInteraction | null
   
-  // Related data
   evidenceDetails?: Array<{
     id: string
     sourceType: string
@@ -82,7 +75,6 @@ interface EventDetailResponse {
   }>
 }
 
-// Use SSR-aware useFetch with cookie-based auth
 const session = useSupabaseSession()
 const route = useRoute()
 const router = useRouter()
@@ -98,14 +90,12 @@ const {
   headers: useRequestHeaders(['cookie'])
 })
 
-// Refresh when session changes (e.g., login)
 watch(session, (newSession) => {
   if (newSession?.access_token) {
     refresh()
   }
 })
 
-// Redirect to timeline if event not found
 watch(error, async (err: any) => {
   if (err?.statusCode === 404) {
     await router.push('/timeline')
@@ -133,19 +123,30 @@ const extractionTypeColors: Record<ExtractionEventType, 'success' | 'error' | 'i
   legal: 'neutral'
 }
 
+const extractionTypeIcons: Record<ExtractionEventType, string> = {
+  parenting_time: 'i-lucide-calendar-heart',
+  caregiving: 'i-lucide-heart-handshake',
+  household: 'i-lucide-home',
+  coparent_conflict: 'i-lucide-swords',
+  gatekeeping: 'i-lucide-shield-ban',
+  communication: 'i-lucide-message-circle',
+  medical: 'i-lucide-stethoscope',
+  school: 'i-lucide-graduation-cap',
+  legal: 'i-lucide-scale'
+}
+
 function formatExtractionEventType(type: ExtractionEventType): string {
   const map: Record<ExtractionEventType, string> = {
-    parenting_time: 'Parenting time',
+    parenting_time: 'Parenting Time',
     caregiving: 'Caregiving',
-    household: 'Household / chores',
-    coparent_conflict: 'Co-parent conflict',
+    household: 'Household',
+    coparent_conflict: 'Co-parent Conflict',
     gatekeeping: 'Gatekeeping',
     communication: 'Communication',
     medical: 'Medical',
     school: 'School',
-    legal: 'Legal / court'
+    legal: 'Legal'
   }
-
   return map[type] || type
 }
 
@@ -167,10 +168,11 @@ const toneColors: Record<CoparentTone, 'neutral' | 'success' | 'warning' | 'erro
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString(undefined, {
-    month: 'short',
+    weekday: 'long',
+    month: 'long',
     day: 'numeric',
     year: 'numeric',
-    hour: '2-digit',
+    hour: 'numeric',
     minute: '2-digit'
   })
 }
@@ -230,7 +232,6 @@ const editableTimestamp = computed({
       data.value.timestamp = data.value.createdAt
       return
     }
-    // Let the server coerce/validate this ISO-like string
     data.value.timestamp = new Date(value).toISOString()
   }
 })
@@ -247,7 +248,6 @@ const extractionType = computed<ExtractionEventType | null>(() => {
   if (fromApi) {
     return fromApi
   }
-
   return legacyToExtractionTypeMap[data.value.type]
 })
 
@@ -327,10 +327,9 @@ const editableType = computed<EventType>({
 
 const editableWelfareImpact = computed<LegacyWelfareImpact>({
   get() {
-    // Default to 'unknown' so the select always has a value
-    return (data.value?.welfareImpact as WelfareImpact | undefined) ?? 'unknown'
+    return (data.value?.welfareImpact as LegacyWelfareImpact | undefined) ?? 'unknown'
   },
-  set(value: WelfareImpact) {
+  set(value: LegacyWelfareImpact) {
     if (!data.value) return
     data.value.welfareImpact = value
   }
@@ -363,7 +362,6 @@ async function saveEdits(close?: () => void) {
       close()
     }
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error('Failed to save event edits:', err)
   } finally {
     isSaving.value = false
@@ -388,7 +386,6 @@ async function deleteEventHandler(deleteEvidence: boolean, close?: () => void) {
 
     await router.push('/timeline')
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error('Failed to delete event:', err)
   } finally {
     isDeleting.value = false
@@ -399,7 +396,7 @@ async function deleteEventHandler(deleteEvidence: boolean, close?: () => void) {
 <template>
   <UDashboardPanel id="event-detail">
     <template #header>
-      <UDashboardNavbar title="Event Details">
+      <UDashboardNavbar title="Event">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -413,14 +410,13 @@ async function deleteEventHandler(deleteEvidence: boolean, close?: () => void) {
             variant="ghost"
             to="/timeline"
           >
-            Back to Timeline
+            Back
           </UButton>
         </template>
 
         <template #right>
-          <div class="flex items-center gap-2">
+          <div v-if="status === 'success' && data" class="flex items-center gap-2">
             <UModal
-              v-if="status === 'success' && data"
               title="Edit event"
               :ui="{ footer: 'justify-end' }"
             >
@@ -435,92 +431,45 @@ async function deleteEventHandler(deleteEvidence: boolean, close?: () => void) {
 
               <template #body>
                 <div class="space-y-4">
-                  <div class="flex items-center gap-2 mb-2">
-                    <UBadge
-                      :color="typeColors[data.type]"
-                      variant="subtle"
-                      size="xs"
-                      class="capitalize"
-                    >
-                      {{ data.type }}
-                    </UBadge>
-                    <span class="text-xs text-muted">
-                      Update the core details of this event.
-                    </span>
-                  </div>
-
-                  <UFormField
-                    label="Event type"
-                    name="type"
-                  >
-                    <div class="w-full">
-                      <USelect
-                        v-model="editableType"
-                        :items="eventTypeOptions"
-                        option-attribute="label"
-                        value-attribute="value"
-                        class="w-full"
-                      />
-                    </div>
+                  <UFormField label="Event type" name="type">
+                    <USelect
+                      v-model="editableType"
+                      :items="eventTypeOptions"
+                      option-attribute="label"
+                      value-attribute="value"
+                      class="w-full"
+                    />
                   </UFormField>
 
-                  <UFormField
-                    label="Title"
-                    name="title"
-                  >
-                    <div class="w-full">
-                      <UInput
-                        v-model="editableTitle"
-                        color="neutral"
-                        variant="outline"
-                        class="w-full"
-                      />
-                    </div>
+                  <UFormField label="Title" name="title">
+                    <UInput
+                      v-model="editableTitle"
+                      class="w-full"
+                    />
                   </UFormField>
 
-                  <UFormField
-                    label="Description"
-                    name="description"
-                  >
-                    <div class="w-full">
-                      <UTextarea
-                        v-model="editableDescription"
-                        :rows="4"
-                        color="neutral"
-                        variant="outline"
-                        class="w-full"
-                      />
-                    </div>
+                  <UFormField label="Description" name="description">
+                    <UTextarea
+                      v-model="editableDescription"
+                      :rows="4"
+                      class="w-full"
+                    />
                   </UFormField>
 
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <UFormField
-                      label="Date & time"
-                      name="timestamp"
-                    >
-                      <div class="w-full">
-                        <UInput
-                          v-model="editableTimestamp"
-                          type="datetime-local"
-                          color="neutral"
-                          variant="outline"
-                          class="w-full"
-                        />
-                      </div>
+                    <UFormField label="Date & time" name="timestamp">
+                      <UInput
+                        v-model="editableTimestamp"
+                        type="datetime-local"
+                        class="w-full"
+                      />
                     </UFormField>
 
-                    <UFormField
-                      label="Location"
-                      name="location"
-                    >
-                      <div class="w-full">
-                        <UInput
-                          v-model="editableLocation"
-                          color="neutral"
-                          variant="outline"
-                          class="w-full"
-                        />
-                      </div>
+                    <UFormField label="Location" name="location">
+                      <UInput
+                        v-model="editableLocation"
+                        class="w-full"
+                      />
                     </UFormField>
                   </div>
 
@@ -530,67 +479,40 @@ async function deleteEventHandler(deleteEvidence: boolean, close?: () => void) {
                         Impact flags
                       </p>
                       <div class="flex flex-col gap-2">
-                        <UFormField name="childInvolved">
-                          <USwitch
-                            v-model="data.childInvolved"
-                            label="Child involved"
-                          />
-                        </UFormField>
-                        <UFormField name="agreementViolation">
-                          <USwitch
-                            v-model="data.agreementViolation"
-                            label="Agreement violation"
-                          />
-                        </UFormField>
-                        <UFormField name="safetyConcern">
-                          <USwitch
-                            v-model="data.safetyConcern"
-                            label="Safety concern"
-                          />
-                        </UFormField>
+                        <USwitch v-model="data.childInvolved" label="Child involved" />
+                        <USwitch v-model="data.agreementViolation" label="Agreement violation" />
+                        <USwitch v-model="data.safetyConcern" label="Safety concern" />
                       </div>
                     </div>
 
                     <UFormField
-                      label="Overall welfare impact"
+                      label="Welfare impact"
                       name="welfareImpact"
-                      description="How does this event affect the child’s wellbeing overall?"
+                      description="How does this affect the child's wellbeing?"
                     >
-                      <div class="w-full">
-                        <USelect
-                          v-model="editableWelfareImpact"
-                          :items="welfareImpactOptions"
-                          option-attribute="label"
-                          value-attribute="value"
-                          class="w-full"
-                        />
-                      </div>
+                      <USelect
+                        v-model="editableWelfareImpact"
+                        :items="welfareImpactOptions"
+                        option-attribute="label"
+                        value-attribute="value"
+                        class="w-full"
+                      />
                     </UFormField>
                   </div>
                 </div>
               </template>
 
               <template #footer="{ close }">
-                <UButton
-                  color="neutral"
-                  variant="ghost"
-                  @click="close"
-                >
+                <UButton color="neutral" variant="ghost" @click="close">
                   Cancel
                 </UButton>
-                <UButton
-                  color="primary"
-                  variant="solid"
-                  :loading="isSaving"
-                  @click="saveEdits(close)"
-                >
-                  Save changes
+                <UButton color="primary" :loading="isSaving" @click="saveEdits(close)">
+                  Save
                 </UButton>
               </template>
             </UModal>
 
             <UModal
-              v-if="status === 'success' && data"
               title="Delete event"
               :ui="{ footer: 'justify-end' }"
             >
@@ -608,39 +530,23 @@ async function deleteEventHandler(deleteEvidence: boolean, close?: () => void) {
                   <p class="text-sm">
                     This will permanently delete this event from your timeline.
                   </p>
-                  <p class="text-xs text-muted">
-                    Event participants, evidence mentions, patterns, suggestions, and other linked rows
-                    will be cleaned up automatically by the database. Action items will remain but
-                    will no longer be linked to this event.
-                  </p>
-                  <UFormField
-                    name="deleteAssociatedEvidence"
-                    label="Also delete associated evidence?"
-                    description="If enabled, any evidence that is only linked to this event (and not used elsewhere) will also be deleted."
-                  >
-                    <USwitch
-                      v-model="deleteOrphanEvidence"
-                      label="Delete evidence that is only linked to this event"
-                    />
-                  </UFormField>
+                  <USwitch
+                    v-model="deleteOrphanEvidence"
+                    label="Also delete evidence only linked to this event"
+                  />
                 </div>
               </template>
 
               <template #footer="{ close }">
-                <UButton
-                  color="neutral"
-                  variant="ghost"
-                  @click="close"
-                >
+                <UButton color="neutral" variant="ghost" @click="close">
                   Cancel
                 </UButton>
                 <UButton
                   color="error"
-                  variant="solid"
                   :loading="isDeleting"
                   @click="deleteEventHandler(deleteOrphanEvidence, close)"
                 >
-                  Delete event
+                  Delete
                 </UButton>
               </template>
             </UModal>
@@ -651,371 +557,304 @@ async function deleteEventHandler(deleteEvidence: boolean, close?: () => void) {
 
     <template #body>
       <!-- Loading state -->
-      <div v-if="status === 'pending'" class="space-y-4">
-        <UCard>
-          <div class="space-y-4">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-3">
-                <USkeleton class="h-6 w-20" />
-                <USkeleton class="h-7 w-64" />
-              </div>
-              <USkeleton class="h-5 w-40" />
-            </div>
-            <USkeleton class="h-20 w-full" />
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <USkeleton class="h-16 w-full" />
-              <USkeleton class="h-16 w-full" />
-              <USkeleton class="h-16 w-full" />
-            </div>
-          </div>
-        </UCard>
-
-        <!-- Suggested Evidence -->
-        <UCard v-if="data.suggestedEvidence?.length">
-          <template #header>
-            <div class="flex items-center justify-between">
-              <h2 class="text-lg font-medium">Suggested Evidence</h2>
-              <p class="text-xs text-muted">
-                AI-generated ideas for what to gather or attach.
-              </p>
-            </div>
-          </template>
-
-          <div class="space-y-2">
-            <div
-              v-for="suggestion in data.suggestedEvidence"
-              :key="suggestion.id"
-              class="flex items-start gap-3 p-3 rounded-lg bg-muted/5"
-            >
-              <div class="flex flex-col items-start gap-1">
-                <UBadge
-                  color="neutral"
-                  variant="subtle"
-                  size="xs"
-                  class="capitalize"
-                >
-                  {{ suggestion.evidenceType }}
-                </UBadge>
-                <UBadge
-                  :color="evidenceStatusColors[suggestion.evidenceStatus] || 'neutral'"
-                  variant="outline"
-                  size="xs"
-                >
-                  {{ suggestion.evidenceStatus.replace(/_/g, ' ') }}
-                </UBadge>
-              </div>
-
-              <div class="flex-1 space-y-1">
-                <p class="text-sm">
-                  {{ suggestion.description }}
-                </p>
-
-                <p v-if="suggestion.fulfilledAt" class="text-xs text-success">
-                  Fulfilled {{ formatShortDate(suggestion.fulfilledAt) }}
-                </p>
-                <p v-else-if="suggestion.dismissedAt" class="text-xs text-muted">
-                  Dismissed {{ formatShortDate(suggestion.dismissedAt) }}
-                </p>
-              </div>
-            </div>
-          </div>
-        </UCard>
+      <div v-if="status === 'pending'" class="p-6 space-y-6 max-w-4xl mx-auto">
+        <div class="space-y-4">
+          <USkeleton class="h-6 w-32" />
+          <USkeleton class="h-10 w-3/4" />
+          <USkeleton class="h-24 w-full" />
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+          <USkeleton class="h-16" />
+          <USkeleton class="h-16" />
+          <USkeleton class="h-16" />
+        </div>
       </div>
 
       <!-- Error state -->
-      <UCard v-else-if="status === 'error'" class="border-error">
-        <div class="flex items-center gap-3 text-error">
-          <UIcon name="i-lucide-alert-triangle" class="size-5" />
-          <p class="font-medium">Failed to load event details</p>
-        </div>
-        <p class="text-sm text-muted mt-2">{{ error?.statusMessage || 'An error occurred' }}</p>
-        <UButton
-          to="/timeline"
-          icon="i-lucide-arrow-left"
-          color="neutral"
-          variant="ghost"
-          class="mt-4"
-        >
-          Back to Timeline
-        </UButton>
-      </UCard>
+      <div v-else-if="status === 'error'" class="p-6 max-w-2xl mx-auto">
+        <UCard class="border-error">
+          <div class="flex items-center gap-3 text-error">
+            <UIcon name="i-lucide-alert-triangle" class="size-5" />
+            <p class="font-medium">Failed to load event</p>
+          </div>
+          <p class="text-sm text-muted mt-2">{{ error?.statusMessage || 'An error occurred' }}</p>
+          <UButton
+            to="/timeline"
+            icon="i-lucide-arrow-left"
+            color="neutral"
+            variant="ghost"
+            class="mt-4"
+          >
+            Back to Timeline
+          </UButton>
+        </UCard>
+      </div>
 
       <!-- Content -->
-      <div v-else-if="data" class="space-y-4">
-        <!-- Main Event Card -->
-        <UCard>
-          <div class="space-y-4">
-            <!-- Header -->
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <div class="flex items-center gap-3">
-                <UBadge
-                  :color="extractionType ? extractionTypeColors[extractionType] : 'neutral'"
-                  variant="subtle"
-                  size="lg"
-                  class="capitalize"
-                >
-                  {{ extractionType ? formatExtractionEventType(extractionType) : data.type }}
-                </UBadge>
-                <h1 class="text-xl font-semibold">{{ data.title }}</h1>
-              </div>
-              <p class="text-sm text-muted">
-                {{ formatDate(data.timestamp) }}
-              </p>
-            </div>
+      <div v-else-if="data" class="p-6 space-y-8 max-w-4xl mx-auto">
+        <!-- Header Section -->
+        <div class="space-y-4">
+          <!-- Type badge and date -->
+          <div class="flex flex-wrap items-center gap-3">
+            <UBadge
+              :color="extractionType ? extractionTypeColors[extractionType] : 'neutral'"
+              variant="subtle"
+              size="lg"
+            >
+              <UIcon
+                v-if="extractionType"
+                :name="extractionTypeIcons[extractionType]"
+                class="size-4 mr-1.5"
+              />
+              {{ extractionType ? formatExtractionEventType(extractionType) : data.type }}
+            </UBadge>
+            <span class="text-sm text-muted">
+              {{ formatDate(data.timestamp) }}
+            </span>
+          </div>
 
-            <!-- Description -->
-            <div class="prose prose-sm max-w-none">
-              <p>{{ data.description }}</p>
-            </div>
+          <!-- Title -->
+          <h1 class="text-3xl font-bold text-highlighted">
+            {{ data.title }}
+          </h1>
 
-            <!-- Key Details -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div v-if="data.location" class="flex items-start gap-2">
-                <UIcon name="i-lucide-map-pin" class="size-4 mt-0.5 text-muted" />
-                <div>
-                  <p class="text-xs text-muted">Location</p>
-                  <p class="text-sm">{{ data.location }}</p>
-                </div>
-              </div>
+          <!-- Description -->
+          <p class="text-lg text-muted leading-relaxed">
+            {{ data.description }}
+          </p>
 
-              <div v-if="data.participants.length" class="flex items-start gap-2">
-                <UIcon name="i-lucide-users" class="size-4 mt-0.5 text-muted" />
-                <div>
-                  <p class="text-xs text-muted">Participants</p>
-                  <p class="text-sm">{{ data.participants.join(', ') }}</p>
-                </div>
-              </div>
+          <!-- Flags -->
+          <div v-if="data.childInvolved || data.agreementViolation || data.safetyConcern" class="flex flex-wrap gap-2">
+            <UBadge v-if="data.safetyConcern" color="error" variant="soft" size="sm">
+              <UIcon name="i-lucide-shield-alert" class="size-3.5 mr-1.5" />
+              Safety Concern
+            </UBadge>
+            <UBadge v-if="data.agreementViolation" color="warning" variant="soft" size="sm">
+              <UIcon name="i-lucide-file-warning" class="size-3.5 mr-1.5" />
+              Agreement Violation
+            </UBadge>
+            <UBadge v-if="data.childInvolved" color="info" variant="soft" size="sm">
+              <UIcon name="i-lucide-baby" class="size-3.5 mr-1.5" />
+              Child Involved
+            </UBadge>
+          </div>
+        </div>
 
-              <div v-if="data.durationMinutes" class="flex items-start gap-2">
-                <UIcon name="i-lucide-clock" class="size-4 mt-0.5 text-muted" />
-                <div>
-                  <p class="text-xs text-muted">Duration</p>
-                  <p class="text-sm">{{ data.durationMinutes }} minutes</p>
-                </div>
-              </div>
-            </div>
+        <!-- Quick Info Bar -->
+        <div
+          v-if="data.location || data.participants.length || data.durationMinutes"
+          class="flex flex-wrap gap-6 py-4 border-y border-default"
+        >
+          <div v-if="data.location" class="flex items-center gap-2 text-sm">
+            <UIcon name="i-lucide-map-pin" class="size-4 text-muted" />
+            <span>{{ data.location }}</span>
+          </div>
 
-            <!-- Flags -->
-            <div v-if="data.childInvolved || data.agreementViolation || data.safetyConcern" class="flex flex-wrap gap-2">
-              <UBadge v-if="data.childInvolved" color="info" variant="outline" size="xs">
-                <UIcon name="i-lucide-baby" class="size-3 mr-1" />
-                Child Involved
-              </UBadge>
-              <UBadge v-if="data.agreementViolation" color="warning" variant="outline" size="xs">
-                <UIcon name="i-lucide-file-warning" class="size-3 mr-1" />
-                Agreement Violation
-              </UBadge>
-              <UBadge v-if="data.safetyConcern" color="error" variant="outline" size="xs">
-                <UIcon name="i-lucide-shield-alert" class="size-3 mr-1" />
-                Safety Concern
-              </UBadge>
-            </div>
+          <div v-if="data.participants.length" class="flex items-center gap-2 text-sm">
+            <UIcon name="i-lucide-users" class="size-4 text-muted" />
+            <span>{{ data.participants.join(', ') }}</span>
+          </div>
 
-            <!-- Co-parent Interaction Analysis -->
-            <div v-if="data.coparentInteraction" class="flex flex-wrap items-center gap-2">
-              <p class="text-xs text-muted">Co-parent interaction:</p>
+          <div v-if="data.durationMinutes" class="flex items-center gap-2 text-sm">
+            <UIcon name="i-lucide-clock" class="size-4 text-muted" />
+            <span>{{ data.durationMinutes }} minutes</span>
+          </div>
+        </div>
+
+        <!-- Co-parent Interaction Analysis -->
+        <div v-if="data.coparentInteraction" class="p-4 rounded-xl bg-muted/5 border border-default space-y-3">
+          <h3 class="text-sm font-medium text-highlighted flex items-center gap-2">
+            <UIcon name="i-lucide-message-square-more" class="size-4" />
+            Co-parent Interaction
+          </h3>
+          <div class="flex flex-wrap gap-3">
+            <div v-if="data.coparentInteraction.your_tone" class="text-sm">
+              <span class="text-muted">Your tone:</span>
               <UBadge
-                v-if="data.coparentInteraction.your_tone"
                 :color="toneColors[data.coparentInteraction.your_tone]"
-                variant="outline"
+                variant="subtle"
                 size="xs"
-                class="capitalize"
+                class="ml-2 capitalize"
               >
-                Your tone: {{ data.coparentInteraction.your_tone }}
+                {{ data.coparentInteraction.your_tone }}
               </UBadge>
+            </div>
+            <div v-if="data.coparentInteraction.their_tone" class="text-sm">
+              <span class="text-muted">Their tone:</span>
               <UBadge
-                v-if="data.coparentInteraction.their_tone"
                 :color="toneColors[data.coparentInteraction.their_tone]"
-                variant="outline"
+                variant="subtle"
                 size="xs"
-                class="capitalize"
+                class="ml-2 capitalize"
               >
-                Their tone: {{ data.coparentInteraction.their_tone }}
+                {{ data.coparentInteraction.their_tone }}
               </UBadge>
+            </div>
+            <div v-if="data.coparentInteraction.your_response_appropriate !== null" class="text-sm">
               <UBadge
-                v-if="data.coparentInteraction.your_response_appropriate !== null && data.coparentInteraction.your_response_appropriate !== undefined"
                 :color="data.coparentInteraction.your_response_appropriate ? 'success' : 'warning'"
-                variant="subtle"
+                variant="soft"
                 size="xs"
               >
-                Your response was {{ data.coparentInteraction.your_response_appropriate ? 'appropriate' : 'not appropriate' }}
-              </UBadge>
-            </div>
-
-            <!-- Welfare Impact -->
-            <div v-if="hasStructuredWelfareImpact" class="space-y-1">
-              <p class="text-xs text-muted">Welfare Impact:</p>
-              <div class="flex flex-wrap items-center gap-2 text-xs">
-                <UBadge
-                  v-if="data.welfareCategory"
-                  color="neutral"
-                  variant="subtle"
-                  size="xs"
-                >
-                  Category: {{ formatWelfareCategory(data.welfareCategory) }}
-                </UBadge>
-                <UBadge
-                  v-if="data.welfareDirection"
-                  :color="data.welfareDirection === 'positive' ? 'success' : data.welfareDirection === 'negative' ? 'error' : 'neutral'"
-                  variant="subtle"
-                  size="xs"
-                >
-                  Direction: {{ formatWelfareDirection(data.welfareDirection) }}
-                </UBadge>
-                <UBadge
-                  v-if="data.welfareSeverity"
-                  :color="data.welfareSeverity === 'significant' ? 'error' : data.welfareSeverity === 'moderate' ? 'warning' : 'neutral'"
-                  variant="outline"
-                  size="xs"
-                >
-                  Severity: {{ formatWelfareSeverity(data.welfareSeverity) }}
-                </UBadge>
-              </div>
-            </div>
-            <div v-else-if="data.welfareImpact && data.welfareImpact !== 'unknown'" class="flex items-center gap-2">
-              <p class="text-xs text-muted">Welfare Impact:</p>
-              <UBadge
-                :color="data.welfareImpact === 'positive' ? 'success' : 
-                        data.welfareImpact === 'significant' ? 'error' : 
-                        data.welfareImpact === 'moderate' ? 'warning' : 'neutral'"
-                variant="subtle"
-                size="xs"
-                class="capitalize"
-              >
-                {{ data.welfareImpact }}
+                {{ data.coparentInteraction.your_response_appropriate ? 'Appropriate response' : 'Response could improve' }}
               </UBadge>
             </div>
           </div>
-        </UCard>
+        </div>
+
+        <!-- Welfare Impact -->
+        <div v-if="hasStructuredWelfareImpact" class="p-4 rounded-xl bg-muted/5 border border-default space-y-3">
+          <h3 class="text-sm font-medium text-highlighted flex items-center gap-2">
+            <UIcon name="i-lucide-heart" class="size-4" />
+            Welfare Impact
+          </h3>
+          <div class="flex flex-wrap gap-2">
+            <UBadge v-if="data.welfareCategory" color="neutral" variant="subtle" size="sm">
+              {{ formatWelfareCategory(data.welfareCategory) }}
+            </UBadge>
+            <UBadge
+              v-if="data.welfareDirection"
+              :color="data.welfareDirection === 'positive' ? 'success' : data.welfareDirection === 'negative' ? 'error' : 'neutral'"
+              variant="subtle"
+              size="sm"
+            >
+              {{ formatWelfareDirection(data.welfareDirection) }}
+            </UBadge>
+            <UBadge
+              v-if="data.welfareSeverity"
+              :color="data.welfareSeverity === 'significant' ? 'error' : data.welfareSeverity === 'moderate' ? 'warning' : 'neutral'"
+              variant="outline"
+              size="sm"
+            >
+              {{ formatWelfareSeverity(data.welfareSeverity) }} severity
+            </UBadge>
+          </div>
+        </div>
 
         <!-- Child Statements -->
-        <UCard v-if="data.childStatements?.length">
-          <template #header>
-            <h2 class="text-lg font-medium">Child Statements</h2>
-          </template>
+        <div v-if="data.childStatements?.length" class="space-y-4">
+          <h2 class="text-lg font-semibold text-highlighted flex items-center gap-2">
+            <UIcon name="i-lucide-quote" class="size-5" />
+            Child Statements
+          </h2>
 
           <div class="space-y-3">
             <div
               v-for="(statement, index) in data.childStatements"
               :key="index"
-              class="p-3 rounded-lg bg-muted/5"
+              class="p-4 rounded-xl border border-default"
+              :class="statement.concerning ? 'bg-error/5 border-error/20' : 'bg-muted/5'"
             >
-              <p class="text-sm italic">
-                “{{ statement.statement }}”
+              <p class="text-base italic text-highlighted">
+                "{{ statement.statement }}"
               </p>
-              <p v-if="statement.context" class="text-xs text-muted mt-1">
-                Context: {{ statement.context }}
-              </p>
-              <div class="mt-2">
+              <div class="mt-3 flex flex-wrap items-center gap-3">
                 <UBadge
                   :color="statement.concerning ? 'error' : 'neutral'"
                   variant="subtle"
                   size="xs"
                 >
-                  {{ statement.concerning ? 'Concerning' : 'Not marked as concerning' }}
+                  {{ statement.concerning ? 'Concerning' : 'Not concerning' }}
                 </UBadge>
+                <span v-if="statement.context" class="text-xs text-muted">
+                  {{ statement.context }}
+                </span>
               </div>
             </div>
           </div>
-        </UCard>
+        </div>
 
         <!-- Evidence Section -->
-        <UCard v-if="data.evidenceDetails?.length || data.evidenceMentions?.length">
-          <template #header>
-            <h2 class="text-lg font-medium">Evidence</h2>
-          </template>
+        <div v-if="data.evidenceDetails?.length" class="space-y-4">
+          <h2 class="text-lg font-semibold text-highlighted flex items-center gap-2">
+            <UIcon name="i-lucide-paperclip" class="size-5" />
+            Linked Evidence
+          </h2>
 
-          <div class="space-y-4">
-            <!-- Linked Evidence -->
-            <div v-if="data.evidenceDetails?.length">
-              <h3 class="text-sm font-medium mb-2">Linked Evidence</h3>
-              <div class="grid gap-2">
-                <NuxtLink
-                  v-for="item in data.evidenceDetails"
-                  :key="item.id"
-                  :to="`/evidence/${item.id}`"
-                  class="block"
-                >
-                  <UCard :ui="{ base: 'hover:bg-muted/5 transition-colors' }">
-                    <div class="flex items-start justify-between gap-3">
-                      <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2 mb-1">
-                          <UBadge
-                            color="neutral"
-                            variant="subtle"
-                            size="xs"
-                          >
-                            {{ item.sourceType }}
-                          </UBadge>
-                          <UBadge
-                            v-if="item.isPrimary"
-                            color="primary"
-                            variant="outline"
-                            size="xs"
-                          >
-                            Primary
-                          </UBadge>
-                        </div>
-                        <p class="text-sm font-medium">{{ item.originalName }}</p>
-                        <p class="text-xs text-muted line-clamp-2">{{ item.summary }}</p>
-                        <div v-if="item.tags?.length" class="flex flex-wrap gap-1 mt-1">
-                          <UBadge
-                            v-for="tag in item.tags.slice(0, 3)"
-                            :key="tag"
-                            color="neutral"
-                            variant="outline"
-                            size="xs"
-                          >
-                            {{ tag }}
-                          </UBadge>
-                        </div>
-                      </div>
-                      <UIcon name="i-lucide-chevron-right" class="size-4 text-muted" />
-                    </div>
-                  </UCard>
-                </NuxtLink>
-              </div>
-            </div>
-
-            <!-- Evidence Mentions -->
-            <div v-if="data.evidenceMentions?.length">
-              <h3 class="text-sm font-medium mb-2">Evidence Mentions</h3>
-              <div class="space-y-2">
-                <div
-                  v-for="mention in data.evidenceMentions"
-                  :key="mention.id"
-                  class="flex items-start gap-3 p-3 rounded-lg bg-muted/5"
-                >
-                  <UBadge
-                    :color="evidenceStatusColors[mention.status]"
-                    variant="subtle"
-                    size="xs"
-                  >
-                    {{ mention.status.replace(/_/g, ' ') }}
-                  </UBadge>
-                  <div class="flex-1">
-                    <p class="text-xs text-muted">{{ mention.type }}</p>
-                    <p class="text-sm">{{ mention.description }}</p>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <NuxtLink
+              v-for="item in data.evidenceDetails"
+              :key="item.id"
+              :to="`/evidence/${item.id}`"
+              class="group block p-4 rounded-xl border border-default bg-muted/5 hover:bg-muted/10 hover:border-primary/30 transition-all"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 mb-2">
+                    <UBadge color="neutral" variant="subtle" size="xs">
+                      {{ item.sourceType }}
+                    </UBadge>
+                    <UBadge v-if="item.isPrimary" color="primary" variant="outline" size="xs">
+                      Primary
+                    </UBadge>
                   </div>
+                  <p class="font-medium text-highlighted group-hover:text-primary transition-colors truncate">
+                    {{ item.originalName || 'Untitled' }}
+                  </p>
+                  <p v-if="item.summary" class="text-xs text-muted mt-1 line-clamp-2">
+                    {{ item.summary }}
+                  </p>
                 </div>
+                <UIcon
+                  name="i-lucide-chevron-right"
+                  class="size-4 text-muted group-hover:text-primary transition-colors shrink-0"
+                />
+              </div>
+            </NuxtLink>
+          </div>
+        </div>
+
+        <!-- Evidence Mentions (things to gather) -->
+        <div v-if="data.evidenceMentions?.length" class="space-y-4">
+          <h2 class="text-lg font-semibold text-highlighted flex items-center gap-2">
+            <UIcon name="i-lucide-search" class="size-5" />
+            Evidence to Gather
+          </h2>
+
+          <div class="space-y-2">
+            <div
+              v-for="mention in data.evidenceMentions"
+              :key="mention.id"
+              class="flex items-start gap-3 p-3 rounded-lg bg-muted/5 border border-default"
+            >
+              <UBadge
+                :color="evidenceStatusColors[mention.status] || 'neutral'"
+                variant="subtle"
+                size="xs"
+              >
+                {{ mention.status.replace(/_/g, ' ') }}
+              </UBadge>
+              <div class="flex-1">
+                <p class="text-sm">{{ mention.description }}</p>
+                <p class="text-xs text-muted mt-1">{{ mention.type }}</p>
               </div>
             </div>
           </div>
-        </UCard>
+        </div>
 
         <!-- Action Items -->
-        <UCard v-if="data.actionItems?.length">
-          <template #header>
-            <h2 class="text-lg font-medium">Action Items</h2>
-          </template>
+        <div v-if="data.actionItems?.length" class="space-y-4">
+          <h2 class="text-lg font-semibold text-highlighted flex items-center gap-2">
+            <UIcon name="i-lucide-list-checks" class="size-5" />
+            Action Items
+          </h2>
 
           <div class="space-y-2">
             <div
               v-for="item in data.actionItems"
               :key="item.id"
-              class="flex items-start gap-3 p-3 rounded-lg bg-muted/5"
+              class="flex items-start gap-3 p-4 rounded-xl border border-default bg-muted/5"
             >
-              <UIcon :name="statusIcons[item.status]" class="size-4 mt-0.5" />
+              <UIcon
+                :name="statusIcons[item.status]"
+                class="size-5 mt-0.5"
+                :class="{
+                  'text-success': item.status === 'done',
+                  'text-muted': item.status === 'cancelled',
+                  'text-primary': item.status === 'in_progress',
+                  'text-warning': item.status === 'open'
+                }"
+              />
               <div class="flex-1">
                 <div class="flex items-center gap-2 mb-1">
                   <UBadge
@@ -1026,29 +865,30 @@ async function deleteEventHandler(deleteEvidence: boolean, close?: () => void) {
                     {{ item.priority }}
                   </UBadge>
                   <span class="text-xs text-muted">{{ item.type }}</span>
-                  <span v-if="item.deadline" class="text-xs text-muted">
-                    Due: {{ formatShortDate(item.deadline) }}
-                  </span>
                 </div>
-                <p class="text-sm">{{ item.description }}</p>
+                <p class="text-sm text-highlighted">{{ item.description }}</p>
+                <p v-if="item.deadline" class="text-xs text-muted mt-1">
+                  Due: {{ formatShortDate(item.deadline) }}
+                </p>
               </div>
             </div>
           </div>
-        </UCard>
+        </div>
 
         <!-- Communications -->
-        <UCard v-if="data.communications?.length">
-          <template #header>
-            <h2 class="text-lg font-medium">Related Communications</h2>
-          </template>
+        <div v-if="data.communications?.length" class="space-y-4">
+          <h2 class="text-lg font-semibold text-highlighted flex items-center gap-2">
+            <UIcon name="i-lucide-messages-square" class="size-5" />
+            Related Communications
+          </h2>
 
-          <div class="space-y-2">
+          <div class="space-y-3">
             <div
               v-for="comm in data.communications"
               :key="comm.id"
-              class="p-3 rounded-lg bg-muted/5"
+              class="p-4 rounded-xl border border-default bg-muted/5"
             >
-              <div class="flex items-center justify-between mb-1">
+              <div class="flex items-center justify-between mb-2">
                 <div class="flex items-center gap-2">
                   <UBadge color="neutral" variant="subtle" size="xs">
                     {{ comm.medium }}
@@ -1061,37 +901,61 @@ async function deleteEventHandler(deleteEvidence: boolean, close?: () => void) {
                   {{ formatShortDate(comm.sentAt) }}
                 </span>
               </div>
-              <p v-if="comm.subject" class="text-sm font-medium">{{ comm.subject }}</p>
+              <p v-if="comm.subject" class="font-medium text-highlighted">{{ comm.subject }}</p>
               <p class="text-sm text-muted">{{ comm.summary }}</p>
             </div>
           </div>
-        </UCard>
+        </div>
 
-        <!-- Metadata -->
-        <UCard>
-          <template #header>
-            <h2 class="text-sm font-medium text-muted">Metadata</h2>
-          </template>
-          
-          <div class="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p class="text-xs text-muted">Event ID</p>
-              <p class="font-mono text-xs">{{ data.id }}</p>
-            </div>
-            <div>
-              <p class="text-xs text-muted">Timestamp Precision</p>
-              <p>{{ data.timestampPrecision || 'Unknown' }}</p>
-            </div>
-            <div>
-              <p class="text-xs text-muted">Created</p>
-              <p>{{ formatShortDate(data.createdAt) }}</p>
-            </div>
-            <div>
-              <p class="text-xs text-muted">Last Updated</p>
-              <p>{{ formatShortDate(data.updatedAt) }}</p>
+        <!-- Suggested Evidence -->
+        <div v-if="data.suggestedEvidence?.length" class="space-y-4">
+          <h2 class="text-lg font-semibold text-highlighted flex items-center gap-2">
+            <UIcon name="i-lucide-lightbulb" class="size-5" />
+            Suggested Evidence
+          </h2>
+
+          <div class="space-y-2">
+            <div
+              v-for="suggestion in data.suggestedEvidence"
+              :key="suggestion.id"
+              class="flex items-start gap-3 p-4 rounded-xl border border-default bg-muted/5"
+              :class="{
+                'opacity-60': suggestion.dismissedAt,
+                'border-success/30 bg-success/5': suggestion.fulfilledAt
+              }"
+            >
+              <UIcon
+                :name="suggestion.fulfilledAt ? 'i-lucide-check-circle' : suggestion.dismissedAt ? 'i-lucide-x-circle' : 'i-lucide-circle'"
+                class="size-5 mt-0.5"
+                :class="{
+                  'text-success': suggestion.fulfilledAt,
+                  'text-muted': suggestion.dismissedAt
+                }"
+              />
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                  <UBadge color="neutral" variant="subtle" size="xs" class="capitalize">
+                    {{ suggestion.evidenceType }}
+                  </UBadge>
+                  <UBadge
+                    :color="evidenceStatusColors[suggestion.evidenceStatus] || 'neutral'"
+                    variant="outline"
+                    size="xs"
+                  >
+                    {{ suggestion.evidenceStatus.replace(/_/g, ' ') }}
+                  </UBadge>
+                </div>
+                <p class="text-sm text-highlighted">{{ suggestion.description }}</p>
+                <p v-if="suggestion.fulfilledAt" class="text-xs text-success mt-1">
+                  Fulfilled {{ formatShortDate(suggestion.fulfilledAt) }}
+                </p>
+                <p v-else-if="suggestion.dismissedAt" class="text-xs text-muted mt-1">
+                  Dismissed {{ formatShortDate(suggestion.dismissedAt) }}
+                </p>
+              </div>
             </div>
           </div>
-        </UCard>
+        </div>
       </div>
     </template>
   </UDashboardPanel>

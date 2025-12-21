@@ -80,6 +80,21 @@ function sourceLabel(type: EvidenceItem['sourceType']) {
     document: 'Document'
   }[type]
 }
+
+// Track image loading states
+const imageLoadStates = ref<Map<string, 'loading' | 'loaded' | 'error'>>(new Map())
+
+function getImageState(id: string) {
+  return imageLoadStates.value.get(id) || 'loading'
+}
+
+function onImageLoad(id: string) {
+  imageLoadStates.value.set(id, 'loaded')
+}
+
+function onImageError(id: string) {
+  imageLoadStates.value.set(id, 'error')
+}
 </script>
 
 <template>
@@ -142,11 +157,6 @@ function sourceLabel(type: EvidenceItem['sourceType']) {
           variant="inline"
         />
 
-        <p class="text-sm text-muted">
-          Central library of your uploaded evidence and AI-suggested records from
-          <code class="px-1 rounded bg-subtle text-xs text-muted border border-default">/api/evidence</code>.
-        </p>
-
         <!-- Loading state with skeleton placeholders -->
         <div v-if="status === 'pending'" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <UCard v-for="i in 6" :key="i">
@@ -184,14 +194,35 @@ function sourceLabel(type: EvidenceItem['sourceType']) {
           >
             <div class="flex items-center gap-3 px-2 py-3 hover:bg-muted/5 transition-colors cursor-pointer rounded-lg">
               <!-- Thumbnail -->
-              <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-muted/30 flex-shrink-0 overflow-hidden flex items-center justify-center">
-                <img
-                  v-if="item.storagePath && item.mimeType?.startsWith('image/')"
-                  :src="`/api/evidence/${item.id}/image`"
-                  :alt="item.originalName"
-                  class="w-full h-full object-cover"
-                  loading="lazy"
-                />
+              <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-muted/20 flex-shrink-0 overflow-hidden flex items-center justify-center relative">
+                <!-- Image with loading state -->
+                <template v-if="item.storagePath && item.mimeType?.startsWith('image/')">
+                  <!-- Loading skeleton -->
+                  <div
+                    v-if="getImageState(item.id) === 'loading'"
+                    class="absolute inset-0 bg-muted/30 animate-pulse"
+                  />
+                  
+                  <!-- Error fallback -->
+                  <UIcon
+                    v-if="getImageState(item.id) === 'error'"
+                    name="i-lucide-image-off"
+                    class="size-5 sm:size-6 text-muted"
+                  />
+                  
+                  <!-- Actual image -->
+                  <img
+                    :src="`/api/evidence/${item.id}/image`"
+                    :alt="item.originalName"
+                    class="w-full h-full object-cover transition-opacity duration-200"
+                    :class="getImageState(item.id) === 'loaded' ? 'opacity-100' : 'opacity-0'"
+                    loading="lazy"
+                    @load="onImageLoad(item.id)"
+                    @error="onImageError(item.id)"
+                  >
+                </template>
+                
+                <!-- Non-image file icon -->
                 <UIcon 
                   v-else 
                   :name="item.sourceType === 'photo' ? 'i-lucide-image' : item.sourceType === 'document' ? 'i-lucide-file-text' : 'i-lucide-file'"
@@ -238,18 +269,55 @@ function sourceLabel(type: EvidenceItem['sourceType']) {
           </NuxtLink>
         </div>
 
-        <UCard
-          v-if="!filteredEvidence.length && status === 'success'"
-          class="flex flex-col items-center justify-center py-12 text-center"
-        >
-          <UIcon name="i-lucide-folder-open" class="size-10 text-dimmed mb-2" />
-          <p class="text-sm font-medium text-highlighted">
-            No evidence matches this search
-          </p>
-          <p class="text-xs text-muted">
-            Try clearing the search or changing the source filter to explore the dummy evidence set.
-          </p>
-        </UCard>
+        <!-- Empty states -->
+        <div v-if="!filteredEvidence.length && status === 'success'">
+          <!-- No results with filters -->
+          <UCard
+            v-if="q || sourceFilter !== 'all'"
+            class="flex flex-col items-center justify-center py-12 text-center"
+          >
+            <UIcon name="i-lucide-filter-x" class="size-12 text-dimmed mb-3" />
+            <p class="text-base font-medium text-highlighted mb-1">
+              No evidence matches your filters
+            </p>
+            <p class="text-sm text-muted mb-4">
+              Try adjusting your search or source filter
+            </p>
+            <UButton
+              variant="soft"
+              size="sm"
+              icon="i-lucide-refresh-cw"
+              @click="q = ''; sourceFilter = 'all'"
+            >
+              Clear filters
+            </UButton>
+          </UCard>
+
+          <!-- No evidence at all -->
+          <UCard
+            v-else
+            class="flex flex-col items-center justify-center py-16 text-center"
+          >
+            <div class="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+              <UIcon name="i-lucide-paperclip" class="size-10 text-primary" />
+            </div>
+            <p class="text-lg font-medium text-highlighted mb-2">
+              No Evidence Yet
+            </p>
+            <p class="text-sm text-muted mb-6 max-w-md">
+              Upload screenshots, photos, documents, or other files to build your evidence library.
+            </p>
+            <UButton
+              variant="solid"
+              color="primary"
+              size="lg"
+              icon="i-lucide-upload"
+              to="/journal/new"
+            >
+              Add Evidence
+            </UButton>
+          </UCard>
+        </div>
       </div>
     </template>
   </UDashboardPanel>
