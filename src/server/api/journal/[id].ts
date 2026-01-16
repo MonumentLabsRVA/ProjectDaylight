@@ -1,33 +1,6 @@
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 import type { Database } from '~/types/database.types'
-
-export interface JournalEntryDetail {
-  id: string
-  eventText: string | null
-  referenceDate: string | null
-  referenceTimeDescription: string | null
-  status: 'draft' | 'processing' | 'review' | 'completed' | 'cancelled'
-  extractionRaw: any | null
-  processingError: string | null
-  createdAt: string
-  updatedAt: string
-  processedAt: string | null
-  completedAt: string | null
-  evidence: Array<{
-    id: string
-    sourceType: string
-    storagePath: string | null
-    originalFilename: string | null
-    mimeType: string | null
-    summary: string | null
-    tags: string[]
-    userAnnotation: string | null
-    extractionRaw: any | null
-    sortOrder: number
-    isProcessed: boolean
-    processedAt: string | null
-  }>
-}
+import type { JournalEntryDetail } from '~/types/journal'
 
 export default defineEventHandler(async (event): Promise<JournalEntryDetail> => {
   const user = await serverSupabaseUser(event)

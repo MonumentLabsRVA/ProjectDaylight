@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { JournalEntryDetail } from '~/server/api/journal/[id]'
+import type { JournalEntryDetail } from '~/types/journal'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 const route = useRoute()
@@ -107,11 +107,15 @@ async function uploadAndAttachEvidence() {
   isUploadingEvidence.value = true
 
   try {
+    const accessToken = session.value?.access_token
+      || (await supabase.auth.getSession()).data.session?.access_token
+
     const formData = new FormData()
     formData.append('file', evidenceFile.value)
 
     const uploadResult = await $fetch<{ id: string }>('/api/evidence-upload', {
       method: 'POST',
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
       body: formData
     })
 
