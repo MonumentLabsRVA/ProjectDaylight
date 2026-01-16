@@ -392,7 +392,11 @@ function openExport(row: Row<SavedExport>) {
   </UDashboardPanel>
 
   <!-- Delete confirmation modal -->
-  <UModal v-model:open="deleteConfirmOpen">
+  <UModal
+    v-model:open="deleteConfirmOpen"
+    title="Delete export"
+    description="Confirm deletion of this export."
+  >
     <template #content>
       <UCard>
         <template #header>

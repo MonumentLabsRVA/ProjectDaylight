@@ -273,7 +273,11 @@ async function submitFeedback() {
   </UDashboardPanel>
 
   <!-- Report Detail Modal -->
-  <UModal v-model:open="isModalOpen">
+  <UModal
+    v-model:open="isModalOpen"
+    title="Feedback details"
+    description="View the details of your submitted feedback."
+  >
     <template #content>
       <UCard v-if="selectedReport">
         <template #header>

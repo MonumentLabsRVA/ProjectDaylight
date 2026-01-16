@@ -509,7 +509,7 @@ async function saveExport(markdownContent: string) {
       ai_summary_included: !!aiSummary.value
     }
 
-    const response = await $fetch('/api/exports', {
+    const response = await $fetch<{ export: SavedExport }>('/api/exports', {
       method: 'POST',
       body: {
         title,
@@ -583,12 +583,12 @@ function startNewExport() {
 
 async function openSavedExport(exp: SavedExport) {
   try {
-    const response = await $fetch(`/api/exports/${exp.id}`, {
+    const response = await $fetch<{ export: SavedExport & { markdown_content: string } }>(`/api/exports/${exp.id}`, {
       headers: useRequestHeaders(['cookie'])
     })
 
     if (response?.export) {
-      const fullExport = response.export as SavedExport & { markdown_content: string }
+      const fullExport = response.export
       markdown.value = fullExport.markdown_content
       currentExportId.value = fullExport.id
       currentExportTitle.value = fullExport.title
@@ -1501,7 +1501,11 @@ function getFocusColor(focus: ExportFocus) {
   </UDashboardPanel>
 
   <!-- Delete confirmation modal -->
-  <UModal v-model:open="deleteConfirmOpen">
+  <UModal
+    v-model:open="deleteConfirmOpen"
+    title="Delete export"
+    description="Confirm deletion of this export."
+  >
     <template #content>
       <UCard>
         <template #header>

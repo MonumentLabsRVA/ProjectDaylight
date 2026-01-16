@@ -292,7 +292,10 @@ async function deleteEvidence(close?: () => void) {
         <!-- Hero Image Section -->
         <div v-if="hasImage && data.imageUrl" class="relative">
           <!-- Image container with loading state -->
-          <UModal>
+          <UModal
+            :title="`Preview: ${data.originalName || 'Evidence image'}`"
+            description="Full-size preview of the evidence image."
+          >
             <div class="relative cursor-zoom-in group">
               <!-- Skeleton placeholder while loading -->
               <div
