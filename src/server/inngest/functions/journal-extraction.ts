@@ -698,22 +698,26 @@ async function saveExtractedEvents(
     }
   }
 
-  // Link evidence to events
-  if (evidenceIds.length && createdEventIds.length) {
+  // Link evidence to events.
+  // IMPORTANT: Avoid a cartesian product (all evidence -> all events), which makes evidence appear
+  // "attached to everything" and creates confusing UI relationships.
+  //
+  // We only auto-link when there is exactly one created event; otherwise we keep evidence scoped to
+  // the journal entry (journal_entry_evidence) and allow explicit linking later.
+  if (evidenceIds.length && createdEventIds.length === 1) {
     const eventEvidenceLinks: {
       event_id: string
       evidence_id: string
       is_primary: boolean
     }[] = []
 
-    for (const eventId of createdEventIds) {
-      for (let i = 0; i < evidenceIds.length; i++) {
-        eventEvidenceLinks.push({
-          event_id: eventId,
-          evidence_id: evidenceIds[i],
-          is_primary: i === 0
-        })
-      }
+    const eventId = createdEventIds[0]!
+    for (let i = 0; i < evidenceIds.length; i++) {
+      eventEvidenceLinks.push({
+        event_id: eventId,
+        evidence_id: evidenceIds[i],
+        is_primary: i === 0
+      })
     }
 
     const { error: linkError } = await supabase
@@ -723,6 +727,10 @@ async function saveExtractedEvents(
     if (linkError) {
       console.error('[journal-extraction] Failed to link evidence to events:', linkError)
     }
+  } else if (evidenceIds.length && createdEventIds.length > 1) {
+    console.info(
+      `[journal-extraction] Skipping auto-linking ${evidenceIds.length} evidence item(s) to ${createdEventIds.length} events to avoid over-linking.`
+    )
   }
 
   // Link evidence directly to the journal entry (if not already linked)
