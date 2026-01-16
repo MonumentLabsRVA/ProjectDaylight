@@ -1,7 +1,8 @@
 import { readFiles } from 'h3-formidable'
 import fs from 'fs/promises'
-import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { serverSupabaseClient } from '#supabase/server'
 import { canUploadEvidence } from '../utils/subscription'
+import { requireUserId } from '../utils/auth'
 
 /**
  * POST /api/evidence-upload
@@ -12,16 +13,7 @@ import { canUploadEvidence } from '../utils/subscription'
 export default defineEventHandler(async (event) => {
   const supabase = await serverSupabaseClient(event)
 
-  // Resolve authenticated user from cookies/JWT (SSR and serverless safe)
-  const authUser = await serverSupabaseUser(event)
-  const userId = authUser?.sub || authUser?.id
-
-  if (!userId) {
-    throw createError({
-      statusCode: 401,
-      statusMessage: 'Unauthorized - Please log in'
-    })
-  }
+  const userId = await requireUserId(event, supabase, 'Unauthorized - Please log in')
 
   // Check if user can upload evidence (feature gating)
   const evidenceCheck = await canUploadEvidence(event, userId)

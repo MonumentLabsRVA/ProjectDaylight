@@ -1,7 +1,8 @@
 import OpenAI from 'openai'
 import { zodTextFormat } from 'openai/helpers/zod'
 import { z } from 'zod'
-import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { serverSupabaseClient } from '#supabase/server'
+import { requireUserId } from '../utils/auth'
 
 interface PhotoDescribeBody {
   /**
@@ -52,37 +53,7 @@ export default defineEventHandler(async (event) => {
   try {
     const supabase = await serverSupabaseClient(event)
 
-    // Resolve the authenticated user (prefer Authorization header, fall back to cookies)
-    let userId: string | null = null
-
-    const authHeader = getHeader(event, 'authorization') || getHeader(event, 'Authorization')
-    const bearerPrefix = 'Bearer '
-    const token = authHeader?.startsWith(bearerPrefix)
-      ? authHeader.slice(bearerPrefix.length).trim()
-      : undefined
-
-    if (token) {
-      const { data: userResult, error: userError } = await supabase.auth.getUser(token)
-
-      if (userError) {
-        // eslint-disable-next-line no-console
-        console.error('Supabase auth.getUser error (photo describe):', userError)
-      } else {
-        userId = userResult.user?.id ?? null
-      }
-    }
-
-    if (!userId) {
-      const authUser = await serverSupabaseUser(event)
-      userId = authUser?.id ?? null
-    }
-
-    if (!userId) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'User is not authenticated. Please sign in and try again.'
-      })
-    }
+    const userId = await requireUserId(event, supabase)
 
     // Best-effort: load user and case context to help the model understand who is providing
     // this photo evidence and what legal matter it relates to.

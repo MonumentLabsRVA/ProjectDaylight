@@ -1,7 +1,8 @@
 import OpenAI from 'openai'
 import { zodTextFormat } from 'openai/helpers/zod'
 import { z } from 'zod'
-import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { serverSupabaseClient } from '#supabase/server'
+import { requireUserId } from '../utils/auth'
 
 interface EvidenceCommunicationExtractBody {
   /**
@@ -100,39 +101,11 @@ export default defineEventHandler(async (event) => {
   try {
     const supabase = await serverSupabaseClient(event)
 
-    // Resolve the authenticated user.
-    // Prefer the Supabase access token sent in the Authorization header,
-    // but fall back to cookie-based auth via serverSupabaseUser for flexibility.
-    let userId: string | null = null
-
-    const authHeader = getHeader(event, 'authorization') || getHeader(event, 'Authorization')
-    const bearerPrefix = 'Bearer '
-    const token = authHeader?.startsWith(bearerPrefix)
-      ? authHeader.slice(bearerPrefix.length).trim()
-      : undefined
-
-    if (token) {
-      const { data: userResult, error: userError } = await supabase.auth.getUser(token)
-
-      if (userError) {
-        // eslint-disable-next-line no-console
-        console.error('Supabase auth.getUser error (communications extraction):', userError)
-      } else {
-        userId = userResult.user?.id ?? null
-      }
-    }
-
-    if (!userId) {
-      const authUser = await serverSupabaseUser(event)
-      userId = authUser?.id ?? null
-    }
-
-    if (!userId) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'User is not authenticated. Please sign in through Supabase and include the session token in the request.'
-      })
-    }
+    const userId = await requireUserId(
+      event,
+      supabase,
+      'User is not authenticated. Please sign in through Supabase and include the session token in the request.'
+    )
 
     // Best-effort: load user and case context to help the model understand who is speaking
     // and what legal matter these communications relate to.
