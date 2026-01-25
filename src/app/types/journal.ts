@@ -24,5 +24,12 @@ export interface JournalEntryDetail {
     isProcessed: boolean
     processedAt: string | null
   }>
+  events: Array<{
+    id: string
+    type: string
+    title: string | null
+    description: string | null
+    primaryTimestamp: string | null
+  }>
 }
 

@@ -809,26 +809,27 @@ const statusConfig = computed(() => {
           </template>
         </UModal>
 
-        <!-- Extracted Events -->
-        <div v-if="data.extractionRaw?.events?.length" class="space-y-4">
+        <!-- Created Events -->
+        <div v-if="data.events?.length" class="space-y-4">
           <h2 class="text-lg font-semibold text-highlighted flex items-center gap-2">
-            <UIcon name="i-lucide-sparkles" class="size-5" />
-            Extracted Events
-            <UBadge color="info" variant="subtle" size="xs">
-              AI Generated
-            </UBadge>
+            <UIcon name="i-lucide-calendar" class="size-5" />
+            Timeline Events
+            <span class="text-sm font-normal text-muted">
+              ({{ data.events.length }})
+            </span>
           </h2>
 
           <div class="space-y-3">
-            <div
-              v-for="(event, index) in data.extractionRaw.events"
-              :key="index"
-              class="p-4 rounded-xl border border-default bg-muted/5"
+            <NuxtLink
+              v-for="event in data.events"
+              :key="event.id"
+              :to="`/event/${event.id}`"
+              class="group block p-4 rounded-xl border border-default bg-muted/5 hover:border-primary/30 hover:bg-muted/10 transition-all"
             >
               <div class="flex items-start justify-between gap-3">
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 mb-2">
-                    <p class="font-medium text-highlighted">
+                    <p class="font-medium text-highlighted group-hover:text-primary transition-colors">
                       {{ event.title || 'Untitled Event' }}
                     </p>
                     <UBadge
@@ -840,12 +841,16 @@ const statusConfig = computed(() => {
                       {{ event.type }}
                     </UBadge>
                   </div>
-                  <p class="text-sm text-muted">
+                  <p class="text-sm text-muted line-clamp-2">
                     {{ event.description }}
                   </p>
                 </div>
+                <UIcon
+                  name="i-lucide-chevron-right"
+                  class="size-5 text-muted group-hover:text-primary transition-colors shrink-0"
+                />
               </div>
-            </div>
+            </NuxtLink>
           </div>
         </div>
       </div>
