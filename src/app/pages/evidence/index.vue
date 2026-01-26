@@ -158,43 +158,62 @@ function onImageError(id: string) {
         />
 
         <!-- Loading state with skeleton placeholders -->
-        <div v-if="status === 'pending'" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <UCard v-for="i in 6" :key="i">
-            <div class="flex items-start justify-between gap-3">
-              <div class="flex-1 min-w-0 space-y-3">
-                <div class="flex items-center gap-2">
-                  <USkeleton class="h-5 w-16" />
-                  <USkeleton class="h-4 w-24" />
-                </div>
-
-                <USkeleton class="h-6 w-3/4" />
-
-                <div class="space-y-1">
-                  <USkeleton class="h-4 w-full" />
-                  <USkeleton class="h-4 w-5/6" />
-                </div>
-
-                <div class="flex flex-wrap gap-1">
-                  <USkeleton class="h-5 w-16" />
-                  <USkeleton class="h-5 w-20" />
+        <UPageGrid v-if="status === 'pending'">
+          <UPageCard v-for="i in 6" :key="i" variant="outline">
+            <template #header>
+              <div class="flex items-center gap-2">
+                <USkeleton class="h-5 w-16" />
+                <USkeleton class="h-4 w-24" />
+              </div>
+            </template>
+            <template #default>
+              <USkeleton class="w-full aspect-[4/3] rounded-lg" />
+            </template>
+            <template #footer>
+              <div class="space-y-2">
+                <USkeleton class="h-4 w-full" />
+                <USkeleton class="h-4 w-3/4" />
+                <div class="flex gap-1 pt-1">
                   <USkeleton class="h-5 w-14" />
+                  <USkeleton class="h-5 w-16" />
                 </div>
               </div>
-            </div>
-          </UCard>
-        </div>
+            </template>
+          </UPageCard>
+        </UPageGrid>
 
         <!-- Content display -->
-        <div v-else class="space-y-1">
-          <NuxtLink
-            v-for="(item, index) in filteredEvidence"
+        <UPageGrid v-else>
+          <UPageCard
+            v-for="item in filteredEvidence"
             :key="item.id"
             :to="`/evidence/${item.id}`"
-            class="block"
+            variant="outline"
           >
-            <div class="flex items-center gap-3 px-2 py-3 hover:bg-muted/5 transition-colors cursor-pointer rounded-lg">
-              <!-- Thumbnail -->
-              <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-muted/20 flex-shrink-0 overflow-hidden flex items-center justify-center relative">
+            <template #header>
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs text-muted">{{ formatDate(item.createdAt) }}</span>
+                <UBadge
+                  color="neutral"
+                  variant="subtle"
+                  size="xs"
+                >
+                  {{ sourceLabel(item.sourceType) }}
+                </UBadge>
+              </div>
+            </template>
+
+            <template #title>
+              <span class="line-clamp-1">{{ item.originalName }}</span>
+            </template>
+
+            <template #description>
+              <span class="line-clamp-2">{{ item.summary || 'No description' }}</span>
+            </template>
+
+            <!-- Image/thumbnail in default slot -->
+            <template #default>
+              <div class="w-full aspect-[4/3] rounded-lg bg-muted/20 overflow-hidden flex items-center justify-center relative">
                 <!-- Image with loading state -->
                 <template v-if="item.storagePath && item.mimeType?.startsWith('image/')">
                   <!-- Loading skeleton -->
@@ -207,7 +226,7 @@ function onImageError(id: string) {
                   <UIcon
                     v-if="getImageState(item.id) === 'error'"
                     name="i-lucide-image-off"
-                    class="size-5 sm:size-6 text-muted"
+                    class="size-8 text-muted"
                   />
                   
                   <!-- Actual image -->
@@ -223,51 +242,41 @@ function onImageError(id: string) {
                 </template>
                 
                 <!-- Non-image file icon -->
-                <UIcon 
-                  v-else 
-                  :name="item.sourceType === 'photo' ? 'i-lucide-image' : item.sourceType === 'document' ? 'i-lucide-file-text' : 'i-lucide-file'"
-                  class="size-5 sm:size-6 text-muted"
-                />
+                <template v-else>
+                  <div class="flex flex-col items-center justify-center gap-2 text-muted">
+                    <UIcon 
+                      :name="item.sourceType === 'photo' ? 'i-lucide-image' : item.sourceType === 'document' ? 'i-lucide-file-text' : item.sourceType === 'email' ? 'i-lucide-mail' : 'i-lucide-message-square'"
+                      class="size-10"
+                    />
+                    <span class="text-xs">{{ sourceLabel(item.sourceType) }}</span>
+                  </div>
+                </template>
               </div>
+            </template>
 
-              <!-- Content -->
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 mb-0.5">
-                  <h3 class="font-medium text-sm truncate text-highlighted">
-                    {{ item.originalName }}
-                  </h3>
-                  <UBadge
-                    color="neutral"
-                    variant="subtle"
-                    size="xs"
-                    class="shrink-0"
-                  >
-                    {{ sourceLabel(item.sourceType) }}
-                  </UBadge>
-                </div>
-
-                <p class="text-xs text-muted line-clamp-1 mb-1">
-                  {{ item.summary }}
-                </p>
-
-                <div class="flex items-center gap-2 text-xs text-muted">
-                  <span>{{ formatDate(item.createdAt) }}</span>
-                  <span v-if="item.tags.length" class="hidden sm:inline">·</span>
-                  <span v-if="item.tags.length" class="hidden sm:inline truncate">
-                    {{ item.tags.slice(0, 2).join(', ') }}
-                    <span v-if="item.tags.length > 2">+{{ item.tags.length - 2 }}</span>
-                  </span>
-                </div>
+            <template #footer>
+              <div v-if="item.tags.length" class="flex flex-wrap gap-1">
+                <UBadge
+                  v-for="tag in item.tags.slice(0, 3)"
+                  :key="tag"
+                  color="neutral"
+                  variant="soft"
+                  size="xs"
+                >
+                  {{ tag }}
+                </UBadge>
+                <UBadge
+                  v-if="item.tags.length > 3"
+                  color="neutral"
+                  variant="soft"
+                  size="xs"
+                >
+                  +{{ item.tags.length - 3 }}
+                </UBadge>
               </div>
-
-              <!-- Arrow -->
-              <UIcon name="i-lucide-chevron-right" class="size-4 text-muted flex-shrink-0" />
-            </div>
-            
-            <!-- Separator -->
-            <USeparator v-if="index < filteredEvidence.length - 1" class="mx-2" />
-          </NuxtLink>
-        </div>
+            </template>
+          </UPageCard>
+        </UPageGrid>
 
         <!-- Empty states -->
         <div v-if="!filteredEvidence.length && status === 'success'">
