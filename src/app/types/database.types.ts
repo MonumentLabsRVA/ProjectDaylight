@@ -452,6 +452,7 @@ export type Database = {
           description: string
           duration_minutes: number | null
           id: string
+          journal_entry_id: string | null
           location: string | null
           primary_timestamp: string | null
           recording_id: string | null
@@ -470,6 +471,7 @@ export type Database = {
           description: string
           duration_minutes?: number | null
           id?: string
+          journal_entry_id?: string | null
           location?: string | null
           primary_timestamp?: string | null
           recording_id?: string | null
@@ -488,6 +490,7 @@ export type Database = {
           description?: string
           duration_minutes?: number | null
           id?: string
+          journal_entry_id?: string | null
           location?: string | null
           primary_timestamp?: string | null
           recording_id?: string | null
@@ -500,6 +503,13 @@ export type Database = {
           welfare_impact?: Database["public"]["Enums"]["welfare_impact"]
         }
         Relationships: [
+          {
+            foreignKeyName: "events_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "events_recording_id_fkey"
             columns: ["recording_id"]
