@@ -2,6 +2,7 @@ import OpenAI from 'openai'
 import { zodTextFormat } from 'openai/helpers/zod'
 import { z } from 'zod'
 import { getStateGuidance } from '../../utils/state-guidance'
+import { getTimezoneWithProfileFallback } from '../../utils/timezone'
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 
 /**
@@ -320,23 +321,36 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Build temporal guidance
-    let recordingTimestampIso: string
+    // Build temporal guidance with timezone awareness
+    // Uses profile timezone as fallback when no X-Timezone header is provided
+    const userTimezone = await getTimezoneWithProfileFallback(event, supabase, userId)
+    
+    // Build the reference date context
+    let referenceDateContext: string
     if (referenceDate) {
-      const parsed = new Date(referenceDate)
-      if (!Number.isNaN(parsed.getTime())) {
-        recordingTimestampIso = parsed.toISOString()
-      } else {
-        recordingTimestampIso = new Date().toISOString()
-      }
+      // User provided a date like "2026-01-30" - this is in their local timezone
+      referenceDateContext = referenceDate
     } else {
-      recordingTimestampIso = new Date().toISOString()
+      // Use current date in user's timezone
+      const now = new Date()
+      referenceDateContext = new Intl.DateTimeFormat('en-CA', {
+        timeZone: userTimezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(now)
     }
 
     const temporalGuidance = [
-      `The reference date for these events is: ${recordingTimestampIso}`,
-      'Resolve relative time references (like "yesterday", "this morning") based on this date.',
-      'If you cannot determine a specific time, set timestamp_precision to "approximate" or "unknown".'
+      `The user is in timezone: ${userTimezone}`,
+      `The reference date for these events is: ${referenceDateContext} (in the user's local timezone)`,
+      '',
+      'IMPORTANT: When generating primary_timestamp values:',
+      `- Generate timestamps in the user's timezone (${userTimezone})`,
+      '- For example, if the user says "yesterday at 7pm" and the reference date is 2026-01-30, generate "2026-01-29T19:00:00" (without Z suffix) to represent 7pm local time',
+      '- Include timezone offset in ISO format, e.g., "2026-01-29T19:00:00-05:00" for Eastern Time',
+      '- Resolve relative time references (like "yesterday", "this morning", "last week") based on the reference date',
+      '- If you cannot determine a specific time, set timestamp_precision to "approximate" or "unknown"'
     ].join('\n')
 
     // Build evidence context section

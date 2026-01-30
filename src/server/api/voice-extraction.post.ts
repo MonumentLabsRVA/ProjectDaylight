@@ -1,6 +1,7 @@
 import OpenAI from 'openai'
 import { zodTextFormat } from 'openai/helpers/zod'
 import { z } from 'zod'
+import { getTimezoneWithProfileFallback } from '../utils/timezone'
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 
 interface VoiceExtractionBody {
@@ -102,28 +103,42 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    // Prepare a base timestamp for temporal reasoning. If the user selected a specific
-    // calendar date for these events, prefer that as the anchor; otherwise, use "now".
-    let recordingTimestampIso: string
+    // Load user and supabase client first for timezone lookup
+    const supabase = await serverSupabaseClient(event)
+    const authUser = await serverSupabaseUser(event)
+    const userId = authUser?.sub || authUser?.id || null
 
+    // Get user's timezone with profile fallback for accurate timestamp generation
+    const userTimezone = userId 
+      ? await getTimezoneWithProfileFallback(event, supabase, userId)
+      : 'UTC'
+    
+    // Build the reference date context
+    let referenceDateContext: string
     if (referenceDate) {
-      const parsed = new Date(referenceDate)
-      if (!Number.isNaN(parsed.getTime())) {
-        // Use the user-selected date as the base recording timestamp.
-        recordingTimestampIso = parsed.toISOString()
-      } else {
-        recordingTimestampIso = new Date().toISOString()
-      }
+      // User provided a date like "2026-01-30" - this is in their local timezone
+      referenceDateContext = referenceDate
     } else {
-      recordingTimestampIso = new Date().toISOString()
+      // Use current date in user's timezone
+      const now = new Date()
+      referenceDateContext = new Intl.DateTimeFormat('en-CA', {
+        timeZone: userTimezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(now)
     }
 
     const temporalGuidanceLines: string[] = [
-      `Assume the voice note was recorded at this timestamp (ISO-8601, server time): ${recordingTimestampIso}.`,
-      'Unless the user clearly specifies a different calendar date, assume their description refers to events occurring on the same calendar day as this recording timestamp.',
-      'When the user gives a time like "at 10am" or "around 3:30 PM", construct an ISO-8601 primary_timestamp using that time on the recording date. Set seconds to 0 and preserve the timezone from the recording timestamp.',
-      'For relative phrases like "this morning", "tonight", or "earlier today", choose a reasonable time on that same day and set timestamp_precision to "approximate".',
-      'If you cannot reasonably resolve a date or time, leave primary_timestamp as null and set timestamp_precision to "unknown".'
+      `The user is in timezone: ${userTimezone}`,
+      `The reference date for these events is: ${referenceDateContext} (in the user's local timezone)`,
+      '',
+      'IMPORTANT: When generating primary_timestamp values:',
+      `- Generate timestamps in the user's timezone (${userTimezone})`,
+      '- For example, if the user says "at 10am", generate a timestamp like "2026-01-30T10:00:00" with the appropriate timezone offset',
+      '- Include timezone offset in ISO format, e.g., "2026-01-30T10:00:00-05:00" for Eastern Time',
+      '- For relative phrases like "this morning", "tonight", or "earlier today", choose a reasonable time on that same day and set timestamp_precision to "approximate"',
+      '- If you cannot reasonably resolve a date or time, leave primary_timestamp as null and set timestamp_precision to "unknown"'
     ]
 
     if (referenceTimeDescription) {
@@ -132,16 +147,12 @@ export default defineEventHandler(async (event) => {
         'The user also provided this description of when the events occurred relative to the calendar:',
         `"${referenceTimeDescription}"`,
         'Treat this description as the primary reference for resolving dates and times for the events you extract.',
-        'If there is any conflict between this description and assumptions from the recording timestamp, prefer the user-provided description.'
+        'If there is any conflict between this description and assumptions from the reference date, prefer the user-provided description.'
       )
     }
 
-    // Best-effort: load user and case context to give the model more precise guidance
+    // Best-effort: load user display name and case context to give the model more precise guidance
     // about who is speaking and what their legal matter is.
-    const supabase = await serverSupabaseClient(event)
-
-    const authUser = await serverSupabaseUser(event)
-    const userId = authUser?.sub || authUser?.id || null
 
     let userDisplayName: string | null =
       // supabase auth user metadata may already include full_name

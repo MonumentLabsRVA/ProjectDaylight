@@ -2,10 +2,9 @@ import type { TimelineEvent } from '~/types'
 import type { Tables } from '~/types/database.types'
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 import { 
-  isValidTimezone, 
   getStartOfDayInTimezone, 
   getDaysAgoInTimezone,
-  getTimezoneFromRequest 
+  getTimezoneWithProfileFallback 
 } from '../utils/timezone'
 
 type EventRow = Tables<'events'>
@@ -56,21 +55,8 @@ export default eventHandler(async (event): Promise<HomeResponse> => {
   // Get the Supabase client with the user's session
   const supabase = await serverSupabaseClient(event)
   
-  // Get user's timezone from request header or query param
-  let userTimezone = getTimezoneFromRequest(event)
-  
-  // If no timezone from request, try to get from profiles table
-  if (userTimezone === 'UTC') {
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('timezone')
-      .eq('id', userId)
-      .single()
-    
-    if (profileData?.timezone && isValidTimezone(profileData.timezone)) {
-      userTimezone = profileData.timezone
-    }
-  }
+  // Get user's timezone with profile fallback
+  const userTimezone = await getTimezoneWithProfileFallback(event, supabase, userId)
 
   try {
 
