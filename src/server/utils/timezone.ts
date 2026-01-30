@@ -187,3 +187,48 @@ export function inferTimezoneFromHeaders(event: any): string | null {
   return null
 }
 
+/**
+ * Get timezone with profile fallback.
+ * 
+ * This is the preferred method for API endpoints that have access to supabase
+ * and a user ID. It will:
+ * 1. Check request headers for X-Timezone
+ * 2. Check query params for timezone
+ * 3. Fall back to the user's profile timezone
+ * 4. Default to UTC if nothing is found
+ * 
+ * @param event - The H3 event object
+ * @param supabase - Supabase client instance
+ * @param userId - The authenticated user's ID
+ */
+export async function getTimezoneWithProfileFallback(
+  event: any,
+  supabase: any,
+  userId: string
+): Promise<string> {
+  // First try request headers/query params
+  const requestTimezone = getTimezoneFromRequest(event)
+  
+  // If we got a specific timezone from the request, use it
+  if (requestTimezone !== 'UTC') {
+    return requestTimezone
+  }
+  
+  // Fall back to profile timezone
+  try {
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('timezone')
+      .eq('id', userId)
+      .single()
+    
+    if (profileData?.timezone && isValidTimezone(profileData.timezone)) {
+      return profileData.timezone
+    }
+  } catch {
+    // Profile lookup failed, fall through to UTC
+  }
+  
+  return 'UTC'
+}
+
