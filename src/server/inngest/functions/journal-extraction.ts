@@ -16,6 +16,7 @@ interface JournalExtractionEvent {
     userId: string
     eventText: string
     referenceDate?: string | null
+    timezone?: string
     evidenceIds?: string[]
   }
 }
@@ -264,6 +265,7 @@ async function extractEventsFromText(
   userId: string,
   eventText: string,
   referenceDate: string | null,
+  timezone: string,
   evidenceSummaries: EvidenceSummary[]
 ): Promise<ExtractionPayload> {
   // Use process.env directly instead of useRuntimeConfig() because Inngest functions
@@ -390,23 +392,36 @@ async function extractEventsFromText(
     }
   }
 
-  // Temporal guidance
-  let recordingTimestampIso: string
+  // Temporal guidance with timezone awareness
+  // The user's timezone is critical for accurate timestamp generation
+  const userTimezone = timezone || 'UTC'
+  
+  // Build the reference date context
+  let referenceDateContext: string
   if (trimmedReferenceDate) {
-    const parsed = new Date(trimmedReferenceDate)
-    if (!Number.isNaN(parsed.getTime())) {
-      recordingTimestampIso = parsed.toISOString()
-    } else {
-      recordingTimestampIso = new Date().toISOString()
-    }
+    // User provided a date like "2026-01-30" - this is in their local timezone
+    referenceDateContext = trimmedReferenceDate
   } else {
-    recordingTimestampIso = new Date().toISOString()
+    // Use current date in user's timezone
+    const now = new Date()
+    referenceDateContext = new Intl.DateTimeFormat('en-CA', {
+      timeZone: userTimezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(now)
   }
 
   const temporalGuidance = [
-    `The reference date for these events is: ${recordingTimestampIso}`,
-    'Resolve relative time references (like "yesterday", "this morning") based on this date.',
-    'If you cannot determine a specific time, set timestamp_precision to "approximate" or "unknown".'
+    `The user is in timezone: ${userTimezone}`,
+    `The reference date for these events is: ${referenceDateContext} (in the user's local timezone)`,
+    '',
+    'IMPORTANT: When generating primary_timestamp values:',
+    `- Generate timestamps in the user's timezone (${userTimezone})`,
+    '- For example, if the user says "yesterday at 7pm" and the reference date is 2026-01-30, generate "2026-01-29T19:00:00" (without Z suffix) to represent 7pm local time',
+    '- Include timezone offset in ISO format, e.g., "2026-01-29T19:00:00-05:00" for Eastern Time',
+    '- Resolve relative time references (like "yesterday", "this morning", "last week") based on the reference date',
+    '- If you cannot determine a specific time, set timestamp_precision to "approximate" or "unknown"'
   ].join('\n')
 
   // Evidence context section
@@ -550,12 +565,89 @@ function mapNewToLegacyWelfare(
   return 'unknown'
 }
 
+/**
+ * Reinterpret a timestamp that the AI generated as UTC but actually represents local time.
+ * 
+ * The AI often returns timestamps like "2026-01-29T15:15:00.000Z" when the user said "3:15 PM"
+ * in their local timezone. This function reinterprets that as 3:15 PM in the given timezone
+ * and returns the correct UTC timestamp.
+ * 
+ * @param timestamp - The AI-generated timestamp (may have Z suffix or timezone offset)
+ * @param timezone - The user's timezone (e.g., "America/New_York")
+ * @returns The corrected UTC timestamp, or null if input is null/invalid
+ */
+function reinterpretTimestampInTimezone(timestamp: string | null, timezone: string): string | null {
+  if (!timestamp) return null
+  
+  // If the timestamp already has a non-UTC timezone offset (like -05:00), it's correct
+  // Only reinterpret if it ends with Z or has no timezone info
+  const hasUtcSuffix = timestamp.endsWith('Z')
+  const hasOffset = /[+-]\d{2}:\d{2}$/.test(timestamp)
+  
+  if (hasOffset && !hasUtcSuffix) {
+    // Already has a proper timezone offset, use as-is
+    return timestamp
+  }
+  
+  // Strip the Z suffix if present to get the local time values
+  const localTimeStr = timestamp.replace(/Z$/, '').replace(/\.\d{3}$/, '')
+  
+  // Parse the local time components
+  const match = localTimeStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):?(\d{2})?/)
+  if (!match) return timestamp // Can't parse, return as-is
+  
+  const [, year, month, day, hour, minute, second = '00'] = match
+  
+  // Create a date string that JavaScript will interpret as local time in the given timezone
+  // by using toLocaleString to find the offset, then adjusting
+  try {
+    // Create a date assuming the values are in UTC
+    const utcDate = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}Z`)
+    
+    // Format that date in the user's timezone to see what local time it represents
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    })
+    
+    const parts = formatter.formatToParts(utcDate)
+    const getPart = (type: string) => parts.find(p => p.type === type)?.value || '00'
+    
+    const tzHour = parseInt(getPart('hour'))
+    const tzMinute = parseInt(getPart('minute'))
+    const origHour = parseInt(hour)
+    const origMinute = parseInt(minute)
+    
+    // Calculate the offset in milliseconds
+    // If UTC 15:00 shows as 10:00 in timezone, offset is -5 hours
+    // We want to go the other direction: treat 15:00 as local time
+    const hourDiff = tzHour - origHour
+    const minuteDiff = tzMinute - origMinute
+    const offsetMs = (hourDiff * 60 + minuteDiff) * 60 * 1000
+    
+    // Apply the inverse offset to get the correct UTC time
+    const correctedUtc = new Date(utcDate.getTime() - offsetMs)
+    
+    return correctedUtc.toISOString()
+  } catch {
+    // If anything fails, return the original
+    return timestamp
+  }
+}
+
 async function saveExtractedEvents(
   supabase: PublicClient,
   userId: string,
   journalEntryId: string,
   extraction: ExtractionPayload,
-  evidenceIds: string[]
+  evidenceIds: string[],
+  timezone: string = 'UTC'
 ): Promise<JobResultSummary> {
   const events = extraction.events || []
   const actionItems = extraction.action_items || []
@@ -572,9 +664,13 @@ async function saveExtractedEvents(
   // Insert events (dual-write to legacy and new schema columns)
   const eventsToInsert = events.map((e) => {
     const welfareImpact = e.custody_relevance?.welfare_impact
+    
+    // Reinterpret the timestamp if the AI returned it as UTC but meant local time
+    const correctedTimestamp = reinterpretTimestampInTimezone(e.primary_timestamp, timezone)
 
     return {
       user_id: userId,
+      journal_entry_id: journalEntryId,
       recording_id: null,
       // New granular type column
       type_v2: e.type,
@@ -582,7 +678,7 @@ async function saveExtractedEvents(
       type: mapNewToLegacyType(e.type),
       title: e.title || 'Untitled event',
       description: e.description,
-      primary_timestamp: e.primary_timestamp ?? null,
+      primary_timestamp: correctedTimestamp,
       timestamp_precision: e.timestamp_precision ?? 'unknown',
       duration_minutes: e.duration_minutes ?? null,
       location: e.location ?? null,
@@ -846,7 +942,7 @@ export const journalExtractionFunction = inngest.createFunction(
   { event: 'journal/extraction.requested' },
   async ({ event, step }) => {
     const extractionEvent = event as unknown as JournalExtractionEvent
-    const { jobId, journalEntryId, userId, eventText, referenceDate, evidenceIds = [] } =
+    const { jobId, journalEntryId, userId, eventText, referenceDate, timezone = 'UTC', evidenceIds = [] } =
       extractionEvent.data
 
     const supabase = createServiceClient()
@@ -891,6 +987,7 @@ export const journalExtractionFunction = inngest.createFunction(
         userId,
         eventText,
         referenceDate || null,
+        timezone,
         evidenceSummaries
       )
     })
@@ -902,7 +999,8 @@ export const journalExtractionFunction = inngest.createFunction(
         userId,
         journalEntryId,
         extraction as ExtractionPayload,
-        evidenceIds
+        evidenceIds,
+        timezone
       )
     })
 

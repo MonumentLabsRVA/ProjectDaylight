@@ -1,6 +1,7 @@
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 import { canCreateJournalEntry } from '../../utils/subscription'
 import { inngest } from '../../inngest/client'
+import { getTimezoneWithProfileFallback } from '../../utils/timezone'
 import type { JournalSubmitResponse } from '~/types'
 
 export default defineEventHandler(async (event): Promise<JournalSubmitResponse> => {
@@ -21,6 +22,7 @@ export default defineEventHandler(async (event): Promise<JournalSubmitResponse> 
   const body = await readBody<{
     eventText: string
     referenceDate?: string
+    timezone?: string
     evidenceIds?: string[]
   }>(event)
 
@@ -62,7 +64,13 @@ export default defineEventHandler(async (event): Promise<JournalSubmitResponse> 
     throw createError({ statusCode: 500, statusMessage: 'Failed to create job' })
   }
 
-  // 3. Fire background event
+  // 3. Resolve user's timezone (prefer body, fallback to profile, then UTC)
+  let timezone = body.timezone
+  if (!timezone) {
+    timezone = await getTimezoneWithProfileFallback(event, supabase, userId)
+  }
+
+  // 4. Fire background event
   try {
     await inngest.send({
       name: 'journal/extraction.requested',
@@ -72,6 +80,7 @@ export default defineEventHandler(async (event): Promise<JournalSubmitResponse> 
         userId,
         eventText: body.eventText,
         referenceDate: body.referenceDate || null,
+        timezone,
         evidenceIds: body.evidenceIds || []
       }
     })

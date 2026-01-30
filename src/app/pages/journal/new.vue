@@ -12,6 +12,9 @@ const {
   incrementJournalEntryCount 
 } = useSubscription()
 
+// Get user's timezone for accurate timestamp extraction
+const { timezone: userTimezone } = useTimezone()
+
 // Job tracking for background processing
 const { trackJob } = useJobs()
 const toast = useToast()
@@ -374,6 +377,7 @@ async function submitCapture() {
       body: {
         eventText: effectiveEventText.value,
         referenceDate: state.value.referenceDate,
+        timezone: userTimezone.value,
         evidenceIds
       }
     })
