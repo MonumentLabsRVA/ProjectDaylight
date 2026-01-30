@@ -8,7 +8,7 @@ const session = useSupabaseSession()
 const supabase = useSupabaseClient()
 const toast = useToast()
 const { trackJob } = useJobs()
-const { formatDate: formatTzDate } = useTimezone()
+const { formatDate: formatTzDate, timezone: userTimezone } = useTimezone()
 const user = useSupabaseUser()
 
 const entryId = computed(() => route.params.id as string)
@@ -238,7 +238,10 @@ async function redoExtraction() {
       jobId: string
       message?: string
     }>(`/api/journal/${entryId.value}/reprocess`, {
-      method: 'POST'
+      method: 'POST',
+      headers: {
+        'X-Timezone': userTimezone.value
+      }
     })
 
     trackJob({

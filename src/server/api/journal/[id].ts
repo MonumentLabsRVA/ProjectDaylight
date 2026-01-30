@@ -120,41 +120,25 @@ async function getJournalEntry(
     }
   }
 
-  // Fetch events linked to this journal entry via the jobs table
-  let events: JournalEntryDetail['events'] = []
-  
-  const { data: job } = await client
-    .from('jobs')
-    .select('result_summary')
+  // Fetch events linked to this journal entry
+  const { data: linkedEvents, error: eventsError } = await client
+    .from('events')
+    .select('id, type, title, description, primary_timestamp')
     .eq('journal_entry_id', id)
     .eq('user_id', userId)
-    .maybeSingle()
+    .order('primary_timestamp', { ascending: true })
 
-  if (job?.result_summary && typeof job.result_summary === 'object') {
-    const summary = job.result_summary as { event_ids?: string[] }
-    const eventIds = summary.event_ids || []
-
-    if (eventIds.length > 0) {
-      const { data: linkedEvents, error: eventsError } = await client
-        .from('events')
-        .select('id, type, title, description, primary_timestamp')
-        .in('id', eventIds)
-        .eq('user_id', userId)
-        .order('primary_timestamp', { ascending: true })
-
-      if (eventsError) {
-        console.error('Error fetching events:', eventsError)
-      }
-
-      events = (linkedEvents || []).map((e) => ({
-        id: e.id,
-        type: e.type,
-        title: e.title,
-        description: e.description,
-        primaryTimestamp: e.primary_timestamp
-      }))
-    }
+  if (eventsError) {
+    console.error('Error fetching events:', eventsError)
   }
+
+  const events: JournalEntryDetail['events'] = (linkedEvents || []).map((e) => ({
+    id: e.id,
+    type: e.type,
+    title: e.title,
+    description: e.description,
+    primaryTimestamp: e.primary_timestamp
+  }))
 
   return {
     id: entry.id,
@@ -231,20 +215,16 @@ async function deleteJournalEntry(
 
   const evidenceIds = evidenceLinks?.map(link => link.evidence_id) || []
 
-  // Get event IDs from the job result (for potential deletion)
+  // Get event IDs linked to this journal entry (for potential deletion)
   let eventIds: string[] = []
   if (options.deleteEvents) {
-    const { data: job } = await client
-      .from('jobs')
-      .select('result_summary')
+    const { data: linkedEvents } = await client
+      .from('events')
+      .select('id')
       .eq('journal_entry_id', id)
       .eq('user_id', userId)
-      .maybeSingle()
 
-    if (job?.result_summary && typeof job.result_summary === 'object') {
-      const summary = job.result_summary as { event_ids?: string[] }
-      eventIds = summary.event_ids || []
-    }
+    eventIds = linkedEvents?.map(e => e.id) || []
   }
 
   // Delete events if requested (and we found any)

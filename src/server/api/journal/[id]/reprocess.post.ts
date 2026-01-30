@@ -1,5 +1,6 @@
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 import { inngest } from '../../../inngest/client'
+import { getTimezoneWithProfileFallback } from '../../../utils/timezone'
 
 interface JournalReprocessResponse {
   journalEntryId: string
@@ -49,22 +50,14 @@ export default defineEventHandler(async (event): Promise<JournalReprocessRespons
     })
   }
 
-  // Collect any previously generated event IDs from the latest job summary
-  let previousEventIds: string[] = []
-
-  const { data: previousJob } = await (client as any)
-    .from('jobs')
-    .select('result_summary')
+  // Collect any previously generated event IDs linked to this journal entry
+  const { data: previousEvents } = await client
+    .from('events')
+    .select('id')
     .eq('journal_entry_id', journalEntryId)
     .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
 
-  if (previousJob?.result_summary && typeof previousJob.result_summary === 'object') {
-    const summary = previousJob.result_summary as { event_ids?: string[] }
-    previousEventIds = summary.event_ids || []
-  }
+  const previousEventIds = previousEvents?.map(e => e.id) || []
 
   if (previousEventIds.length > 0) {
     // Clean up previously generated events and related records
@@ -136,6 +129,9 @@ export default defineEventHandler(async (event): Promise<JournalReprocessRespons
     .eq('user_id', userId)
 
   // Fire background extraction event using the current text, date, and evidence
+  // Get user's timezone with profile fallback for accurate timestamp extraction
+  const timezone = await getTimezoneWithProfileFallback(event, client, userId)
+  
   try {
     await inngest.send({
       name: 'journal/extraction.requested',
@@ -145,6 +141,7 @@ export default defineEventHandler(async (event): Promise<JournalReprocessRespons
         userId,
         eventText: entry.event_text,
         referenceDate: entry.reference_date || null,
+        timezone,
         evidenceIds
       }
     })
