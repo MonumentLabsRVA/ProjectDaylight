@@ -11,7 +11,7 @@ const { canExport, isFree } = useSubscription()
 interface CaseRow {
   id: string
   title: string
-  case_number: string | null
+  case_numbers: string[]
   jurisdiction_state: string | null
   jurisdiction_county: string | null
   court_name: string | null

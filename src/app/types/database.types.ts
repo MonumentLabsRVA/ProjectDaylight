@@ -186,7 +186,7 @@ export type Database = {
       }
       cases: {
         Row: {
-          case_number: string | null
+          case_numbers: string[]
           case_type: string | null
           children_count: number | null
           children_summary: string | null
@@ -211,7 +211,7 @@ export type Database = {
           your_role: string | null
         }
         Insert: {
-          case_number?: string | null
+          case_numbers?: string[]
           case_type?: string | null
           children_count?: number | null
           children_summary?: string | null
@@ -236,7 +236,7 @@ export type Database = {
           your_role?: string | null
         }
         Update: {
-          case_number?: string | null
+          case_numbers?: string[]
           case_type?: string | null
           children_count?: number | null
           children_summary?: string | null

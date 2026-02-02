@@ -72,7 +72,7 @@ export default defineEventHandler(async (event) => {
     if (caseInfo) {
       contextParts.push('CASE INFORMATION:')
       if (caseInfo.title) contextParts.push(`- Title: ${caseInfo.title}`)
-      if (caseInfo.case_number) contextParts.push(`- Case Number: ${caseInfo.case_number}`)
+      if (caseInfo.case_numbers?.length) contextParts.push(`- Case Number(s): ${caseInfo.case_numbers.join(', ')}`)
       if (caseInfo.jurisdiction_state && caseInfo.jurisdiction_county) {
         contextParts.push(`- Jurisdiction: ${caseInfo.jurisdiction_county}, ${caseInfo.jurisdiction_state}`)
       }

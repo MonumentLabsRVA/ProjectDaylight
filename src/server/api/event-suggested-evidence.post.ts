@@ -95,7 +95,7 @@ export default defineEventHandler(async (event) => {
         .eq('user_id', userId),
       supabase
         .from('cases')
-        .select('title, case_number, case_type, stage, your_role, opposing_party_name, goals_summary, children_summary')
+        .select('title, case_numbers, case_type, stage, your_role, opposing_party_name, goals_summary, children_summary')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -126,7 +126,7 @@ export default defineEventHandler(async (event) => {
       caseContextLines.push('CASE CONTEXT:')
 
       if (latestCase.title) caseContextLines.push(`- Title: ${latestCase.title}`)
-      if (latestCase.case_number) caseContextLines.push(`- Case Number: ${latestCase.case_number}`)
+      if (latestCase.case_numbers?.length) caseContextLines.push(`- Case Number(s): ${latestCase.case_numbers.join(', ')}`)
       if (latestCase.case_type) caseContextLines.push(`- Case Type: ${latestCase.case_type}`)
       if (latestCase.stage) caseContextLines.push(`- Stage: ${latestCase.stage}`)
       if (latestCase.your_role) caseContextLines.push(`- User Role: ${latestCase.your_role}`)

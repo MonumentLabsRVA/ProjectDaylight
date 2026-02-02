@@ -3,7 +3,7 @@ import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 interface CaseRow {
   id: string
   title: string
-  case_number: string | null
+  case_numbers: string[]
   jurisdiction_state: string | null
   jurisdiction_county: string | null
   court_name: string | null
@@ -45,7 +45,7 @@ export default eventHandler(async (event) => {
       [
         'id',
         'title',
-        'case_number',
+        'case_numbers',
         'jurisdiction_state',
         'jurisdiction_county',
         'court_name',

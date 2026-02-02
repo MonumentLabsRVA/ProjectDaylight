@@ -236,7 +236,7 @@ export default defineEventHandler(async (event) => {
       .select(
         [
           'title',
-          'case_number',
+          'case_numbers',
           'jurisdiction_state',
           'jurisdiction_county',
           'court_name',
@@ -262,7 +262,7 @@ export default defineEventHandler(async (event) => {
       const lines: string[] = ['CASE CONTEXT:']
 
       if (caseRow.title) lines.push(`- Case title: ${caseRow.title}`)
-      if (caseRow.case_number) lines.push(`- Case number: ${caseRow.case_number}`)
+      if (caseRow.case_numbers?.length) lines.push(`- Case number(s): ${caseRow.case_numbers.join(', ')}`)
 
       if (caseRow.jurisdiction_state || caseRow.jurisdiction_county) {
         const parts: string[] = []

@@ -7,7 +7,7 @@ const toast = useToast()
 interface CaseRow {
   id: string
   title: string
-  case_number: string | null
+  case_numbers: string[]
   jurisdiction_state: string | null
   jurisdiction_county: string | null
   court_name: string | null
@@ -90,7 +90,8 @@ const tabItems = computed(() => [
 
 // Form state
 const title = ref('')
-const caseNumber = ref('')
+const caseNumbers = ref<string[]>([])
+const newCaseNumber = ref('')
 const jurisdictionState = ref<string>('')
 const jurisdictionCounty = ref('')
 const courtName = ref('')
@@ -202,6 +203,18 @@ const riskFlagOptions = [
   'Other high-risk patterns'
 ] as string[]
 
+function addCaseNumber() {
+  const trimmed = newCaseNumber.value.trim()
+  if (trimmed && !caseNumbers.value.includes(trimmed)) {
+    caseNumbers.value.push(trimmed)
+    newCaseNumber.value = ''
+  }
+}
+
+function removeCaseNumber(idx: number) {
+  caseNumbers.value.splice(idx, 1)
+}
+
 const hasLoadedOnce = ref(false)
 
 const showSkeleton = computed(() => loadStatus.value === 'pending' && !hasLoadedOnce.value)
@@ -233,8 +246,9 @@ function applyCase(current: CaseRow | null) {
 
   caseId.value = current.id
   title.value = current.title ?? ''
-  caseNumber.value = current.case_number ?? ''
-    jurisdictionState.value = current.jurisdiction_state || ''
+  caseNumbers.value = current.case_numbers ?? []
+  newCaseNumber.value = ''
+  jurisdictionState.value = current.jurisdiction_state || ''
   jurisdictionCounty.value = current.jurisdiction_county ?? ''
   courtName.value = current.court_name ?? ''
   caseType.value = current.case_type ?? ''
@@ -285,7 +299,7 @@ async function saveCase() {
     const body = {
       id: caseId.value ?? undefined,
       title: title.value,
-      caseNumber: caseNumber.value || null,
+      caseNumbers: caseNumbers.value,
       jurisdictionState: jurisdictionState.value || null,
       jurisdictionCounty: jurisdictionCounty.value || null,
       courtName: courtName.value || null,
@@ -558,14 +572,44 @@ watch(session, (newSession) => {
                         </span>
                       </label>
 
-                      <label class="space-y-1 block">
-                        <span class="text-xs font-medium text-highlighted">Court case number (optional)</span>
-                        <UInput
-                          v-model="caseNumber"
-                          placeholder="CL24-1234"
-                          class="w-full"
-                        />
-                      </label>
+                      <div class="space-y-1">
+                        <span class="text-xs font-medium text-highlighted">Court case number(s) (optional)</span>
+                        <div class="flex gap-2">
+                          <UInput
+                            v-model="newCaseNumber"
+                            placeholder="CL24-1234"
+                            class="flex-1"
+                            @keydown.enter.prevent="addCaseNumber"
+                          />
+                          <UButton
+                            color="neutral"
+                            variant="soft"
+                            icon="i-lucide-plus"
+                            :disabled="!newCaseNumber.trim()"
+                            @click="addCaseNumber"
+                          />
+                        </div>
+                        <div
+                          v-if="caseNumbers.length"
+                          class="flex flex-wrap gap-1 pt-1"
+                        >
+                          <UBadge
+                            v-for="(num, idx) in caseNumbers"
+                            :key="idx"
+                            color="primary"
+                            variant="subtle"
+                            size="sm"
+                            class="gap-1"
+                          >
+                            {{ num }}
+                            <UIcon
+                              name="i-lucide-x"
+                              class="size-3 cursor-pointer hover:text-highlighted"
+                              @click="removeCaseNumber(idx)"
+                            />
+                          </UBadge>
+                        </div>
+                      </div>
 
                       <label class="space-y-1 block">
                         <span class="text-xs font-medium text-highlighted">Case type</span>

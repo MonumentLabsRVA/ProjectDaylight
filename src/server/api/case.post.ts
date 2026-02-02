@@ -3,7 +3,7 @@ import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 interface CasePayload {
   id?: string
   title: string
-  caseNumber?: string | null
+  caseNumbers?: string[]
   jurisdictionState?: string | null
   jurisdictionCounty?: string | null
   courtName?: string | null
@@ -49,7 +49,7 @@ export default defineEventHandler(async (event) => {
   const payload = {
     user_id: userId,
     title: body.title.trim(),
-    case_number: body.caseNumber ?? null,
+    case_numbers: body.caseNumbers ?? [],
     jurisdiction_state: body.jurisdictionState ?? null,
     jurisdiction_county: body.jurisdictionCounty ?? null,
     court_name: body.courtName ?? null,
