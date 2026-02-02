@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatForDateTimeLocalInput, parseDateTimeLocalToISO } from '~/composables/useTimezone'
+
 const session = useSupabaseSession()
 const toast = useToast()
 
@@ -246,7 +248,8 @@ function applyCase(current: CaseRow | null) {
   goalsSummary.value = current.goals_summary ?? ''
   riskFlags.value = current.risk_flags ?? []
   notes.value = current.notes ?? ''
-  nextCourtDate.value = current.next_court_date
+  // Convert ISO timestamp to datetime-local format (strips timezone suffix)
+  nextCourtDate.value = formatForDateTimeLocalInput(current.next_court_date)
   lawyerName.value = current.lawyer_name ?? ''
   lawyerEmail.value = current.lawyer_email ?? ''
   lastSavedAt.value = current.updated_at
@@ -297,7 +300,8 @@ async function saveCase() {
       goalsSummary: goalsSummary.value || null,
       riskFlags: riskFlags.value,
       notes: notes.value || null,
-      nextCourtDate: nextCourtDate.value || null,
+      // Convert datetime-local format back to ISO for storage
+      nextCourtDate: parseDateTimeLocalToISO(nextCourtDate.value),
       lawyerName: lawyerName.value || null,
       lawyerEmail: lawyerEmail.value || null
     }

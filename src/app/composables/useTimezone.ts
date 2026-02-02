@@ -120,6 +120,61 @@ export function formatDateInTimezone(
   })
 }
 
+/**
+ * Convert an ISO timestamp (with or without timezone) to datetime-local input format.
+ * datetime-local inputs require: "yyyy-MM-ddThh:mm" (no timezone suffix)
+ * 
+ * @param isoString - ISO timestamp like "2026-04-30T13:00:00+00:00" or "2026-04-30T13:00:00Z"
+ * @returns String in format "yyyy-MM-ddThh:mm" or null if invalid
+ */
+export function formatForDateTimeLocalInput(isoString: string | null | undefined): string | null {
+  if (!isoString) return null
+  
+  try {
+    // Parse the ISO string to a Date
+    const date = new Date(isoString)
+    if (Number.isNaN(date.getTime())) return null
+    
+    // Format as yyyy-MM-ddTHH:mm (local time representation of the UTC timestamp)
+    // Note: This extracts the UTC components, not local browser time
+    const year = date.getUTCFullYear()
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+    const day = String(date.getUTCDate()).padStart(2, '0')
+    const hours = String(date.getUTCHours()).padStart(2, '0')
+    const minutes = String(date.getUTCMinutes()).padStart(2, '0')
+    
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Convert a datetime-local input value to ISO format for storage.
+ * Appends 'Z' to indicate UTC since we're storing in UTC.
+ * 
+ * @param localString - String from datetime-local input like "2026-04-30T13:00"
+ * @returns ISO string like "2026-04-30T13:00:00Z" or null if invalid/empty
+ */
+export function parseDateTimeLocalToISO(localString: string | null | undefined): string | null {
+  if (!localString || !localString.trim()) return null
+  
+  try {
+    // datetime-local format is "yyyy-MM-ddThh:mm" or "yyyy-MM-ddThh:mm:ss"
+    // We treat this as UTC and append Z
+    const normalized = localString.includes('T') ? localString : `${localString}T00:00`
+    
+    // Validate by parsing
+    const testDate = new Date(normalized + 'Z')
+    if (Number.isNaN(testDate.getTime())) return null
+    
+    // Return with seconds and Z suffix
+    return normalized.length === 16 ? `${normalized}:00Z` : `${normalized}Z`
+  } catch {
+    return null
+  }
+}
+
 export function useTimezone() {
   const user = useSupabaseUser()
   const { profile, isFetched, updateProfile, isLoading: profileLoading } = useProfile()
