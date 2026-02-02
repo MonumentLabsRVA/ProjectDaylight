@@ -41,7 +41,7 @@ defineOptions({
             <NuxtLink to="/auth/login" class="hidden sm:block">
               <UButton
                 color="neutral"
-                variant="ghost"
+                variant="outline"
                 size="sm"
               >
                 Log in
