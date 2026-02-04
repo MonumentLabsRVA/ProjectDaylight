@@ -1,6 +1,13 @@
 export default defineNuxtRouteMiddleware(async (to, from) => {
   const user = useSupabaseUser()
   
+  // If the route doesn't match any page, let Nuxt handle it (will 404)
+  // This prevents redirecting non-existent routes to login
+  const hasMatchedRoute = to.matched.length > 0
+  if (!hasMatchedRoute) {
+    return // Let Nuxt show the 404 error page
+  }
+  
   // Define public routes that don't require authentication
   const publicRoutes = [
     '/',                      // Landing page
