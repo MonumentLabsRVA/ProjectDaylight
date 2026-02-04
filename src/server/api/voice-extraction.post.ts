@@ -268,7 +268,7 @@ export default defineEventHandler(async (event) => {
                 '- Prefer under-extraction to guessing. Do not invent details.',
                 '- Keep tone neutral and factual.',
                 '- You may extract multiple events from a single transcript.',
-                `- When metadata.recording_timestamp is not otherwise clearly specified by the user, you may set it to the recording timestamp provided above: ${recordingTimestampIso}.`
+                `- When metadata.recording_timestamp is not otherwise clearly specified by the user, you may set it to the reference date: ${referenceDateContext}.`
               ].join('\n')
             }
           ]

@@ -281,16 +281,20 @@ async function extractEventsFromText(
     throw new Error('eventText is required')
   }
 
-  // Load user profile
+  // Load user profile including timezone
   let userDisplayName: string | null = null
+  let userTimezone: string = 'UTC'
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name')
+    .select('full_name, timezone')
     .eq('id', userId)
     .maybeSingle()
 
   if (profile?.full_name) {
     userDisplayName = profile.full_name
+  }
+  if (profile?.timezone) {
+    userTimezone = profile.timezone
   }
 
   // Load richer case context
@@ -390,23 +394,33 @@ async function extractEventsFromText(
     }
   }
 
-  // Temporal guidance
-  let recordingTimestampIso: string
+  // Build temporal guidance with timezone awareness (like extract-events.post.ts)
+  // This is critical for generating correct timestamps
+  let referenceDateContext: string
   if (trimmedReferenceDate) {
-    const parsed = new Date(trimmedReferenceDate)
-    if (!Number.isNaN(parsed.getTime())) {
-      recordingTimestampIso = parsed.toISOString()
-    } else {
-      recordingTimestampIso = new Date().toISOString()
-    }
+    // User provided a date like "2026-01-30" - this is in their local timezone
+    referenceDateContext = trimmedReferenceDate
   } else {
-    recordingTimestampIso = new Date().toISOString()
+    // Use current date in user's timezone
+    const now = new Date()
+    referenceDateContext = new Intl.DateTimeFormat('en-CA', {
+      timeZone: userTimezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(now)
   }
 
   const temporalGuidance = [
-    `The reference date for these events is: ${recordingTimestampIso}`,
-    'Resolve relative time references (like "yesterday", "this morning") based on this date.',
-    'If you cannot determine a specific time, set timestamp_precision to "approximate" or "unknown".'
+    `The user is in timezone: ${userTimezone}`,
+    `The reference date for these events is: ${referenceDateContext} (in the user's local timezone)`,
+    '',
+    'IMPORTANT: When generating primary_timestamp values:',
+    `- Generate timestamps in the user's timezone (${userTimezone})`,
+    '- For example, if the user says "yesterday at 7pm" and the reference date is 2026-01-30, generate "2026-01-29T19:00:00" (without Z suffix) to represent 7pm local time',
+    '- Include timezone offset in ISO format, e.g., "2026-01-29T19:00:00-05:00" for Eastern Time or "2026-01-29T19:00:00-06:00" for Central Time',
+    '- Resolve relative time references (like "yesterday", "this morning", "last week") based on the reference date',
+    '- If you cannot determine a specific time, set timestamp_precision to "approximate" or "unknown"'
   ].join('\n')
 
   // Evidence context section
