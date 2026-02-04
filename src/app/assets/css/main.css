@@ -2,11 +2,11 @@
 @import "@nuxt/ui";
 
 ::selection {
-  background-color: #0ea5e9; /* sky-500 for light mode */
-  color: #f0f9ff;            /* sky-50 text for contrast */
+  background-color: #bae6fd; /* sky-200 - soft highlight */
+  color: #0c4a6e;            /* sky-900 - dark text for readability */
 }
 
 .dark ::selection {
-  background-color: #0ea5e9; /* sky-500 for dark mode */
-  color: #0c4a6e;            /* sky-900 text for contrast */
+  background-color: #075985; /* sky-800 - deeper, blends with dark theme */
+  color: #e0f2fe;            /* sky-100 - light text for contrast */
 }
