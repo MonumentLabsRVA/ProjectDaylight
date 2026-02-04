@@ -192,17 +192,16 @@ const documentData = {
 
       <!-- CTA under document -->
       <div class="mt-16 text-center">
-        <NuxtLink to="/auth/signup">
-          <UButton
-            size="lg"
-            color="primary"
-          >
-            Generate your timeline
-            <template #trailing>
-              <UIcon name="i-lucide-file-text" class="size-4" />
-            </template>
-          </UButton>
-        </NuxtLink>
+        <UButton
+          to="/auth/signup"
+          size="lg"
+          color="primary"
+        >
+          Generate your timeline
+          <template #trailing>
+            <UIcon name="i-lucide-file-text" class="size-4" />
+          </template>
+        </UButton>
       </div>
     </UContainer>
   </section>

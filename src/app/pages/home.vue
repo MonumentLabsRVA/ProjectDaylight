@@ -164,11 +164,9 @@ function goToEntry(entry: JournalEntry) {
             <div v-else-if="!recentJournalEntries.length" class="py-8 text-center">
               <UIcon name="i-lucide-book-open" class="w-8 h-8 mx-auto text-muted/50 mb-2" />
               <p class="text-sm text-muted">No journal entries yet</p>
-              <NuxtLink to="/journal/new">
-                <UButton size="sm" color="primary" variant="soft" class="mt-3">
-                  Create your first entry
-                </UButton>
-              </NuxtLink>
+              <UButton to="/journal/new" size="sm" color="primary" variant="soft" class="mt-3">
+                Create your first entry
+              </UButton>
             </div>
 
             <div v-else class="divide-y divide-default">

@@ -290,29 +290,27 @@ onUnmounted(() => {
 
             <!-- CTA buttons -->
             <div class="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:gap-4 lg:items-start">
-              <NuxtLink to="/auth/signup">
-                <UButton
-                  size="xl"
-                  color="primary"
-                  class="px-8 font-semibold shadow-lg shadow-primary/25"
-                >
-                  Start documenting free
-                  <template #trailing>
-                    <UIcon name="i-lucide-arrow-right" class="size-4" />
-                  </template>
-                </UButton>
-              </NuxtLink>
-              <NuxtLink to="/home">
-                <UButton
-                  size="xl"
-                  color="neutral"
-                  variant="ghost"
-                  class="px-8"
-                >
-                  <UIcon name="i-lucide-play-circle" class="size-5 mr-2" />
-                  See how it works
-                </UButton>
-              </NuxtLink>
+              <UButton
+                to="/auth/signup"
+                size="xl"
+                color="primary"
+                class="px-8 font-semibold shadow-lg shadow-primary/25"
+              >
+                Start documenting free
+                <template #trailing>
+                  <UIcon name="i-lucide-arrow-right" class="size-4" />
+                </template>
+              </UButton>
+              <UButton
+                to="/home"
+                size="xl"
+                color="neutral"
+                variant="ghost"
+                class="px-8"
+              >
+                <UIcon name="i-lucide-play-circle" class="size-5 mr-2" />
+                See how it works
+              </UButton>
             </div>
 
             <!-- Trust indicators -->
@@ -517,17 +515,16 @@ onUnmounted(() => {
             </div>
 
             <div class="mt-10">
-              <NuxtLink to="/auth/signup">
-                <UButton
-                  color="primary"
-                  size="lg"
-                >
-                  Start uploading evidence
-                  <template #trailing>
-                    <UIcon name="i-lucide-upload" class="size-4" />
-                  </template>
-                </UButton>
-              </NuxtLink>
+              <UButton
+                to="/auth/signup"
+                color="primary"
+                size="lg"
+              >
+                Start uploading evidence
+                <template #trailing>
+                  <UIcon name="i-lucide-upload" class="size-4" />
+                </template>
+              </UButton>
             </div>
           </div>
 
@@ -715,18 +712,17 @@ onUnmounted(() => {
               </div>
 
               <div class="mt-10">
-                <NuxtLink to="/auth/signup">
-                  <UButton
-                    size="lg"
-                    color="neutral"
-                    variant="soft"
-                  >
-                    Partner with us
-                    <template #trailing>
-                      <UIcon name="i-lucide-arrow-right" class="size-4" />
-                    </template>
-                  </UButton>
-                </NuxtLink>
+                <UButton
+                  to="/auth/signup"
+                  size="lg"
+                  color="neutral"
+                  variant="soft"
+                >
+                  Partner with us
+                  <template #trailing>
+                    <UIcon name="i-lucide-arrow-right" class="size-4" />
+                  </template>
+                </UButton>
               </div>
             </div>
 
@@ -812,18 +808,17 @@ onUnmounted(() => {
           </p>
 
           <div class="mt-10">
-            <NuxtLink to="/auth/signup">
-              <UButton
-                size="xl"
-                color="primary"
-                class="px-8"
-              >
-                Start documenting
-                <template #trailing>
-                  <UIcon name="i-lucide-arrow-right" class="size-4" />
-                </template>
-              </UButton>
-            </NuxtLink>
+            <UButton
+              to="/auth/signup"
+              size="xl"
+              color="primary"
+              class="px-8"
+            >
+              Start documenting
+              <template #trailing>
+                <UIcon name="i-lucide-arrow-right" class="size-4" />
+              </template>
+            </UButton>
           </div>
         </div>
       </UContainer>

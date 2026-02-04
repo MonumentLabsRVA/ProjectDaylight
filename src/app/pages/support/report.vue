@@ -122,16 +122,16 @@ async function submitFeedback() {
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
-          <NuxtLink to="/help" target="_blank">
-            <UButton
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              icon="i-lucide-life-buoy"
-            >
-              <span class="hidden sm:inline">Help & FAQ</span>
-            </UButton>
-          </NuxtLink>
+          <UButton
+            to="/help"
+            target="_blank"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            icon="i-lucide-life-buoy"
+          >
+            <span class="hidden sm:inline">Help & FAQ</span>
+          </UButton>
         </template>
       </UDashboardNavbar>
     </template>

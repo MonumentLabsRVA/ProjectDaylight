@@ -150,18 +150,17 @@ const dataPromises = [
 
       <!-- CTA -->
       <div class="text-center pt-8">
-        <NuxtLink to="/auth/signup">
-          <UButton
-            size="lg"
-            color="primary"
-            class="px-8"
-          >
-            Start documenting securely
-            <template #trailing>
-              <UIcon name="i-lucide-arrow-right" class="size-4" />
-            </template>
-          </UButton>
-        </NuxtLink>
+        <UButton
+          to="/auth/signup"
+          size="lg"
+          color="primary"
+          class="px-8"
+        >
+          Start documenting securely
+          <template #trailing>
+            <UIcon name="i-lucide-arrow-right" class="size-4" />
+          </template>
+        </UButton>
       </div>
     </div>
   </UContainer>
