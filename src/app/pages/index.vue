@@ -268,15 +268,6 @@ onUnmounted(() => {
         <div class="grid items-center gap-12 pt-8 pb-24 lg:grid-cols-2 lg:gap-16">
           <!-- Left: Text content -->
           <div class="flex flex-col justify-center items-center text-center lg:items-start lg:text-left">
-            <!-- Badge -->
-            <div class="mb-8 inline-flex w-fit items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
-              <span class="relative flex h-2 w-2">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-              </span>
-              AI-Powered Evidence Platform
-            </div>
-
             <!-- Main headline -->
             <h1 class="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl xl:text-7xl">
               <span class="text-primary">Just talk.</span>
@@ -284,29 +275,29 @@ onUnmounted(() => {
             </h1>
 
             <!-- Subheadline -->
-            <p class="mt-8 max-w-lg text-lg leading-relaxed text-muted mx-auto lg:mx-0">
-              Stop carrying custody documentation in your head. Record voice notes, upload screenshots—Daylight extracts events, builds timelines, and generates court-ready exports.
+            <p class="mt-6 max-w-lg text-lg text-muted mx-auto lg:mx-0">
+              Custody documentation that builds itself. Record voice notes, and Daylight creates the organized timeline your lawyer needs.
             </p>
 
             <!-- CTA buttons -->
-            <div class="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:gap-4 lg:items-start">
+            <div class="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:gap-4 lg:items-start">
               <UButton
                 to="/auth/signup"
                 size="xl"
                 color="primary"
                 class="px-8 font-semibold shadow-lg shadow-primary/25"
               >
-                Start documenting free
+                Start free
                 <template #trailing>
                   <UIcon name="i-lucide-arrow-right" class="size-4" />
                 </template>
               </UButton>
               <UButton
-                to="/home"
+                to="#how-it-works"
                 size="xl"
                 color="neutral"
                 variant="ghost"
-                class="px-8"
+                class="px-6"
               >
                 <UIcon name="i-lucide-play-circle" class="size-5 mr-2" />
                 See how it works
@@ -314,7 +305,7 @@ onUnmounted(() => {
             </div>
 
             <!-- Trust indicators -->
-            <div class="mt-12 lg:mt-16 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 sm:gap-8 text-sm text-dimmed">
+            <div class="mt-10 flex items-center justify-center lg:justify-start gap-6 text-sm text-dimmed">
               <div class="flex items-center gap-2">
                 <UIcon name="i-lucide-shield-check" class="size-4 text-primary/60" />
                 <span>Bank-level encryption</span>
@@ -333,7 +324,7 @@ onUnmounted(() => {
     </section>
 
     <!-- How It Works Section -->
-    <section class="border-t border-default bg-default py-24">
+    <section id="how-it-works" class="border-t border-default bg-default py-24 scroll-mt-20">
       <UContainer>
         <div class="mx-auto max-w-2xl text-center">
           <h2 class="text-3xl font-bold tracking-tight text-highlighted sm:text-4xl">
