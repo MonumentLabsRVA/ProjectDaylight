@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
-import type { TimelineEvent, EvidenceItem } from '~/types'
+import type { TimelineEvent, EvidenceItem, EventType } from '~/types'
+import { getExtractionTypeIcon } from '~/utils/eventTypes'
 
 const route = useRoute()
 const toast = useToast()
@@ -126,22 +127,28 @@ const searchGroups = ref<SearchGroup[]>([{
 
 const searchLoading = ref(false)
 
+// Fallback map for legacy event types that don't exist in ExtractionEventType
+const legacyTypeIcons: Record<EventType, string> = {
+  incident: 'i-lucide-alert-triangle',
+  positive: 'i-lucide-smile-plus',
+  medical: 'i-lucide-stethoscope',
+  school: 'i-lucide-graduation-cap',
+  communication: 'i-lucide-message-circle',
+  legal: 'i-lucide-gavel'
+}
+
 function mapEventToSearchItem(event: TimelineEvent): SearchItem {
-  const typeIcon: Record<TimelineEvent['type'], string> = {
-    incident: 'i-lucide-alert-triangle',
-    positive: 'i-lucide-smile-plus',
-    medical: 'i-lucide-stethoscope',
-    school: 'i-lucide-school',
-    communication: 'i-lucide-message-circle',
-    legal: 'i-lucide-gavel'
-  }
+  // Prefer extraction type icon (shared source of truth), fall back to legacy
+  const icon = event.extractionType
+    ? getExtractionTypeIcon(event.extractionType)
+    : legacyTypeIcons[event.type]
 
   return {
     id: `event-${event.id}`,
     label: event.title,
     description: event.description,
     suffix: 'Event',
-    icon: typeIcon[event.type],
+    icon,
     to: `/event/${event.id}`
   }
 }

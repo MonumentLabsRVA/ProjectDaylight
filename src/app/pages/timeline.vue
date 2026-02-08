@@ -4,6 +4,12 @@ import {
   getDateStringInTimezone, 
   getStartOfDayInTimezone 
 } from '~/composables/useTimezone'
+import {
+  extractionTypeOptions,
+  extractionTypeColors,
+  formatExtractionEventType,
+  getExtractionTypeIcon
+} from '~/utils/eventTypes'
 
 // Get user's timezone
 const { timezone, formatDate: formatTzDate } = useTimezone()
@@ -65,96 +71,15 @@ function getExtractionType(event: TimelineEvent): ExtractionEventType {
   return legacyToExtractionTypeMap[event.type]
 }
 
-function formatEventType(type: ExtractionEventType): string {
-  const map: Record<ExtractionEventType, string> = {
-    parenting_time: 'Parenting time',
-    caregiving: 'Caregiving',
-    household: 'Household / chores',
-    coparent_conflict: 'Co-parent conflict',
-    gatekeeping: 'Gatekeeping',
-    communication: 'Communication',
-    medical: 'Medical',
-    school: 'School',
-    legal: 'Legal / court'
-  }
-
-  return map[type] || type
-}
-
-// Type options with icons and colors (using extraction event types)
-const typeOptions = [
-  {
-    value: 'parenting_time' as ExtractionEventType,
-    label: 'Parenting time',
-    icon: 'i-lucide-heart',
-    color: 'primary' as const
-  },
-  {
-    value: 'caregiving' as ExtractionEventType,
-    label: 'Caregiving',
-    icon: 'i-lucide-baby',
-    color: 'success' as const
-  },
-  {
-    value: 'household' as ExtractionEventType,
-    label: 'Household / chores',
-    icon: 'i-lucide-home',
-    color: 'neutral' as const
-  },
-  {
-    value: 'coparent_conflict' as ExtractionEventType,
-    label: 'Co-parent conflict',
-    icon: 'i-lucide-alert-triangle',
-    color: 'error' as const
-  },
-  {
-    value: 'gatekeeping' as ExtractionEventType,
-    label: 'Gatekeeping',
-    icon: 'i-lucide-shield-alert',
-    color: 'warning' as const
-  },
-  {
-    value: 'medical' as ExtractionEventType,
-    label: 'Medical',
-    icon: 'i-lucide-stethoscope',
-    color: 'info' as const
-  },
-  {
-    value: 'school' as ExtractionEventType,
-    label: 'School',
-    icon: 'i-lucide-backpack',
-    color: 'warning' as const
-  },
-  {
-    value: 'communication' as ExtractionEventType,
-    label: 'Communication',
-    icon: 'i-lucide-message-circle',
-    color: 'primary' as const
-  },
-  {
-    value: 'legal' as ExtractionEventType,
-    label: 'Legal/Court',
-    icon: 'i-lucide-gavel',
-    color: 'neutral' as const
-  }
-]
+// Re-export shared type options for template use
+const typeOptions = extractionTypeOptions
 
 const sortOptions = [
   { label: 'Newest First', value: 'newest', icon: 'i-lucide-arrow-down' },
   { label: 'Oldest First', value: 'oldest', icon: 'i-lucide-arrow-up' }
 ]
 
-const typeColors: Record<ExtractionEventType, 'success' | 'error' | 'info' | 'warning' | 'neutral' | 'primary'> = {
-  parenting_time: 'primary',
-  caregiving: 'success',
-  household: 'neutral',
-  coparent_conflict: 'error',
-  gatekeeping: 'warning',
-  communication: 'primary',
-  medical: 'info',
-  school: 'warning',
-  legal: 'neutral'
-}
+const typeColors = extractionTypeColors
 
 // Handle date preset selection
 // Uses user's timezone for accurate "today", "this week" calculations
@@ -653,8 +578,8 @@ function formatTime(timestamp: string): string {
                       size="xs"
                       class="capitalize shrink-0"
                     >
-                      <UIcon :name="typeOptions.find(t => t.value === getExtractionType(event))?.icon" class="size-3.5 mr-1" />
-                      {{ formatEventType(getExtractionType(event)) }}
+                      <UIcon :name="getExtractionTypeIcon(getExtractionType(event))" class="size-3.5 mr-1" />
+                      {{ formatExtractionEventType(getExtractionType(event)) }}
                     </UBadge>
 
                     <p class="font-medium text-highlighted truncate">

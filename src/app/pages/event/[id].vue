@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import type { ChildStatement, CoparentInteraction, CoparentTone, EventType, ExtractionEventType } from '~/types'
 import type { Database } from '~/types/database.types'
+import {
+  extractionTypeColors,
+  extractionTypeIcons,
+  formatExtractionEventType
+} from '~/utils/eventTypes'
 
 type LegacyWelfareImpact = Database['public']['Enums']['welfare_impact']
 
@@ -111,44 +116,8 @@ const legacyToExtractionTypeMap: Record<EventType, ExtractionEventType> = {
   legal: 'legal'
 }
 
-const extractionTypeColors: Record<ExtractionEventType, 'success' | 'error' | 'info' | 'warning' | 'neutral' | 'primary'> = {
-  parenting_time: 'primary',
-  caregiving: 'success',
-  household: 'neutral',
-  coparent_conflict: 'error',
-  gatekeeping: 'warning',
-  communication: 'info',
-  medical: 'info',
-  school: 'warning',
-  legal: 'neutral'
-}
-
-const extractionTypeIcons: Record<ExtractionEventType, string> = {
-  parenting_time: 'i-lucide-calendar-heart',
-  caregiving: 'i-lucide-heart-handshake',
-  household: 'i-lucide-home',
-  coparent_conflict: 'i-lucide-swords',
-  gatekeeping: 'i-lucide-shield-ban',
-  communication: 'i-lucide-message-circle',
-  medical: 'i-lucide-stethoscope',
-  school: 'i-lucide-graduation-cap',
-  legal: 'i-lucide-scale'
-}
-
-function formatExtractionEventType(type: ExtractionEventType): string {
-  const map: Record<ExtractionEventType, string> = {
-    parenting_time: 'Parenting Time',
-    caregiving: 'Caregiving',
-    household: 'Household',
-    coparent_conflict: 'Co-parent Conflict',
-    gatekeeping: 'Gatekeeping',
-    communication: 'Communication',
-    medical: 'Medical',
-    school: 'School',
-    legal: 'Legal'
-  }
-  return map[type] || type
-}
+// extractionTypeColors, extractionTypeIcons, and formatExtractionEventType
+// are imported from ~/utils/eventTypes (single source of truth)
 
 const eventTypeOptions: { label: string; value: EventType }[] = [
   { label: 'Positive parenting', value: 'positive' },
