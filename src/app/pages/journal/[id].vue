@@ -81,16 +81,24 @@ const deleteEvidence = ref(false)
 const deleteEvents = ref(true)
 
 // Evidence upload state
+const MAX_FILE_SIZE_MB = 4
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 const addEvidenceModalOpen = ref(false)
 const evidenceFile = ref<File | null>(null)
+const evidenceFileTooLarge = ref(false)
 const evidenceAnnotation = ref('')
 const isUploadingEvidence = ref(false)
 
 // Image loading states
 const imageLoadStates = ref<Map<string, 'loading' | 'loaded' | 'error'>>(new Map())
 
+watch(evidenceFile, (file) => {
+  evidenceFileTooLarge.value = !!file && file.size > MAX_FILE_SIZE_BYTES
+})
+
 function resetEvidenceForm() {
   evidenceFile.value = null
+  evidenceFileTooLarge.value = false
   evidenceAnnotation.value = ''
 }
 
@@ -99,6 +107,15 @@ async function uploadAndAttachEvidence() {
     toast.add({
       title: 'No file selected',
       description: 'Please select a file to upload.',
+      color: 'warning'
+    })
+    return
+  }
+
+  if (evidenceFile.value.size > MAX_FILE_SIZE_BYTES) {
+    toast.add({
+      title: 'File too large',
+      description: `Max file size is ${MAX_FILE_SIZE_MB} MB. Please choose a smaller file.`,
       color: 'warning'
     })
     return
@@ -772,9 +789,12 @@ const statusConfig = computed(() => {
                   v-model="evidenceFile"
                   accept="image/*,application/pdf,.doc,.docx,.txt"
                   label="Drop your file here"
-                  description="Images, PDFs, or documents (max 10MB)"
+                  :description="`Images, PDFs, or documents (max ${MAX_FILE_SIZE_MB} MB)`"
                   class="w-full min-h-40"
                 />
+                <p v-if="evidenceFileTooLarge" class="text-sm text-error mt-1">
+                  This file is too large ({{ (evidenceFile!.size / (1024 * 1024)).toFixed(1) }} MB). Maximum size is {{ MAX_FILE_SIZE_MB }} MB.
+                </p>
               </UFormField>
 
               <UFormField
@@ -804,7 +824,7 @@ const statusConfig = computed(() => {
             <UButton
               color="primary"
               :loading="isUploadingEvidence"
-              :disabled="!evidenceFile"
+              :disabled="!evidenceFile || evidenceFileTooLarge"
               @click="uploadAndAttachEvidence"
             >
               Upload

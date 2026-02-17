@@ -251,6 +251,9 @@ async function transcribeRecording() {
 // Evidence Functions
 // =============================================================================
 
+const MAX_FILE_SIZE_MB = 4
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+
 function addEvidence() {
   const input = document.createElement('input')
   input.type = 'file'
@@ -262,7 +265,15 @@ function addEvidence() {
     const files = target.files
     if (!files) return
 
+    const rejected: string[] = []
+
     for (const file of Array.from(files)) {
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
+        rejected.push(`${file.name} (${sizeMB} MB)`)
+        continue
+      }
+
       const previewUrl = file.type.startsWith('image/')
         ? URL.createObjectURL(file)
         : ''
@@ -277,6 +288,14 @@ function addEvidence() {
         isUploading: false,
         uploadedEvidenceId: null,
         error: null
+      })
+    }
+
+    if (rejected.length > 0) {
+      toast.add({
+        title: `${rejected.length === 1 ? 'File' : 'Files'} too large`,
+        description: `Max size is ${MAX_FILE_SIZE_MB} MB. Skipped: ${rejected.join(', ')}`,
+        color: 'warning'
       })
     }
   }
@@ -309,6 +328,11 @@ function updateAnnotation(id: string, annotation: string) {
 async function uploadEvidence(item: EvidenceItem): Promise<void> {
   if (!item.file) {
     item.error = 'No file to upload'
+    return
+  }
+
+  if (item.file.size > MAX_FILE_SIZE_BYTES) {
+    item.error = `File too large (${(item.file.size / (1024 * 1024)).toFixed(1)} MB). Max is ${MAX_FILE_SIZE_MB} MB.`
     return
   }
 
