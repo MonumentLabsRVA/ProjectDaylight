@@ -261,397 +261,459 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="relative">
+  <div class="relative bg-default">
     <!-- Hero Section -->
-    <section class="relative overflow-hidden bg-default">
+    <section class="relative overflow-hidden pt-12 pb-20 lg:pt-24 lg:pb-32">
       <UContainer class="relative z-10">
-        <div class="grid items-center gap-12 pt-8 pb-24 lg:grid-cols-2 lg:gap-16">
-          <!-- Left: Text content -->
-          <div class="flex flex-col justify-center items-center text-center lg:items-start lg:text-left">
-            <!-- Main headline -->
-            <h1 class="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl xl:text-7xl">
-              <span class="text-primary">Just talk.</span>
-              <span class="block mt-2 text-highlighted">We handle the rest.</span>
-            </h1>
+        <div class="mx-auto max-w-4xl text-center">
+          <h1 class="text-5xl font-bold tracking-tight text-highlighted sm:text-7xl mb-6">
+            <span class="text-primary">Just talk.</span>
+            <span class="block text-highlighted">We handle the rest.</span>
+          </h1>
+          
+          <p class="mt-6 text-xl text-muted max-w-2xl mx-auto leading-relaxed">
+            Stop carrying custody documentation in your head. Record voice notes, and Daylight creates the organized timeline your lawyer can actually use.
+          </p>
 
-            <!-- Subheadline -->
-            <p class="mt-6 max-w-lg text-lg text-muted mx-auto lg:mx-0">
-              Custody documentation that builds itself. Record voice notes, and Daylight creates the organized timeline your lawyer needs.
-            </p>
-
-            <!-- CTA buttons -->
-            <div class="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:gap-4 lg:items-start">
-              <UButton
-                to="/auth/signup"
-                size="xl"
-                color="primary"
-                class="px-8 font-semibold shadow-lg shadow-primary/25"
-              >
-                Start free
-                <template #trailing>
-                  <UIcon name="i-lucide-arrow-right" class="size-4" />
-                </template>
-              </UButton>
-              <UButton
-                to="#how-it-works"
-                size="xl"
-                color="neutral"
-                variant="ghost"
-                class="px-6"
-              >
-                <UIcon name="i-lucide-play-circle" class="size-5 mr-2" />
-                See how it works
-              </UButton>
-            </div>
-
-            <!-- Trust indicators -->
-            <div class="mt-10 flex items-center justify-center lg:justify-start gap-6 text-sm text-dimmed">
-              <div class="flex items-center gap-2">
-                <UIcon name="i-lucide-shield-check" class="size-4 text-primary/60" />
-                <span>Bank-level encryption</span>
+          <div class="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+            <UButton
+              to="/auth/signup"
+              size="xl"
+              color="primary"
+              class="px-8 py-4 text-lg font-semibold shadow-xl shadow-primary/20 rounded-full"
+            >
+              Start documenting free
+              <template #trailing>
+                <UIcon name="i-lucide-arrow-right" class="size-5" />
+              </template>
+            </UButton>
+            
+            <div class="flex items-center gap-2 text-sm text-muted mt-4 sm:mt-0 sm:ml-6">
+              <div class="flex -space-x-2">
+                <div class="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-xs font-bold text-gray-600">JD</div>
+                <div class="w-8 h-8 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-xs font-bold text-gray-600">SM</div>
+                <div class="w-8 h-8 rounded-full bg-gray-400 border-2 border-white flex items-center justify-center text-xs font-bold text-gray-600">RK</div>
               </div>
-              <div class="flex items-center gap-2">
-                <UIcon name="i-lucide-scale" class="size-4 text-primary/60" />
-                <span>Attorney recommended</span>
-              </div>
+              <span>Trusted by 2,000+ parents</span>
             </div>
           </div>
 
-          <!-- Right: iPhone mockup -->
-          <HomeHeroPhoneMockup />
+          <!-- Trust Badges -->
+          <div class="mt-12 flex flex-wrap justify-center gap-4 sm:gap-8 text-sm font-medium text-muted">
+            <div class="flex items-center gap-2 bg-elevated px-4 py-2 rounded-full border border-default">
+              <UIcon name="i-lucide-shield-check" class="size-5 text-primary" />
+              <span>Bank-level encryption</span>
+            </div>
+            <div class="flex items-center gap-2 bg-elevated px-4 py-2 rounded-full border border-default">
+              <UIcon name="i-lucide-scale" class="size-5 text-primary" />
+              <span>Attorney recommended</span>
+            </div>
+            <div class="flex items-center gap-2 bg-elevated px-4 py-2 rounded-full border border-default">
+              <UIcon name="i-lucide-check-circle" class="size-5 text-primary" />
+              <span>Admissible evidence</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hero Image/Mockup - Centered -->
+        <div class="mt-16 sm:mt-24 relative mx-auto max-w-5xl">
+          <div class="rounded-3xl bg-elevated/50 p-4 ring-1 ring-inset ring-gray-900/5 lg:rounded-3xl lg:p-6 backdrop-blur-sm">
+             <div class="bg-default rounded-2xl shadow-2xl overflow-hidden border border-default">
+                <div class="grid lg:grid-cols-2 gap-8 items-center p-8 lg:p-12">
+                    <div class="order-2 lg:order-1 flex justify-center">
+                        <HomeHeroPhoneMockup />
+                    </div>
+                    <div class="order-1 lg:order-2 space-y-6">
+                        <div class="bg-elevated p-6 rounded-xl shadow-sm border border-default">
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                                    <UIcon name="i-lucide-mic" class="size-5" />
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-highlighted">Voice to Timeline</h3>
+                                    <p class="text-sm text-muted">You talk, we type and organize.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-elevated p-6 rounded-xl shadow-sm border border-default">
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                                    <UIcon name="i-lucide-search" class="size-5" />
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-highlighted">Searchable Evidence</h3>
+                                    <p class="text-sm text-muted">Find exactly what you need, instantly.</p>
+                                </div>
+                            </div>
+                        </div>
+                         <div class="bg-elevated p-6 rounded-xl shadow-sm border border-default">
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                                    <UIcon name="i-lucide-file-text" class="size-5" />
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-highlighted">Court-Ready Exports</h3>
+                                    <p class="text-sm text-muted">Generate professional PDFs in seconds.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+             </div>
+          </div>
         </div>
       </UContainer>
     </section>
 
-    <!-- How It Works Section -->
-    <section id="how-it-works" class="border-t border-default bg-default py-24 scroll-mt-20">
+    <!-- Social Proof / Testimonials -->
+    <section class="py-24 bg-muted border-y border-default">
+        <UContainer>
+            <div class="text-center mb-16">
+                <h2 class="text-3xl font-bold tracking-tight text-highlighted">Trusted by parents navigating custody</h2>
+                <p class="mt-4 text-lg text-muted">Don't just take our word for it.</p>
+            </div>
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="bg-default p-8 rounded-2xl shadow-sm border border-default">
+                    <div class="flex gap-1 text-yellow-400 mb-4">
+                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
+                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
+                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
+                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
+                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
+                    </div>
+                    <p class="text-toned mb-6">"My lawyer was blown away by the timeline Daylight generated. It saved me thousands in legal fees and hours of stress."</p>
+                    <div class="font-medium text-highlighted">Sarah M.</div>
+                    <div class="text-sm text-muted">Single Mom of 2</div>
+                </div>
+                <div class="bg-default p-8 rounded-2xl shadow-sm border border-default">
+                    <div class="flex gap-1 text-yellow-400 mb-4">
+                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
+                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
+                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
+                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
+                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
+                    </div>
+                    <p class="text-toned mb-6">"I used to keep everything in notes and screenshots. Daylight organizes it all automatically. It's peace of mind in an app."</p>
+                    <div class="font-medium text-highlighted">David K.</div>
+                    <div class="text-sm text-muted">Co-parenting Dad</div>
+                </div>
+                <div class="bg-default p-8 rounded-2xl shadow-sm border border-default">
+                    <div class="flex gap-1 text-yellow-400 mb-4">
+                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
+                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
+                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
+                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
+                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
+                    </div>
+                    <p class="text-toned mb-6">"The voice notes feature is a lifesaver. I just talk after a drop-off and it's documented. Highly recommend."</p>
+                    <div class="font-medium text-highlighted">Jessica R.</div>
+                    <div class="text-sm text-muted">Mother of 3</div>
+                </div>
+            </div>
+        </UContainer>
+    </section>
+
+    <!-- How It Works (Simplified) -->
+    <section id="how-it-works" class="py-24 bg-default">
       <UContainer>
-        <div class="mx-auto max-w-2xl text-center">
+        <div class="mx-auto max-w-2xl text-center mb-16">
           <h2 class="text-3xl font-bold tracking-tight text-highlighted sm:text-4xl">
-            That's it.
+            Documentation without the headache
           </h2>
           <p class="mt-4 text-lg text-muted">
-            No apps to learn. No templates to fill. Just talk.
+            Three simple steps to a court-ready timeline.
           </p>
         </div>
 
-        <div class="mx-auto mt-16 max-w-4xl">
-          <div class="grid gap-8 md:grid-cols-3">
-            <div
-              v-for="step in steps"
-              :key="step.number"
-              class="relative"
-            >
-              <!-- Step number -->
-              <div class="mb-4 font-mono text-xs font-semibold tracking-wider text-primary">
-                {{ step.number }}
-              </div>
-
-              <!-- Step content -->
-              <h3 class="text-lg font-semibold text-highlighted">
-                {{ step.title }}
-              </h3>
-              <p class="mt-2 text-sm leading-relaxed text-muted">
-                {{ step.description }}
-              </p>
+        <div class="grid md:grid-cols-3 gap-12">
+            <div v-for="step in steps" :key="step.number" class="text-center group">
+                <div class="w-16 h-16 mx-auto bg-primary/10 rounded-2xl flex items-center justify-center text-primary font-bold text-xl mb-6 group-hover:scale-110 transition-transform duration-300">
+                    {{ step.number }}
+                </div>
+                <h3 class="text-xl font-bold text-highlighted mb-3">{{ step.title }}</h3>
+                <p class="text-muted leading-relaxed">{{ step.description }}</p>
             </div>
-          </div>
         </div>
       </UContainer>
     </section>
 
-    <HomeCourtDocumentPreview />
-
-    <!-- Voice to Timeline Demo Section -->
-    <section class="border-t border-default bg-muted py-24">
+    <!-- Voice to Timeline -->
+    <section class="py-24 bg-muted overflow-hidden">
       <UContainer>
-        <div class="mx-auto max-w-6xl">
-          <div class="grid gap-12 lg:grid-cols-2 lg:gap-16 items-start">
-            <!-- Left: Voice Input Card -->
-            <div class="space-y-6">
-              <h2 class="text-3xl font-bold tracking-tight text-highlighted sm:text-4xl">
-                You talk.<br />
-                <span class="text-primary">We extract the timeline.</span>
-              </h2>
-
-              <!-- Voice Recording Card -->
-              <div class="rounded-xl border border-default bg-default p-6 shadow-lg">
-                <div class="flex items-center justify-between mb-4">
-                  <div class="flex items-center gap-3">
-                    <div class="flex size-10 items-center justify-center rounded-full bg-error/10">
-                      <UIcon name="i-lucide-mic" class="size-5 text-error" />
-                    </div>
-                    <div>
-                      <p class="text-sm font-medium text-highlighted">Voice Note</p>
-                      <p class="text-xs text-dimmed">Recording • 0:47</p>
-                    </div>
-                  </div>
-                  <div class="flex items-center gap-1.5 text-xs text-dimmed">
-                    <UIcon name="i-lucide-calendar" class="size-3.5" />
-                    Nov 24, 2024
-                  </div>
+        <div class="grid lg:grid-cols-2 gap-16 items-center">
+            <div>
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
+                    <UIcon name="i-lucide-mic" class="size-4" />
+                    <span>Voice to Timeline</span>
                 </div>
+                <h2 class="text-4xl font-bold text-highlighted mb-6">You talk. We organize.</h2>
+                <p class="text-lg text-muted mb-8">Record what happened, when it happened. No formatting, no organizing—just talk. Our AI extracts the dates, times, and details for you.</p>
                 
-                <!-- Waveform visualization -->
-                <div class="flex h-12 items-center gap-0.5 rounded-lg bg-elevated/50 px-3">
-                  <div
-                    v-for="(height, i) in waveformBars"
-                    :key="i"
-                    class="flex-1 rounded-full bg-primary/60 transition-all duration-150"
-                    :style="{ height: `${Math.max(8, height * 0.4)}px` }"
-                  />
-                </div>
+                <ul class="space-y-4 mb-8">
+                    <li class="flex items-start gap-3">
+                        <UIcon name="i-lucide-check-circle" class="size-6 text-primary shrink-0" />
+                        <span class="text-toned">Instant transcription and extraction</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <UIcon name="i-lucide-check-circle" class="size-6 text-primary shrink-0" />
+                        <span class="text-toned">Automatic timeline creation</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <UIcon name="i-lucide-check-circle" class="size-6 text-primary shrink-0" />
+                        <span class="text-toned">Secure and private</span>
+                    </li>
+                </ul>
 
-                <!-- Transcript preview -->
-                <div class="mt-4 rounded-lg bg-elevated/30 p-4">
-                  <p class="text-xs font-medium text-dimmed uppercase tracking-wider mb-2">Transcript</p>
-                  <p class="text-sm text-muted leading-relaxed italic">
-                    "{{ voiceTranscript }}"
-                  </p>
-                </div>
-              </div>
+                <UButton to="/auth/signup" color="primary" size="lg" class="rounded-full px-8">Try it now</UButton>
             </div>
-
-            <!-- Right: Extracted Events -->
-            <div class="space-y-4">
-              <div class="flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-highlighted">Extracted Events</h3>
-                <span class="text-xs text-dimmed">Auto-generated</span>
-              </div>
-
-              <!-- Events list -->
-              <div class="space-y-3">
-                <div
-                  v-for="(event, index) in extractedEvents"
-                  :key="index"
-                  class="rounded-xl border border-default bg-default p-4 shadow-sm transition-all duration-500"
-                  :class="event.visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'"
-                >
-                  <div class="flex items-start gap-4">
-                    <!-- Type indicator -->
-                    <div 
-                      class="flex size-9 shrink-0 items-center justify-center rounded-lg"
-                      :class="{
-                        'bg-error/10': event.color === 'error',
-                        'bg-warning/10': event.color === 'warning',
-                        'bg-info/10': event.color === 'info'
-                      }"
-                    >
-                      <UIcon 
-                        :name="event.type === 'incident' ? 'i-lucide-alert-circle' : event.type === 'communication' ? 'i-lucide-message-square' : 'i-lucide-lightbulb'"
-                        class="size-4"
-                        :class="{
-                          'text-error': event.color === 'error',
-                          'text-warning': event.color === 'warning',
-                          'text-info': event.color === 'info'
-                        }"
-                      />
+            
+            <!-- Voice Demo Component -->
+            <div class="relative">
+                 <div class="rounded-2xl border border-default bg-default p-6 shadow-xl">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                        <div class="flex size-10 items-center justify-center rounded-full bg-error/10">
+                            <UIcon name="i-lucide-mic" class="size-5 text-error" />
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-highlighted">Voice Note</p>
+                            <p class="text-xs text-dimmed">Recording • 0:47</p>
+                        </div>
+                        </div>
+                        <div class="flex items-center gap-1.5 text-xs text-dimmed">
+                        <UIcon name="i-lucide-calendar" class="size-3.5" />
+                        Nov 24, 2024
+                        </div>
                     </div>
                     
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center justify-between gap-2">
-                        <p class="font-medium text-highlighted text-sm">{{ event.title }}</p>
-                        <span class="shrink-0 text-xs text-dimmed font-mono">{{ event.time }}</span>
-                      </div>
-                      <p class="mt-1 text-sm text-muted">{{ event.detail }}</p>
+                    <!-- Waveform visualization -->
+                    <div class="flex h-12 items-center gap-0.5 rounded-lg bg-elevated/50 px-3">
+                        <div
+                        v-for="(height, i) in waveformBars"
+                        :key="i"
+                        class="flex-1 rounded-full bg-primary/60 transition-all duration-150"
+                        :style="{ height: `${Math.max(8, height * 0.4)}px` }"
+                        />
                     </div>
-                  </div>
-                </div>
-              </div>
 
-              <!-- Summary badge -->
-              <div class="flex items-center justify-center gap-2 rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4 mt-6">
-                <UIcon name="i-lucide-sparkles" class="size-4 text-primary" />
-                <span class="text-sm text-primary font-medium">4 events extracted • Ready for your timeline</span>
-              </div>
+                    <!-- Transcript preview -->
+                    <div class="mt-4 rounded-lg bg-elevated/30 p-4">
+                        <p class="text-xs font-medium text-dimmed uppercase tracking-wider mb-2">Transcript</p>
+                        <p class="text-sm text-muted leading-relaxed italic">
+                        "{{ voiceTranscript }}"
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Extracted Events Overlay/Side -->
+                <div class="mt-6 space-y-3">
+                    <div
+                        v-for="(event, index) in extractedEvents"
+                        :key="index"
+                        class="rounded-xl border border-default bg-default p-4 shadow-sm transition-all duration-500"
+                        :class="event.visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'"
+                    >
+                        <div class="flex items-start gap-4">
+                        <!-- Type indicator -->
+                        <div 
+                            class="flex size-9 shrink-0 items-center justify-center rounded-lg"
+                            :class="{
+                            'bg-error/10': event.color === 'error',
+                            'bg-warning/10': event.color === 'warning',
+                            'bg-info/10': event.color === 'info'
+                            }"
+                        >
+                            <UIcon 
+                            :name="event.type === 'incident' ? 'i-lucide-alert-circle' : event.type === 'communication' ? 'i-lucide-message-square' : 'i-lucide-lightbulb'"
+                            class="size-4"
+                            :class="{
+                                'text-error': event.color === 'error',
+                                'text-warning': event.color === 'warning',
+                                'text-info': event.color === 'info'
+                            }"
+                            />
+                        </div>
+                        
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between gap-2">
+                            <p class="font-medium text-highlighted text-sm">{{ event.title }}</p>
+                            <span class="shrink-0 text-xs text-dimmed font-mono">{{ event.time }}</span>
+                            </div>
+                            <p class="mt-1 text-sm text-muted">{{ event.detail }}</p>
+                        </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
         </div>
       </UContainer>
     </section>
 
-    <!-- Evidence Capture Section -->
-    <section class="border-t border-default bg-default py-24">
+    <!-- Evidence Section -->
+    <section class="py-24 bg-default">
       <UContainer>
-        <div class="grid gap-16 lg:grid-cols-2 lg:gap-20 items-start">
-          <!-- Left column - Text & features -->
-          <div>
-            <h2 class="text-3xl font-bold tracking-tight text-highlighted sm:text-4xl">
-              Screenshot it.<br />
-              <span class="text-primary">AI does the rest.</span>
-            </h2>
-            <p class="mt-6 text-lg leading-relaxed text-toned">
-              Every text screenshot, every email, every photo—just upload it. Our AI reads the image, extracts every word, identifies who said what, and flags anything your lawyer needs to see.
-            </p>
+        <div class="grid lg:grid-cols-2 gap-16 items-center">
+            <!-- Left: Evidence Demo -->
+            <div class="order-2 lg:order-1 space-y-4">
+                <!-- Upload card -->
+                <div class="rounded-xl border border-default bg-elevated p-5 shadow-lg">
+                    <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="flex size-10 items-center justify-center rounded-lg bg-info/10">
+                        <UIcon name="i-lucide-image" class="size-5 text-info" />
+                        </div>
+                        <div>
+                        <p class="text-sm font-medium text-highlighted">{{ evidenceScreenshot.filename }}</p>
+                        <p class="text-xs text-dimmed">Uploaded {{ evidenceScreenshot.uploadTime }}</p>
+                        </div>
+                    </div>
+                    <UBadge color="success" variant="subtle" size="xs">
+                        Processing
+                    </UBadge>
+                    </div>
 
-            <!-- Feature badges -->
-            <div class="mt-8 space-y-4">
-              <div
-                v-for="capability in capabilities"
-                :key="capability.title"
-                class="flex gap-4"
-              >
-                <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <UIcon :name="capability.icon" class="size-5" />
+                    <!-- Mock screenshot preview -->
+                    <div class="rounded-lg border border-default bg-muted/30 p-4 font-mono text-xs space-y-2">
+                    <div class="flex gap-2">
+                        <span class="text-dimmed">6:15 PM</span>
+                        <span class="text-highlighted font-medium">Marcus:</span>
+                        <span class="text-muted">Traffic was really bad, sorry</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <span class="text-dimmed">6:18 PM</span>
+                        <span class="text-primary font-medium">You:</span>
+                        <span class="text-muted">You were supposed to be here at 5. Emma was crying.</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <span class="text-dimmed">6:22 PM</span>
+                        <span class="text-highlighted font-medium">Marcus:</span>
+                        <span class="text-muted">I said I'm sorry. I'll be there by 7.</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <span class="text-dimmed">6:23 PM</span>
+                        <span class="text-primary font-medium">You:</span>
+                        <span class="text-muted">This is the third time this month.</span>
+                    </div>
+                    </div>
                 </div>
-                <div>
-                  <h3 class="font-medium text-highlighted">
-                    {{ capability.title }}
-                  </h3>
-                  <p class="mt-0.5 text-sm text-muted">
-                    {{ capability.description }}
-                  </p>
-                </div>
-              </div>
-            </div>
 
-            <div class="mt-10">
-              <UButton
-                to="/auth/signup"
-                color="primary"
-                size="lg"
-              >
-                Start uploading evidence
-                <template #trailing>
-                  <UIcon name="i-lucide-upload" class="size-4" />
-                </template>
-              </UButton>
-            </div>
-          </div>
+                <!-- AI Extraction progress -->
+                <div class="rounded-xl border border-default bg-default p-5 shadow-sm">
+                    <div class="flex items-center gap-2 mb-4">
+                    <UIcon name="i-lucide-sparkles" class="size-4 text-primary" />
+                    <p class="text-sm font-medium text-highlighted">AI Analysis</p>
+                    </div>
 
-          <!-- Right column - Evidence extraction demo -->
-          <div class="space-y-4">
-            <!-- Upload card -->
-            <div class="rounded-xl border border-default bg-elevated p-5 shadow-lg">
-              <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center gap-3">
-                  <div class="flex size-10 items-center justify-center rounded-lg bg-info/10">
-                    <UIcon name="i-lucide-image" class="size-5 text-info" />
-                  </div>
-                  <div>
-                    <p class="text-sm font-medium text-highlighted">{{ evidenceScreenshot.filename }}</p>
-                    <p class="text-xs text-dimmed">Uploaded {{ evidenceScreenshot.uploadTime }}</p>
-                  </div>
+                    <div class="space-y-3">
+                    <div
+                        v-for="(step, index) in aiExtractionSteps"
+                        :key="index"
+                        class="flex items-center gap-3 transition-all duration-500"
+                        :class="step.visible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'"
+                    >
+                        <div 
+                        class="flex size-7 items-center justify-center rounded-full"
+                        :class="{
+                            'bg-primary/10': step.status === 'processing',
+                            'bg-success/10': step.status === 'complete',
+                            'bg-warning/10': step.status === 'flagged'
+                        }"
+                        >
+                        <UIcon 
+                            :name="step.status === 'processing' ? 'i-lucide-loader-2' : step.status === 'flagged' ? 'i-lucide-alert-triangle' : 'i-lucide-check'"
+                            class="size-3.5"
+                            :class="{
+                            'text-primary animate-spin': step.status === 'processing',
+                            'text-success': step.status === 'complete',
+                            'text-warning': step.status === 'flagged'
+                            }"
+                        />
+                        </div>
+                        <div class="flex-1 min-w-0">
+                        <p class="text-sm text-highlighted">{{ step.label }}</p>
+                        <p v-if="step.detail" class="text-xs text-muted">{{ step.detail }}</p>
+                        </div>
+                    </div>
+                    </div>
                 </div>
-                <UBadge color="success" variant="subtle" size="xs">
-                  Processing
-                </UBadge>
-              </div>
 
-              <!-- Mock screenshot preview -->
-              <div class="rounded-lg border border-default bg-muted/30 p-4 font-mono text-xs space-y-2">
-                <div class="flex gap-2">
-                  <span class="text-dimmed">6:15 PM</span>
-                  <span class="text-highlighted font-medium">Marcus:</span>
-                  <span class="text-muted">Traffic was really bad, sorry</span>
-                </div>
-                <div class="flex gap-2">
-                  <span class="text-dimmed">6:18 PM</span>
-                  <span class="text-primary font-medium">You:</span>
-                  <span class="text-muted">You were supposed to be here at 5. Emma was crying.</span>
-                </div>
-                <div class="flex gap-2">
-                  <span class="text-dimmed">6:22 PM</span>
-                  <span class="text-highlighted font-medium">Marcus:</span>
-                  <span class="text-muted">I said I'm sorry. I'll be there by 7.</span>
-                </div>
-                <div class="flex gap-2">
-                  <span class="text-dimmed">6:23 PM</span>
-                  <span class="text-primary font-medium">You:</span>
-                  <span class="text-muted">This is the third time this month.</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- AI Extraction progress -->
-            <div class="rounded-xl border border-default bg-default p-5 shadow-sm">
-              <div class="flex items-center gap-2 mb-4">
-                <UIcon name="i-lucide-sparkles" class="size-4 text-primary" />
-                <p class="text-sm font-medium text-highlighted">AI Analysis</p>
-              </div>
-
-              <div class="space-y-3">
-                <div
-                  v-for="(step, index) in aiExtractionSteps"
-                  :key="index"
-                  class="flex items-center gap-3 transition-all duration-500"
-                  :class="step.visible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'"
+                <!-- Extracted evidence result -->
+                <div 
+                    class="rounded-xl border-2 border-primary/30 bg-primary/5 p-5 transition-all duration-500"
+                    :class="extractedEvidence.visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'"
                 >
-                  <div 
-                    class="flex size-7 items-center justify-center rounded-full"
-                    :class="{
-                      'bg-primary/10': step.status === 'processing',
-                      'bg-success/10': step.status === 'complete',
-                      'bg-warning/10': step.status === 'flagged'
-                    }"
-                  >
-                    <UIcon 
-                      :name="step.status === 'processing' ? 'i-lucide-loader-2' : step.status === 'flagged' ? 'i-lucide-alert-triangle' : 'i-lucide-check'"
-                      class="size-3.5"
-                      :class="{
-                        'text-primary animate-spin': step.status === 'processing',
-                        'text-success': step.status === 'complete',
-                        'text-warning': step.status === 'flagged'
-                      }"
-                    />
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <p class="text-sm text-highlighted">{{ step.label }}</p>
-                    <p v-if="step.detail" class="text-xs text-muted">{{ step.detail }}</p>
-                  </div>
+                    <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <UIcon name="i-lucide-file-check" class="size-4 text-primary" />
+                        <p class="text-sm font-semibold text-highlighted">Evidence Created</p>
+                    </div>
+                    <UBadge color="primary" variant="subtle" size="xs">
+                        Added to timeline
+                    </UBadge>
+                    </div>
+
+                    <p class="text-sm text-muted mb-3">{{ extractedEvidence.summary }}</p>
+
+                    <!-- Tags -->
+                    <div class="flex flex-wrap gap-1.5 mb-3">
+                    <UBadge
+                        v-for="tag in extractedEvidence.tags"
+                        :key="tag"
+                        color="neutral"
+                        variant="outline"
+                        size="xs"
+                    >
+                        {{ tag }}
+                    </UBadge>
+                    </div>
+
+                    <!-- Flags -->
+                    <div class="flex items-center gap-3 pt-3 border-t border-primary/20">
+                    <div v-if="extractedEvidence.flags.agreement_violation" class="flex items-center gap-1.5">
+                        <UIcon name="i-lucide-alert-circle" class="size-3.5 text-warning" />
+                        <span class="text-xs text-warning font-medium">Schedule violation</span>
+                    </div>
+                    <div v-if="extractedEvidence.flags.child_involved" class="flex items-center gap-1.5">
+                        <UIcon name="i-lucide-user" class="size-3.5 text-info" />
+                        <span class="text-xs text-info font-medium">Child involved</span>
+                    </div>
+                    </div>
                 </div>
-              </div>
             </div>
 
-            <!-- Extracted evidence result -->
-            <div 
-              class="rounded-xl border-2 border-primary/30 bg-primary/5 p-5 transition-all duration-500"
-              :class="extractedEvidence.visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'"
-            >
-              <div class="flex items-center justify-between mb-3">
-                <div class="flex items-center gap-2">
-                  <UIcon name="i-lucide-file-check" class="size-4 text-primary" />
-                  <p class="text-sm font-semibold text-highlighted">Evidence Created</p>
+            <!-- Right: Content -->
+            <div class="order-1 lg:order-2">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
+                    <UIcon name="i-lucide-scan-text" class="size-4" />
+                    <span>Screenshot Analysis</span>
                 </div>
-                <UBadge color="primary" variant="subtle" size="xs">
-                  Added to timeline
-                </UBadge>
-              </div>
-
-              <p class="text-sm text-muted mb-3">{{ extractedEvidence.summary }}</p>
-
-              <!-- Tags -->
-              <div class="flex flex-wrap gap-1.5 mb-3">
-                <UBadge
-                  v-for="tag in extractedEvidence.tags"
-                  :key="tag"
-                  color="neutral"
-                  variant="outline"
-                  size="xs"
-                >
-                  {{ tag }}
-                </UBadge>
-              </div>
-
-              <!-- Flags -->
-              <div class="flex items-center gap-3 pt-3 border-t border-primary/20">
-                <div v-if="extractedEvidence.flags.agreement_violation" class="flex items-center gap-1.5">
-                  <UIcon name="i-lucide-alert-circle" class="size-3.5 text-warning" />
-                  <span class="text-xs text-warning font-medium">Schedule violation</span>
+                <h2 class="text-4xl font-bold text-highlighted mb-6">Screenshot it. AI does the rest.</h2>
+                <p class="text-lg text-muted mb-8">Every text screenshot, every email, every photo—just upload it. Our AI reads the image, extracts every word, identifies who said what, and flags anything your lawyer needs to see.</p>
+                
+                <div class="space-y-6">
+                    <div v-for="capability in capabilities" :key="capability.title" class="flex gap-4">
+                        <div class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                            <UIcon :name="capability.icon" class="size-6" />
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-highlighted text-lg">{{ capability.title }}</h3>
+                            <p class="text-muted">{{ capability.description }}</p>
+                        </div>
+                    </div>
                 </div>
-                <div v-if="extractedEvidence.flags.child_involved" class="flex items-center gap-1.5">
-                  <UIcon name="i-lucide-user" class="size-3.5 text-info" />
-                  <span class="text-xs text-info font-medium">Child involved</span>
+
+                <div class="mt-10">
+                    <UButton to="/auth/signup" color="primary" size="lg" class="rounded-full px-8">Start uploading evidence</UButton>
                 </div>
-              </div>
             </div>
-          </div>
         </div>
       </UContainer>
     </section>
+    
+    <HomeCourtDocumentPreview />
 
     <!-- For Attorneys Section -->
-    <section class="border-t border-default bg-muted py-24">
+    <section class="border-t border-default bg-default py-24">
       <UContainer>
         <div class="mx-auto max-w-6xl">
           <div class="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
@@ -708,6 +770,7 @@ onUnmounted(() => {
                   size="lg"
                   color="neutral"
                   variant="soft"
+                  class="rounded-full px-8"
                 >
                   Partner with us
                   <template #trailing>
@@ -735,7 +798,7 @@ onUnmounted(() => {
     </section>
 
     <!-- Security Section -->
-    <section class="border-t border-default bg-default py-24">
+    <section class="border-t border-default bg-muted py-24">
       <UContainer>
         <div class="mx-auto max-w-5xl">
           <div class="text-center mb-12">
@@ -788,13 +851,13 @@ onUnmounted(() => {
     </section>
 
     <!-- Final CTA -->
-    <section class="border-t border-default bg-muted py-24">
+    <section class="border-t border-default bg-primary-600 py-24 text-center">
       <UContainer>
-        <div class="mx-auto max-w-2xl text-center">
-          <h2 class="text-3xl font-bold tracking-tight text-highlighted sm:text-4xl">
+        <div class="mx-auto max-w-2xl">
+          <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">
             Stop carrying this in your head.
           </h2>
-          <p class="mt-4 text-lg text-muted">
+          <p class="mt-4 text-lg text-primary-100">
             Sign up. Press record. Talk. Done.
           </p>
 
@@ -802,14 +865,16 @@ onUnmounted(() => {
             <UButton
               to="/auth/signup"
               size="xl"
-              color="primary"
-              class="px-8"
+              color="white"
+              variant="solid"
+              class="px-8 rounded-full font-bold text-primary-600"
             >
               Start documenting
               <template #trailing>
                 <UIcon name="i-lucide-arrow-right" class="size-4" />
               </template>
             </UButton>
+            <p class="mt-6 text-sm text-primary-200">No credit card required • Cancel anytime</p>
           </div>
         </div>
       </UContainer>
