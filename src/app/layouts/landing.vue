@@ -7,7 +7,7 @@ defineOptions({
 <template>
   <div class="min-h-screen bg-default text-default">
     <!-- Header -->
-    <header class="fixed left-0 right-0 top-0 z-50 border-b border-default/80 bg-default/80 backdrop-blur-md">
+    <header class="fixed left-0 right-0 top-0 z-50 bg-default/80 backdrop-blur-md">
       <UContainer>
         <div class="flex h-16 items-center justify-between">
           <!-- Logo -->

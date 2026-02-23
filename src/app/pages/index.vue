@@ -288,6 +288,8 @@ onUnmounted(() => {
               </template>
             </UButton>
             
+            <!-- TODO: Add social proof once we have real users -->
+            <!--
             <div class="flex items-center gap-2 text-sm text-muted mt-4 sm:mt-0 sm:ml-6">
               <div class="flex -space-x-2">
                 <div class="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-xs font-bold text-gray-600">JD</div>
@@ -296,6 +298,7 @@ onUnmounted(() => {
               </div>
               <span>Trusted by 2,000+ parents</span>
             </div>
+            -->
           </div>
 
           <!-- Trust Badges -->
@@ -317,55 +320,51 @@ onUnmounted(() => {
 
         <!-- Hero Image/Mockup - Centered -->
         <div class="mt-16 sm:mt-24 relative mx-auto max-w-5xl">
-          <div class="rounded-3xl bg-elevated/50 p-4 ring-1 ring-inset ring-gray-900/5 lg:rounded-3xl lg:p-6 backdrop-blur-sm">
-             <div class="bg-default rounded-2xl shadow-2xl overflow-hidden border border-default">
-                <div class="grid lg:grid-cols-2 gap-8 items-center p-8 lg:p-12">
-                    <div class="order-2 lg:order-1 flex justify-center">
-                        <HomeHeroPhoneMockup />
-                    </div>
-                    <div class="order-1 lg:order-2 space-y-6">
-                        <div class="bg-elevated p-6 rounded-xl shadow-sm border border-default">
-                            <div class="flex items-center gap-3 mb-3">
-                                <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                                    <UIcon name="i-lucide-mic" class="size-5" />
-                                </div>
-                                <div>
-                                    <h3 class="font-semibold text-highlighted">Voice to Timeline</h3>
-                                    <p class="text-sm text-muted">You talk, we type and organize.</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="bg-elevated p-6 rounded-xl shadow-sm border border-default">
-                            <div class="flex items-center gap-3 mb-3">
-                                <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                                    <UIcon name="i-lucide-search" class="size-5" />
-                                </div>
-                                <div>
-                                    <h3 class="font-semibold text-highlighted">Searchable Evidence</h3>
-                                    <p class="text-sm text-muted">Find exactly what you need, instantly.</p>
-                                </div>
-                            </div>
-                        </div>
-                         <div class="bg-elevated p-6 rounded-xl shadow-sm border border-default">
-                            <div class="flex items-center gap-3 mb-3">
-                                <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                                    <UIcon name="i-lucide-file-text" class="size-5" />
-                                </div>
-                                <div>
-                                    <h3 class="font-semibold text-highlighted">Court-Ready Exports</h3>
-                                    <p class="text-sm text-muted">Generate professional PDFs in seconds.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+          <div class="grid lg:grid-cols-2 gap-8 items-center p-4 lg:p-6">
+            <div class="order-2 lg:order-1 flex justify-center">
+              <HomeHeroPhoneMockup />
+            </div>
+            <div class="order-1 lg:order-2 space-y-6">
+              <div class="bg-elevated p-6 rounded-xl">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <UIcon name="i-lucide-mic" class="size-5" />
+                  </div>
+                  <div>
+                    <h3 class="font-semibold text-highlighted">Voice to Timeline</h3>
+                    <p class="text-sm text-muted">You talk, we type and organize.</p>
+                  </div>
                 </div>
-             </div>
+              </div>
+              <div class="bg-elevated p-6 rounded-xl">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <UIcon name="i-lucide-search" class="size-5" />
+                  </div>
+                  <div>
+                    <h3 class="font-semibold text-highlighted">Searchable Evidence</h3>
+                    <p class="text-sm text-muted">Find exactly what you need, instantly.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="bg-elevated p-6 rounded-xl">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <UIcon name="i-lucide-file-text" class="size-5" />
+                  </div>
+                  <div>
+                    <h3 class="font-semibold text-highlighted">Court-Ready Exports</h3>
+                    <p class="text-sm text-muted">Generate professional PDFs in seconds.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </UContainer>
     </section>
 
-    <!-- Social Proof / Testimonials -->
+    <!-- TODO: Testimonials section — uncomment and populate once we have real user feedback
     <section class="py-24 bg-muted border-y border-default">
         <UContainer>
             <div class="text-center mb-16">
@@ -374,44 +373,15 @@ onUnmounted(() => {
             </div>
             <div class="grid md:grid-cols-3 gap-8">
                 <div class="bg-default p-8 rounded-2xl shadow-sm border border-default">
-                    <div class="flex gap-1 text-yellow-400 mb-4">
-                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
-                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
-                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
-                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
-                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
-                    </div>
-                    <p class="text-toned mb-6">"My lawyer was blown away by the timeline Daylight generated. It saved me thousands in legal fees and hours of stress."</p>
-                    <div class="font-medium text-highlighted">Sarah M.</div>
-                    <div class="text-sm text-muted">Single Mom of 2</div>
-                </div>
-                <div class="bg-default p-8 rounded-2xl shadow-sm border border-default">
-                    <div class="flex gap-1 text-yellow-400 mb-4">
-                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
-                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
-                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
-                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
-                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
-                    </div>
-                    <p class="text-toned mb-6">"I used to keep everything in notes and screenshots. Daylight organizes it all automatically. It's peace of mind in an app."</p>
-                    <div class="font-medium text-highlighted">David K.</div>
-                    <div class="text-sm text-muted">Co-parenting Dad</div>
-                </div>
-                <div class="bg-default p-8 rounded-2xl shadow-sm border border-default">
-                    <div class="flex gap-1 text-yellow-400 mb-4">
-                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
-                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
-                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
-                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
-                        <UIcon name="i-lucide-star" class="size-5 fill-current" />
-                    </div>
-                    <p class="text-toned mb-6">"The voice notes feature is a lifesaver. I just talk after a drop-off and it's documented. Highly recommend."</p>
-                    <div class="font-medium text-highlighted">Jessica R.</div>
-                    <div class="text-sm text-muted">Mother of 3</div>
+                    <div class="flex gap-1 text-yellow-400 mb-4">stars</div>
+                    <p class="text-toned mb-6">"Quote here"</p>
+                    <div class="font-medium text-highlighted">Name</div>
+                    <div class="text-sm text-muted">Role</div>
                 </div>
             </div>
         </UContainer>
     </section>
+    -->
 
     <!-- How It Works (Simplified) -->
     <section id="how-it-works" class="py-24 bg-default">
@@ -851,13 +821,13 @@ onUnmounted(() => {
     </section>
 
     <!-- Final CTA -->
-    <section class="border-t border-default bg-primary-600 py-24 text-center">
+    <section class="border-t border-default bg-elevated py-24 text-center">
       <UContainer>
         <div class="mx-auto max-w-2xl">
-          <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+          <h2 class="text-3xl font-bold tracking-tight text-highlighted sm:text-4xl">
             Stop carrying this in your head.
           </h2>
-          <p class="mt-4 text-lg text-primary-100">
+          <p class="mt-4 text-lg text-muted">
             Sign up. Press record. Talk. Done.
           </p>
 
@@ -865,16 +835,16 @@ onUnmounted(() => {
             <UButton
               to="/auth/signup"
               size="xl"
-              color="white"
+              color="primary"
               variant="solid"
-              class="px-8 rounded-full font-bold text-primary-600"
+              class="px-8 rounded-full font-bold"
             >
               Start documenting
               <template #trailing>
                 <UIcon name="i-lucide-arrow-right" class="size-4" />
               </template>
             </UButton>
-            <p class="mt-6 text-sm text-primary-200">No credit card required • Cancel anytime</p>
+            <p class="mt-6 text-sm text-dimmed">No credit card required • Cancel anytime</p>
           </div>
         </div>
       </UContainer>

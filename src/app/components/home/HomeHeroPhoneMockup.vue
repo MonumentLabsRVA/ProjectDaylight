@@ -73,7 +73,7 @@ onUnmounted(() => {
     <div class="relative">
       <!-- Phone outer frame -->
       <div
-        class="relative w-[280px] sm:w-[300px] h-[580px] sm:h-[620px] bg-neutral-200 dark:bg-neutral-900 rounded-[50px] p-2 shadow-2xl shadow-black/20 dark:shadow-black/50 border border-neutral-300 dark:border-neutral-700/50"
+        class="relative w-[280px] sm:w-[300px] h-[580px] sm:h-[620px] bg-neutral-200 dark:bg-neutral-900 rounded-[50px] p-2 shadow-2xl shadow-black/20 dark:shadow-black/50"
       >
         <!-- Phone inner bezel -->
         <div class="relative w-full h-full bg-neutral-100 dark:bg-neutral-950 rounded-[42px] overflow-hidden">
@@ -87,16 +87,16 @@ onUnmounted(() => {
 
           <!-- Screen content -->
           <div
-            class="relative w-full h-full bg-gradient-to-b from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-950 pt-14 overflow-hidden"
+            class="relative w-full h-full bg-muted pt-14 overflow-hidden"
           >
             <!-- App header -->
-            <div class="px-5 pb-4 border-b border-neutral-200 dark:border-neutral-800/50">
+            <div class="px-5 pb-4">
               <div class="flex items-center justify-between">
                 <div>
-                  <p class="text-[10px] text-neutral-500 uppercase tracking-wider font-medium">
+                  <p class="text-[10px] text-dimmed uppercase tracking-wider font-medium">
                     Your Timeline
                   </p>
-                  <p class="text-lg font-semibold text-neutral-900 dark:text-white mt-0.5">
+                  <p class="text-lg font-semibold text-highlighted mt-0.5">
                     November 2025
                   </p>
                 </div>
@@ -109,24 +109,24 @@ onUnmounted(() => {
 
               <!-- Quick stats -->
               <div class="flex gap-3 mt-4">
-                <div class="flex-1 bg-neutral-200/70 dark:bg-neutral-800/50 rounded-xl px-3 py-2">
-                  <p class="text-[10px] text-neutral-500">
+                <div class="flex-1 bg-elevated rounded-xl px-3 py-2">
+                  <p class="text-[10px] text-dimmed">
                     Events
                   </p>
-                  <p class="text-sm font-bold text-neutral-900 dark:text-white">
+                  <p class="text-sm font-bold text-highlighted">
                     47
                   </p>
                 </div>
-                <div class="flex-1 bg-neutral-200/70 dark:bg-neutral-800/50 rounded-xl px-3 py-2">
-                  <p class="text-[10px] text-neutral-500">
+                <div class="flex-1 bg-elevated rounded-xl px-3 py-2">
+                  <p class="text-[10px] text-dimmed">
                     Evidence
                   </p>
-                  <p class="text-sm font-bold text-neutral-900 dark:text-white">
+                  <p class="text-sm font-bold text-highlighted">
                     23
                   </p>
                 </div>
-                <div class="flex-1 bg-neutral-200/70 dark:bg-neutral-800/50 rounded-xl px-3 py-2">
-                  <p class="text-[10px] text-neutral-500">
+                <div class="flex-1 bg-elevated rounded-xl px-3 py-2">
+                  <p class="text-[10px] text-dimmed">
                     Flags
                   </p>
                   <p class="text-sm font-bold text-warning">
@@ -146,13 +146,7 @@ onUnmounted(() => {
               >
                 <!-- Event card -->
                 <div
-                  class="bg-white/80 dark:bg-neutral-800/60 backdrop-blur rounded-2xl p-3 border border-neutral-200 dark:border-neutral-700/30"
-                  :class="{
-                    'border-l-2 border-l-error': event.type === 'incident',
-                    'border-l-2 border-l-success': event.type === 'positive',
-                    'border-l-2 border-l-info': event.type === 'medical',
-                    'border-l-2 border-l-warning': event.type === 'communication'
-                  }"
+                  class="bg-default/80 backdrop-blur rounded-2xl p-3"
                 >
                   <div class="flex items-start gap-3">
                     <div
@@ -177,14 +171,14 @@ onUnmounted(() => {
                     </div>
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center justify-between gap-2">
-                        <p class="text-xs font-semibold text-neutral-900 dark:text-white truncate">
+                        <p class="text-xs font-semibold text-highlighted truncate">
                           {{ event.title }}
                         </p>
-                        <span class="text-[10px] text-neutral-500 shrink-0">
+                        <span class="text-[10px] text-dimmed shrink-0">
                           {{ event.time }}
                         </span>
                       </div>
-                      <p class="text-[11px] text-neutral-600 dark:text-neutral-400 mt-0.5 line-clamp-2">
+                      <p class="text-[11px] text-muted mt-0.5 line-clamp-2">
                         {{ event.description }}
                       </p>
                       <div class="flex items-center gap-2 mt-2">
@@ -201,7 +195,7 @@ onUnmounted(() => {
                         </span>
                         <span
                           v-if="event.evidence"
-                          class="text-[9px] text-neutral-500 flex items-center gap-1"
+                          class="text-[9px] text-dimmed flex items-center gap-1"
                         >
                           <UIcon name="i-lucide-paperclip" class="size-2.5" />
                           {{ event.evidence }} attached
@@ -227,10 +221,10 @@ onUnmounted(() => {
       </div>
 
       <!-- Side button (power) -->
-      <div class="absolute right-[-2px] top-32 w-1 h-16 bg-neutral-400 dark:bg-neutral-700 rounded-l-sm" />
+      <div class="absolute right-[-2px] top-32 w-1 h-16 bg-muted rounded-l-sm" />
       <!-- Volume buttons -->
-      <div class="absolute left-[-2px] top-28 w-1 h-8 bg-neutral-400 dark:bg-neutral-700 rounded-r-sm" />
-      <div class="absolute left-[-2px] top-40 w-1 h-12 bg-neutral-400 dark:bg-neutral-700 rounded-r-sm" />
+      <div class="absolute left-[-2px] top-28 w-1 h-8 bg-muted rounded-r-sm" />
+      <div class="absolute left-[-2px] top-40 w-1 h-12 bg-muted rounded-r-sm" />
     </div>
   </div>
 </template>
