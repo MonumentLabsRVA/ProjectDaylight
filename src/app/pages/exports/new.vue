@@ -63,8 +63,8 @@ watch(caseResponse, (res) => {
 // Export form state
 const exportFocus = ref<ExportFocus>('full-timeline')
 const includeEvidenceIndex = ref(true)
-const includeOverview = ref(true)
-const includeAISummary = ref(true)
+const includeOverview = ref(false)
+const includeAISummary = ref(false)
 
 const caseTitle = ref('')
 const courtName = ref('')
@@ -397,12 +397,8 @@ async function generateAndSaveExport() {
   generating.value = true
 
   try {
-    // Generate AI summary first if enabled
-    if (includeAISummary.value) {
-      await generateAISummary()
-    } else {
-      aiSummary.value = null
-    }
+    // AI summary generation is disabled for now to keep export generation fast.
+    aiSummary.value = null
     
     const markdownContent = buildMarkdown()
     
@@ -590,87 +586,16 @@ async function generateAndSaveExport() {
               </div>
             </div>
 
-            <!-- Advanced options -->
-            <UCollapsible class="flex flex-col gap-2">
-              <UButton
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                class="justify-between group self-start"
-                trailing-icon="i-lucide-chevron-down"
-                :ui="{
-                  trailingIcon: 'group-data-[state=open]:rotate-180 transition-transform duration-200'
-                }"
-              >
-                <span class="text-xs font-medium text-highlighted">
-                  Advanced sections & notes
-                </span>
-              </UButton>
-
-              <template #content>
-                <div class="pt-1 space-y-4">
-                  <!-- Sections -->
-                  <div class="space-y-3">
-                    <p class="text-xs font-medium uppercase tracking-wide text-muted">
-                      Sections
-                    </p>
-
-                    <div class="space-y-2">
-                      <USwitch
-                        v-model="includeOverview"
-                        label="Include overview section"
-                        description="Short narrative at the top explaining what the reader should understand."
-                      />
-
-                      <USwitch
-                        v-model="includeEvidenceIndex"
-                        label="Include evidence index"
-                        description="Numbered list of evidence items with summaries and tags."
-                      />
-                    </div>
-                  </div>
-
-                  <!-- Overview notes -->
-                  <div v-if="includeOverview" class="space-y-1">
-                    <p class="text-xs font-medium text-highlighted">
-                      Overview notes (optional)
-                    </p>
-                    <UTextarea
-                      v-model="overviewNotes"
-                      placeholder="Example: This report covers the last 60 days leading up to the temporary custody hearing on..."
-                      :rows="4"
-                      autoresize
-                      class="w-full"
-                    />
-                    <p class="text-[11px] text-muted">
-                      If you leave this blank, we'll include a prompt you can fill in later.
-                    </p>
-                  </div>
-                </div>
-              </template>
-            </UCollapsible>
-
             <!-- Actions -->
             <div class="pt-4 flex flex-col gap-3 border-t border-dashed border-default/60">
               <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div class="flex items-center gap-2 text-xs text-muted">
-                  <template v-if="summaryGenerating">
-                    <UIcon name="i-lucide-sparkles" class="size-4 animate-pulse text-primary" />
-                    <span>AI is analyzing your timeline and evidence...</span>
-                  </template>
-                  <template v-else-if="isLoadingData">
+                  <template v-if="isLoadingData">
                     <UIcon name="i-lucide-loader-2" class="size-4 animate-spin" />
                     <span>Loading timeline and evidence…</span>
                   </template>
                   <template v-else>
-                    <UCheckbox
-                      v-model="includeAISummary"
-                      label="Include AI executive summary"
-                      :ui="{ label: 'text-xs text-muted' }"
-                    />
-                    <UTooltip text="AI analyzes your timeline and evidence to highlight key patterns">
-                      <UIcon name="i-lucide-info" class="size-3.5 text-muted/60" />
-                    </UTooltip>
+                    <span>Ready to generate your export.</span>
                   </template>
                 </div>
 
@@ -689,12 +614,11 @@ async function generateAndSaveExport() {
                     color="primary"
                     variant="solid"
                     icon="i-lucide-file-text"
-                    :loading="generating || summaryGenerating"
+                    :loading="generating"
                     :disabled="isLoadingData"
                     @click="generateAndSaveExport"
                   >
-                    <span v-if="summaryGenerating">Generating...</span>
-                    <span v-else>Generate export</span>
+                    Generate export
                   </UButton>
                 </div>
               </div>
