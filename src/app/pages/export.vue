@@ -621,7 +621,7 @@ function buildMarkdown() {
   lines.push(`**Generated on:** ${new Date().toLocaleString()}`, '')
 
   if (includeOverview.value) {
-    lines.push('## 1. Overview', '')
+    lines.push('## Overview', '')
 
     if (overviewNotes.value.trim()) {
       lines.push(overviewNotes.value.trim(), '')
@@ -633,7 +633,7 @@ function buildMarkdown() {
     }
   }
 
-  lines.push('## 2. Timeline of key events', '')
+  lines.push('## Timeline of key events', '')
 
   const events = filteredEvents.value
 
@@ -667,7 +667,7 @@ function buildMarkdown() {
   }
 
   if (includeEvidenceIndex.value) {
-    lines.push('## 3. Evidence index', '')
+    lines.push('## Evidence index', '')
 
     if (!evidenceData.value?.length) {
       lines.push('_No evidence items found for this export._', '')
@@ -1331,7 +1331,7 @@ async function downloadPdf() {
         })
       }
     } else {
-      doc.text('2. Timeline of Key Events', margin, cursorY)
+      doc.text('Timeline of Key Events', margin, cursorY)
       cursorY += 22
 
       const events = filteredEvents.value
@@ -1403,7 +1403,7 @@ async function downloadPdf() {
       doc.setFont('times', 'bold')
       doc.setFontSize(14)
       doc.setTextColor(20, 20, 20)
-      doc.text(isCompleteRecord ? 'Evidence Index' : '3. Evidence Index', margin, cursorY)
+      doc.text('Evidence Index', margin, cursorY)
       cursorY += 22
 
       const evidenceItems = (evidenceData.value || []) as EvidenceItem[]
