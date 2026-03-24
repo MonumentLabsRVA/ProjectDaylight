@@ -1,7 +1,28 @@
 <script setup lang="ts">
-import type { JournalEntry } from '~/server/api/journal'
+import type { Database } from '~/types/database.types'
 import { getDateStringInTimezone } from '~/composables/useTimezone'
 import type { RealtimeChannel } from '@supabase/supabase-js'
+
+interface JournalEntry {
+  id: string
+  eventText: string | null
+  referenceDate: string | null
+  referenceTimeDescription: string | null
+  status: 'draft' | 'processing' | 'review' | 'completed' | 'cancelled' | 'failed'
+  eventTypes: Database['public']['Enums']['event_type'][]
+  createdAt: string
+  updatedAt: string
+  processedAt: string | null
+  completedAt: string | null
+  evidenceCount: number
+  evidence: Array<{
+    id: string
+    sourceType: string
+    originalFilename: string | null
+    summary: string | null
+    sortOrder: number
+  }>
+}
 
 const { timezone, formatDate: formatTzDate } = useTimezone()
 const supabase = useSupabaseClient()
@@ -53,12 +74,17 @@ onUnmounted(() => {
 })
 
 // Filter states
-const selectedTypes = ref<string[]>([])
+const selectedTypes = ref<JournalEntry['eventTypes'][number][]>([])
 const searchQuery = ref('')
 const sortOrder = ref<'newest' | 'oldest'>('newest')
 
 // Category filters (derived from extracted events)
-const typeOptions = [
+const typeOptions: Array<{
+  value: JournalEntry['eventTypes'][number]
+  label: string
+  icon: string
+  color: 'primary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'
+}> = [
   { value: 'incident', label: 'Incidents', icon: 'i-lucide-alert-triangle', color: 'error' as const },
   { value: 'school', label: 'School', icon: 'i-lucide-graduation-cap', color: 'warning' as const },
   { value: 'medical', label: 'Medical', icon: 'i-lucide-stethoscope', color: 'info' as const },
@@ -84,6 +110,10 @@ function eventTypeColor(type: string): 'primary' | 'success' | 'info' | 'warning
     default:
       return 'neutral'
   }
+}
+
+function getPrimaryEventType(entry: JournalEntry): JournalEntry['eventTypes'][number] | null {
+  return entry.eventTypes[0] ?? null
 }
 
 // Filtered and sorted entries
@@ -146,13 +176,23 @@ function clearFilters() {
   searchQuery.value = ''
 }
 
-function toggleType(type: string) {
+function toggleType(type: JournalEntry['eventTypes'][number]) {
   const index = selectedTypes.value.indexOf(type)
   if (index > -1) {
     selectedTypes.value.splice(index, 1)
   } else {
     selectedTypes.value.push(type)
   }
+}
+
+function parseDateParts(dateStr: string): [number, number, number] | null {
+  const parts = dateStr.split('-').map(Number)
+  if (parts.length !== 3 || parts.some(part => Number.isNaN(part))) {
+    return null
+  }
+
+  const [year, month, day] = parts
+  return [year!, month!, day!]
 }
 
 function formatDateHeader(dateStr: string) {
@@ -184,8 +224,14 @@ function formatRelativeDate(dateStr: string) {
   if (dateStr === tomorrowStr) return 'Tomorrow'
   
   // Calculate days difference properly
-  const [year, month, day] = dateStr.split('-').map(Number)
-  const [todayYear, todayMonth, todayDay] = todayStr.split('-').map(Number)
+  const entryParts = parseDateParts(dateStr)
+  const todayParts = parseDateParts(todayStr)
+  if (!entryParts || !todayParts) {
+    return dateStr
+  }
+
+  const [year, month, day] = entryParts
+  const [todayYear, todayMonth, todayDay] = todayParts
   
   // Create dates at same time (midnight) to compare just the date parts
   const entryDate = new Date(year, month - 1, day)
@@ -414,32 +460,9 @@ function truncateText(text: string | null, maxLength: number) {
               >
                 <UCard
                   :ui="{
-                    base: entry.status === 'processing' 
-                      ? 'hover:bg-muted/5 transition-colors cursor-pointer border-l-4 animate-pulse' 
-                      : 'hover:bg-muted/5 transition-colors cursor-pointer border-l-4',
                     root: entry.status === 'processing'
-                      ? 'border-l-info'
-                      : entry.status === 'failed'
-                        ? 'border-l-error'
-                        : entry.status === 'cancelled'
-                          ? 'border-l-warning'
-                          : Array.isArray(entry.eventTypes)
-                            ? (
-                                entry.eventTypes.includes('incident')
-                                  ? 'border-l-error'
-                                  : entry.eventTypes.includes('medical')
-                                    ? 'border-l-info'
-                                    : entry.eventTypes.includes('school')
-                                      ? 'border-l-warning'
-                                      : entry.eventTypes.includes('positive')
-                                        ? 'border-l-success'
-                                        : entry.eventTypes.includes('communication')
-                                          ? 'border-l-primary'
-                                          : entry.eventTypes.includes('legal')
-                                            ? 'border-l-neutral'
-                                            : 'border-l-neutral'
-                              )
-                            : 'border-l-neutral'
+                      ? 'hover:bg-muted/5 transition-colors cursor-pointer animate-pulse'
+                      : 'hover:bg-muted/5 transition-colors cursor-pointer'
                   }"
                 >
                   <div class="space-y-3">
@@ -487,12 +510,12 @@ function truncateText(text: string | null, maxLength: number) {
                         <!-- Event type badges (only show when completed) -->
                         <UBadge
                           v-else-if="Array.isArray(entry.eventTypes) && entry.eventTypes.length"
-                          :color="eventTypeColor(entry.eventTypes[0])"
+                          :color="eventTypeColor(getPrimaryEventType(entry) || 'legal')"
                           variant="subtle"
                           size="xs"
                           class="capitalize"
                         >
-                          {{ entry.eventTypes[0] }}
+                          {{ getPrimaryEventType(entry) }}
                         </UBadge>
 
                         <span

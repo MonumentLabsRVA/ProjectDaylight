@@ -1,4 +1,5 @@
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import type { Json } from '~/types/database.types'
 
 interface ExtractionEventParticipantGroups {
   primary?: string[]
@@ -81,7 +82,7 @@ export default defineEventHandler(async (event) => {
     const { error: updateError } = await supabase
       .from('voice_recordings')
       .update({
-        extraction_raw: body.extraction,
+        extraction_raw: body.extraction as Json,
         transcript: body.transcript
       })
       .eq('id', body.recordingId)
@@ -140,6 +141,7 @@ export default defineEventHandler(async (event) => {
 
   insertedEvents.forEach((inserted, index) => {
     const source = events[index]
+    if (!source) return
     const eventId = inserted.id as string
 
     if (source.participants) {

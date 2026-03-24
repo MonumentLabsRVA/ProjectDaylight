@@ -94,6 +94,54 @@ export type Database = {
         }
         Relationships: []
       }
+      bug_reports: {
+        Row: {
+          admin_notes: string | null
+          category: Database["public"]["Enums"]["bug_report_category"]
+          created_at: string
+          description: string
+          email: string | null
+          id: string
+          page_url: string | null
+          resolved_at: string | null
+          status: Database["public"]["Enums"]["bug_report_status"]
+          subject: string
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          category?: Database["public"]["Enums"]["bug_report_category"]
+          created_at?: string
+          description: string
+          email?: string | null
+          id?: string
+          page_url?: string | null
+          resolved_at?: string | null
+          status?: Database["public"]["Enums"]["bug_report_status"]
+          subject: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          category?: Database["public"]["Enums"]["bug_report_category"]
+          created_at?: string
+          description?: string
+          email?: string | null
+          id?: string
+          page_url?: string | null
+          resolved_at?: string | null
+          status?: Database["public"]["Enums"]["bug_report_status"]
+          subject?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       journal_entry_evidence: {
         Row: {
           journal_entry_id: string
@@ -382,6 +430,63 @@ export type Database = {
           },
         ]
       }
+      event_evidence_suggestions: {
+        Row: {
+          created_at: string
+          description: string
+          dismissed_at: string | null
+          event_id: string
+          evidence_status: Database["public"]["Enums"]["evidence_mention_status"]
+          evidence_type: Database["public"]["Enums"]["evidence_source_type"]
+          fulfilled_at: string | null
+          fulfilled_evidence_id: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          dismissed_at?: string | null
+          event_id: string
+          evidence_status: Database["public"]["Enums"]["evidence_mention_status"]
+          evidence_type: Database["public"]["Enums"]["evidence_source_type"]
+          fulfilled_at?: string | null
+          fulfilled_evidence_id?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          dismissed_at?: string | null
+          event_id?: string
+          evidence_status?: Database["public"]["Enums"]["evidence_mention_status"]
+          evidence_type?: Database["public"]["Enums"]["evidence_source_type"]
+          fulfilled_at?: string | null
+          fulfilled_evidence_id?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_evidence_suggestions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_evidence_suggestions_fulfilled_evidence_id_fkey"
+            columns: ["fulfilled_evidence_id"]
+            isOneToOne: false
+            referencedRelation: "evidence"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_participants: {
         Row: {
           event_id: string
@@ -448,59 +553,80 @@ export type Database = {
         Row: {
           agreement_violation: boolean | null
           child_involved: boolean
+          child_statements: Json
+          coparent_interaction: Json | null
           created_at: string
           description: string
           duration_minutes: number | null
           id: string
           journal_entry_id: string | null
           location: string | null
+          patterns_noted_v2: Json
           primary_timestamp: string | null
           recording_id: string | null
           safety_concern: boolean | null
           timestamp_precision: Database["public"]["Enums"]["timestamp_precision"]
           title: string
           type: Database["public"]["Enums"]["event_type"]
+          type_v2: string | null
           updated_at: string
           user_id: string
+          welfare_category: string | null
+          welfare_direction: string | null
           welfare_impact: Database["public"]["Enums"]["welfare_impact"]
+          welfare_severity: string | null
         }
         Insert: {
           agreement_violation?: boolean | null
           child_involved?: boolean
+          child_statements?: Json
+          coparent_interaction?: Json | null
           created_at?: string
           description: string
           duration_minutes?: number | null
           id?: string
           journal_entry_id?: string | null
           location?: string | null
+          patterns_noted_v2?: Json
           primary_timestamp?: string | null
           recording_id?: string | null
           safety_concern?: boolean | null
           timestamp_precision?: Database["public"]["Enums"]["timestamp_precision"]
           title: string
           type: Database["public"]["Enums"]["event_type"]
+          type_v2?: string | null
           updated_at?: string
           user_id: string
+          welfare_category?: string | null
+          welfare_direction?: string | null
           welfare_impact?: Database["public"]["Enums"]["welfare_impact"]
+          welfare_severity?: string | null
         }
         Update: {
           agreement_violation?: boolean | null
           child_involved?: boolean
+          child_statements?: Json
+          coparent_interaction?: Json | null
           created_at?: string
           description?: string
           duration_minutes?: number | null
           id?: string
           journal_entry_id?: string | null
           location?: string | null
+          patterns_noted_v2?: Json
           primary_timestamp?: string | null
           recording_id?: string | null
           safety_concern?: boolean | null
           timestamp_precision?: Database["public"]["Enums"]["timestamp_precision"]
           title?: string
           type?: Database["public"]["Enums"]["event_type"]
+          type_v2?: string | null
           updated_at?: string
           user_id?: string
+          welfare_category?: string | null
+          welfare_direction?: string | null
           welfare_impact?: Database["public"]["Enums"]["welfare_impact"]
+          welfare_severity?: string | null
         }
         Relationships: [
           {
@@ -602,6 +728,89 @@ export type Database = {
           },
         ]
       }
+      exports: {
+        Row: {
+          created_at: string
+          focus: string
+          id: string
+          markdown_content: string
+          metadata: Json
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          focus?: string
+          id?: string
+          markdown_content: string
+          metadata?: Json
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          focus?: string
+          id?: string
+          markdown_content?: string
+          metadata?: Json
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          journal_entry_id: string | null
+          result_summary: Json | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["job_status"]
+          type: Database["public"]["Enums"]["job_type"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          result_summary?: Json | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["job_status"]
+          type: Database["public"]["Enums"]["job_type"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          result_summary?: Json | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["job_status"]
+          type?: Database["public"]["Enums"]["job_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patterns: {
         Row: {
           created_at: string
@@ -662,6 +871,54 @@ export type Database = {
         }
         Relationships: []
       }
+      subscriptions: {
+        Row: {
+          billing_interval: Database["public"]["Enums"]["billing_interval"]
+          cancel_at_period_end: boolean
+          created_at: string
+          current_period_end: string
+          current_period_start: string
+          id: string
+          plan_tier: Database["public"]["Enums"]["plan_tier"]
+          status: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id: string | null
+          stripe_price_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          billing_interval?: Database["public"]["Enums"]["billing_interval"]
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
+          id?: string
+          plan_tier?: Database["public"]["Enums"]["plan_tier"]
+          status?: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          billing_interval?: Database["public"]["Enums"]["billing_interval"]
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
+          id?: string
+          plan_tier?: Database["public"]["Enums"]["plan_tier"]
+          status?: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       voice_recordings: {
         Row: {
           created_at: string
@@ -718,6 +975,20 @@ export type Database = {
       action_priority: "urgent" | "high" | "normal" | "low"
       action_status: "open" | "in_progress" | "done" | "cancelled"
       action_type: "document" | "contact" | "file" | "obtain" | "other"
+      billing_interval: "month" | "year"
+      bug_report_category:
+        | "bug"
+        | "feature_request"
+        | "question"
+        | "feedback"
+        | "other"
+      bug_report_status:
+        | "new"
+        | "triaged"
+        | "in_progress"
+        | "resolved"
+        | "closed"
+        | "wont_fix"
       journal_entry_status: "draft" | "processing" | "review" | "completed" | "cancelled"
       communication_direction: "incoming" | "outgoing" | "mixed" | "unknown"
       communication_medium: "text" | "email" | "unknown"
@@ -736,7 +1007,19 @@ export type Database = {
         | "document"
         | "recording"
         | "other"
+      job_status: "pending" | "processing" | "completed" | "failed"
+      job_type: "journal_extraction" | "evidence_processing"
+      plan_tier: "free" | "alpha" | "starter" | "pro" | "enterprise"
       participant_role: "primary" | "witness" | "professional"
+      subscription_status:
+        | "active"
+        | "trialing"
+        | "past_due"
+        | "canceled"
+        | "incomplete"
+        | "incomplete_expired"
+        | "unpaid"
+        | "paused"
       timestamp_precision: "exact" | "day" | "approximate" | "unknown"
       welfare_impact:
         | "none"
@@ -875,6 +1158,22 @@ export const Constants = {
       action_priority: ["urgent", "high", "normal", "low"],
       action_status: ["open", "in_progress", "done", "cancelled"],
       action_type: ["document", "contact", "file", "obtain", "other"],
+      billing_interval: ["month", "year"],
+      bug_report_category: [
+        "bug",
+        "feature_request",
+        "question",
+        "feedback",
+        "other",
+      ],
+      bug_report_status: [
+        "new",
+        "triaged",
+        "in_progress",
+        "resolved",
+        "closed",
+        "wont_fix",
+      ],
       journal_entry_status: ["draft", "processing", "review", "completed", "cancelled"],
       communication_direction: ["incoming", "outgoing", "mixed", "unknown"],
       communication_medium: ["text", "email", "unknown"],
@@ -895,7 +1194,20 @@ export const Constants = {
         "recording",
         "other",
       ],
+      job_status: ["pending", "processing", "completed", "failed"],
+      job_type: ["journal_extraction", "evidence_processing"],
+      plan_tier: ["free", "alpha", "starter", "pro", "enterprise"],
       participant_role: ["primary", "witness", "professional"],
+      subscription_status: [
+        "active",
+        "trialing",
+        "past_due",
+        "canceled",
+        "incomplete",
+        "incomplete_expired",
+        "unpaid",
+        "paused",
+      ],
       timestamp_precision: ["exact", "day", "approximate", "unknown"],
       welfare_impact: [
         "none",

@@ -1,4 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+const shouldPrerenderPublicRoutes = process.env.NODE_ENV === 'production'
+
 export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
@@ -21,9 +23,6 @@ export default defineNuxtConfig({
         lang: 'en'
       },
       title: 'Daylight',
-      titleTemplate: (titleChunk: string) => {
-        return titleChunk && titleChunk !== 'Daylight' ? `${titleChunk} | Daylight` : 'Daylight'
-      },
       link: [
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
         { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
@@ -123,13 +122,10 @@ export default defineNuxtConfig({
 
   routeRules: {
     // Prerender public pages that don't need auth
-    '/': { prerender: true },
-    '/auth/login': { prerender: true },
-    '/auth/signup': { prerender: true },
-    '/auth/confirm': { prerender: true },
-    '/privacy': { prerender: true },
-    '/terms': { prerender: true },
-    '/security': { prerender: true },
+    '/': { prerender: shouldPrerenderPublicRoutes },
+    '/privacy': { prerender: shouldPrerenderPublicRoutes },
+    '/terms': { prerender: shouldPrerenderPublicRoutes },
+    '/security': { prerender: shouldPrerenderPublicRoutes },
     // API routes
     '/api/**': {
       cors: true
@@ -146,7 +142,7 @@ export default defineNuxtConfig({
   supabase: {
     url: process.env.SUPABASE_URL,
     key: process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY,
-    serviceRole: process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY,
+    secretKey: process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY,
     redirect: false,
     redirectOptions: {
       login: '/auth/login',
@@ -155,8 +151,7 @@ export default defineNuxtConfig({
     },
     // Cookie configuration for serverless environments
     cookieOptions: {
-      name: 'sb',
-      lifetime: 60 * 60 * 8, // 8 hours
+      maxAge: 60 * 60 * 8, // 8 hours
       domain: '',
       path: '/',
       sameSite: 'lax'

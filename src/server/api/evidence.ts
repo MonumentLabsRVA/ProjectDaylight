@@ -25,7 +25,7 @@ function mapEvidenceRowToItem(row: EvidenceRow): EvidenceItem {
   if (!originalName && row.summary) {
     // Extract a concise title from the summary (first sentence or ~60 chars)
     const summaryText = row.summary.trim()
-    const firstSentence = summaryText.split(/[.!?]/)[0]
+    const firstSentence = summaryText.split(/[.!?]/)[0] ?? ''
     originalName = firstSentence.length > 60 
       ? firstSentence.substring(0, 60) + '...'
       : firstSentence

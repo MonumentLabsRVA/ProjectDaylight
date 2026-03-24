@@ -10,11 +10,12 @@
  */
 
 import type { Job, JobResultSummary } from '~/types'
-import type { RealtimeChannel } from '@supabase/supabase-js'
+
+type SupabaseRealtimeChannel = ReturnType<ReturnType<typeof useSupabaseClient>['channel']>
 
 // Module-level state (persists across page navigation)
 const activeJobs = ref<Map<string, Job>>(new Map())
-const channels = ref<Map<string, RealtimeChannel>>(new Map())
+const channels = ref<Map<string, SupabaseRealtimeChannel>>(new Map())
 const timeouts = ref<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 const hasRecovered = ref(false)
 
@@ -130,7 +131,7 @@ export function useJobs() {
     // Unsubscribe from Realtime
     const channel = channels.value.get(jobId)
     if (channel) {
-      supabase.removeChannel(channel)
+      supabase.removeChannel(channel as any)
       channels.value.delete(jobId)
     }
 
@@ -150,7 +151,7 @@ export function useJobs() {
 
     // Unsubscribe from all channels
     for (const channel of channels.value.values()) {
-      supabase.removeChannel(channel)
+      supabase.removeChannel(channel as any)
     }
     channels.value.clear()
 

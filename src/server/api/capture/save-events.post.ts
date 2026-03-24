@@ -1,4 +1,5 @@
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import type { Json, TablesInsert } from '~/types/database.types'
 import { canCreateJournalEntry } from '../../utils/subscription'
 
 /**
@@ -185,7 +186,7 @@ export default defineEventHandler(async (event) => {
           reference_date: referenceDate || null,
           reference_time_description: referenceTimeDescription || null,
           status: 'completed',
-          extraction_raw: body.extraction,
+          extraction_raw: body.extraction as Json,
           processed_at: new Date().toISOString(),
           completed_at: new Date().toISOString()
         })
@@ -201,8 +202,9 @@ export default defineEventHandler(async (event) => {
 
       // Link evidence to the journal entry record
       if (journalEntryId && evidenceIds.length) {
+        const currentJournalEntryId = journalEntryId
         const entryEvidenceLinks = evidenceIds.map((evidenceId, index) => ({
-          journal_entry_id: journalEntryId,
+          journal_entry_id: currentJournalEntryId,
           evidence_id: evidenceId,
           sort_order: index,
           is_processed: true,
@@ -220,7 +222,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Insert events (dual-write to legacy and new schema columns)
-    const eventsToInsert = events.map((e) => {
+    const eventsToInsert: TablesInsert<'events'>[] = events.map((e) => {
       const welfareImpact = e.custody_relevance?.welfare_impact
 
       return {
@@ -246,9 +248,9 @@ export default defineEventHandler(async (event) => {
         // Legacy welfare_impact enum for backward compatibility
         welfare_impact: mapNewToLegacyWelfare(welfareImpact) ?? 'unknown',
         // New JSONB enrichment fields
-        child_statements: e.child_statements ?? [],
-        coparent_interaction: e.coparent_interaction ?? null,
-        patterns_noted_v2: e.patterns_noted ?? []
+        child_statements: (e.child_statements ?? []) as unknown as Json,
+        coparent_interaction: (e.coparent_interaction ?? null) as Json | null,
+        patterns_noted_v2: (e.patterns_noted ?? []) as unknown as Json
       }
     })
 
@@ -366,9 +368,12 @@ export default defineEventHandler(async (event) => {
 
       const eventId = createdEventIds[0]!
       for (let i = 0; i < evidenceIds.length; i++) {
+        const evidenceId = evidenceIds[i]
+        if (!evidenceId) continue
+
         eventEvidenceLinks.push({
           event_id: eventId,
-          evidence_id: evidenceIds[i],
+          evidence_id: evidenceId,
           is_primary: i === 0 // First evidence is primary
         })
       }

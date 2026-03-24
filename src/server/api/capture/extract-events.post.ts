@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { getStateGuidance } from '../../utils/state-guidance'
 import { getTimezoneWithProfileFallback } from '../../utils/timezone'
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import type { Database } from '~/types/database.types'
 
 /**
  * POST /api/capture/extract-events
@@ -202,7 +203,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const supabase = await serverSupabaseClient(event)
+    const supabase = await serverSupabaseClient<Database>(event)
 
   // Get authenticated user
   const authUser = await serverSupabaseUser(event)
@@ -233,26 +234,7 @@ export default defineEventHandler(async (event) => {
 
     const { data: caseRow } = await supabase
       .from('cases')
-      .select(
-        [
-          'title',
-          'case_numbers',
-          'jurisdiction_state',
-          'jurisdiction_county',
-          'court_name',
-          'case_type',
-          'stage',
-          'your_role',
-          'opposing_party_name',
-          'opposing_party_role',
-          'children_count',
-          'children_summary',
-          'parenting_schedule',
-          'goals_summary',
-          'risk_flags',
-          'next_court_date'
-        ].join(', ')
-      )
+      .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(1)

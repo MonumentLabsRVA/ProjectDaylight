@@ -1,5 +1,7 @@
 import { getStripe, STRIPE_WEBHOOK_SECRET, getPlanTierFromPriceId, getBillingIntervalFromPriceId } from '../../utils/stripe'
 import { createClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database, TablesInsert, TablesUpdate } from '~/types/database.types'
 
 // Use service role client for webhook (no user context)
 function getServiceClient() {
@@ -17,7 +19,7 @@ function getServiceClient() {
     throw new Error('Missing SUPABASE_URL or SUPABASE_SECRET_KEY (supabaseServiceKey)')
   }
 
-  return createClient(supabaseUrl, supabaseServiceKey)
+  return createClient<Database>(supabaseUrl, supabaseServiceKey)
 }
 
 export default defineEventHandler(async (event) => {
@@ -90,12 +92,12 @@ export default defineEventHandler(async (event) => {
   return { received: true }
 })
 
-async function handleCheckoutCompleted(supabase: ReturnType<typeof createClient>, session: any) {
+async function handleCheckoutCompleted(supabase: SupabaseClient<Database>, session: any) {
   const customerId = session.customer as string
   const subscriptionId = session.subscription as string
   
   // Try to get user ID from session metadata first
-  let userId = session.metadata?.supabase_user_id
+  let userId = session.metadata?.supabase_user_id as string | undefined
 
   // If not in session metadata, try to find by customer ID (we stored it when creating the customer)
   if (!userId && customerId) {
@@ -117,13 +119,15 @@ async function handleCheckoutCompleted(supabase: ReturnType<typeof createClient>
 
   // The subscription.created event will handle the actual subscription record
   // Just ensure customer ID is stored
+  const subscriptionRecord: TablesInsert<'subscriptions'> = {
+    user_id: userId,
+    stripe_customer_id: customerId,
+    stripe_subscription_id: subscriptionId
+  }
+
   const { error } = await supabase
     .from('subscriptions')
-    .upsert({
-      user_id: userId,
-      stripe_customer_id: customerId,
-      stripe_subscription_id: subscriptionId
-    }, {
+    .upsert(subscriptionRecord, {
       onConflict: 'user_id'
     })
 
@@ -132,9 +136,9 @@ async function handleCheckoutCompleted(supabase: ReturnType<typeof createClient>
   }
 }
 
-async function handleSubscriptionUpdated(supabase: ReturnType<typeof createClient>, subscription: any) {
+async function handleSubscriptionUpdated(supabase: SupabaseClient<Database>, subscription: any) {
   const customerId = subscription.customer as string
-  const userId = subscription.metadata?.supabase_user_id
+  const userId = subscription.metadata?.supabase_user_id as string | undefined
 
   // If no user ID in metadata, try to find by customer ID
   let resolvedUserId = userId
@@ -167,20 +171,22 @@ async function handleSubscriptionUpdated(supabase: ReturnType<typeof createClien
     ? new Date(subscription.current_period_end * 1000).toISOString()
     : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // Default to 30 days
 
+  const subscriptionRecord: TablesInsert<'subscriptions'> = {
+    user_id: resolvedUserId,
+    stripe_customer_id: customerId,
+    stripe_subscription_id: subscription.id as string,
+    stripe_price_id: priceId,
+    status: subscription.status as TablesInsert<'subscriptions'>['status'],
+    plan_tier: planTier,
+    billing_interval: billingInterval,
+    current_period_start: periodStart,
+    current_period_end: periodEnd,
+    cancel_at_period_end: subscription.cancel_at_period_end ?? false
+  }
+
   const { error } = await supabase
     .from('subscriptions')
-    .upsert({
-      user_id: resolvedUserId,
-      stripe_customer_id: customerId,
-      stripe_subscription_id: subscription.id,
-      stripe_price_id: priceId,
-      status: subscription.status,
-      plan_tier: planTier,
-      billing_interval: billingInterval,
-      current_period_start: periodStart,
-      current_period_end: periodEnd,
-      cancel_at_period_end: subscription.cancel_at_period_end ?? false
-    }, {
+    .upsert(subscriptionRecord, {
       onConflict: 'user_id'
     })
 
@@ -191,7 +197,7 @@ async function handleSubscriptionUpdated(supabase: ReturnType<typeof createClien
   }
 }
 
-async function handleSubscriptionDeleted(supabase: ReturnType<typeof createClient>, subscription: any) {
+async function handleSubscriptionDeleted(supabase: SupabaseClient<Database>, subscription: any) {
   const customerId = subscription.customer as string
 
   // Find user by customer ID
@@ -207,15 +213,17 @@ async function handleSubscriptionDeleted(supabase: ReturnType<typeof createClien
   }
 
   // Downgrade to free plan
+  const subscriptionUpdate: TablesUpdate<'subscriptions'> = {
+    status: 'canceled',
+    plan_tier: 'free',
+    stripe_subscription_id: null,
+    stripe_price_id: null,
+    cancel_at_period_end: false
+  }
+
   const { error } = await supabase
     .from('subscriptions')
-    .update({
-      status: 'canceled',
-      plan_tier: 'free',
-      stripe_subscription_id: null,
-      stripe_price_id: null,
-      cancel_at_period_end: false
-    })
+    .update(subscriptionUpdate)
     .eq('user_id', data.user_id)
 
   if (error) {
@@ -225,7 +233,7 @@ async function handleSubscriptionDeleted(supabase: ReturnType<typeof createClien
   }
 }
 
-async function handlePaymentFailed(supabase: ReturnType<typeof createClient>, invoice: any) {
+async function handlePaymentFailed(supabase: SupabaseClient<Database>, invoice: any) {
   const customerId = invoice.customer as string
 
   // Find user by customer ID
@@ -241,11 +249,13 @@ async function handlePaymentFailed(supabase: ReturnType<typeof createClient>, in
   }
 
   // Update status to past_due
+  const subscriptionUpdate: TablesUpdate<'subscriptions'> = {
+    status: 'past_due'
+  }
+
   const { error } = await supabase
     .from('subscriptions')
-    .update({
-      status: 'past_due'
-    })
+    .update(subscriptionUpdate)
     .eq('user_id', data.user_id)
 
   if (error) {

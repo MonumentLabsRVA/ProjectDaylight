@@ -121,11 +121,7 @@ export default eventHandler(async (event): Promise<EvidenceDetailResponse | { su
     })
   }
 
-  // Allow both numeric (dev seed) and UUID-style IDs.
-  // Supabase is strict about type matching in filters, so we coerce accordingly.
-  const evidenceId: string | number = /^\d+$/.test(evidenceIdParam)
-    ? Number(evidenceIdParam)
-    : evidenceIdParam
+  const evidenceId = evidenceIdParam
   
   if (!evidenceId) {
     throw createError({

@@ -106,7 +106,7 @@ const parentingSchedule = ref('')
 const goalsSummary = ref('')
 const riskFlags = ref<string[]>([])
 const notes = ref('')
-const nextCourtDate = ref<string | null>(null)
+const nextCourtDate = ref<string | undefined>()
 const lawyerName = ref('')
 const lawyerEmail = ref('')
 
@@ -263,7 +263,7 @@ function applyCase(current: CaseRow | null) {
   riskFlags.value = current.risk_flags ?? []
   notes.value = current.notes ?? ''
   // Convert ISO timestamp to datetime-local format (strips timezone suffix)
-  nextCourtDate.value = formatForDateTimeLocalInput(current.next_court_date)
+  nextCourtDate.value = formatForDateTimeLocalInput(current.next_court_date) ?? undefined
   lawyerName.value = current.lawyer_name ?? ''
   lawyerEmail.value = current.lawyer_email ?? ''
   lastSavedAt.value = current.updated_at

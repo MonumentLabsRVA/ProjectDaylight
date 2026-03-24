@@ -728,9 +728,12 @@ async function saveExtractedEvents(
 
     const eventId = createdEventIds[0]!
     for (let i = 0; i < evidenceIds.length; i++) {
+      const evidenceId = evidenceIds[i]
+      if (!evidenceId) continue
+
       eventEvidenceLinks.push({
         event_id: eventId,
-        evidence_id: evidenceIds[i],
+        evidence_id: evidenceId,
         is_primary: i === 0
       })
     }

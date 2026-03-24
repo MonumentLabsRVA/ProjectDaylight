@@ -26,6 +26,16 @@ export function getDateStringInTimezone(date: Date, timezone: string): string {
   }).format(date)
 }
 
+function parseDateParts(dateStr: string): [number, number, number] | null {
+  const parts = dateStr.split('-').map(Number)
+  if (parts.length !== 3 || parts.some(part => Number.isNaN(part))) {
+    return null
+  }
+
+  const [year, month, day] = parts
+  return [year!, month!, day!]
+}
+
 /**
  * Get the start of day in a specific timezone as a Date object.
  * This returns the moment when the day starts in the given timezone.
@@ -83,7 +93,11 @@ export function getEndOfDayInTimezone(date: Date, timezone: string): Date {
  */
 export function getStartOfWeekInTimezone(date: Date, timezone: string): Date {
   const dateStr = getDateStringInTimezone(date, timezone)
-  const [year, month, day] = dateStr.split('-').map(Number)
+  const parts = parseDateParts(dateStr)
+  if (!parts) {
+    return getStartOfDayInTimezone(date, timezone)
+  }
+  const [year, month, day] = parts
   
   // Create a date object for that day in UTC, then find the day of week
   const tempDate = new Date(Date.UTC(year, month - 1, day))
@@ -102,7 +116,11 @@ export function getStartOfWeekInTimezone(date: Date, timezone: string): Date {
  */
 export function getStartOfMonthInTimezone(date: Date, timezone: string): Date {
   const dateStr = getDateStringInTimezone(date, timezone)
-  const [year, month] = dateStr.split('-').map(Number)
+  const parts = parseDateParts(dateStr)
+  if (!parts) {
+    return getStartOfDayInTimezone(date, timezone)
+  }
+  const [year, month] = parts
   
   // First day of month
   const firstOfMonth = new Date(Date.UTC(year, month - 1, 1))
@@ -115,7 +133,11 @@ export function getStartOfMonthInTimezone(date: Date, timezone: string): Date {
 export function getDaysAgoInTimezone(days: number, timezone: string): Date {
   const now = new Date()
   const todayStr = getDateStringInTimezone(now, timezone)
-  const [year, month, day] = todayStr.split('-').map(Number)
+  const parts = parseDateParts(todayStr)
+  if (!parts) {
+    return getStartOfDayInTimezone(now, timezone)
+  }
+  const [year, month, day] = parts
   
   const targetDate = new Date(Date.UTC(year, month - 1, day - days))
   return getStartOfDayInTimezone(targetDate, timezone)

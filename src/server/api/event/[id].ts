@@ -1,5 +1,5 @@
 import type { TimelineEvent } from '~/types'
-import type { Tables } from '~/types/database.types'
+import type { Tables, TablesUpdate } from '~/types/database.types'
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 
 type EventRow = Tables<'events'> & {
@@ -20,7 +20,7 @@ type EventEvidenceSuggestionRow = Tables<'event_evidence_suggestions'>
 
 interface EventDetailResponse extends TimelineEvent {
   // Additional fields from the database
-  extractionType?: string
+  extractionType?: TimelineEvent['extractionType']
   childInvolved?: boolean
   agreementViolation?: boolean
   safetyConcern?: boolean
@@ -110,7 +110,7 @@ function mapEventToDetailResponse(
     id: row.id,
     timestamp: row.primary_timestamp || row.created_at,
     type: row.type as TimelineEvent['type'],
-    extractionType: (row as any).type_v2 as string | undefined,
+    extractionType: (row as any).type_v2 as TimelineEvent['extractionType'],
     title: row.title || 'Untitled Event',
     description: row.description || '',
     participants,
@@ -249,7 +249,7 @@ export default eventHandler(async (event): Promise<EventDetailResponse | { succe
 
       const evidenceIds = Array.from(
         new Set(
-          (links || []).map((row: EventEvidenceRow) => row.evidence_id as string)
+          (links || []).map(row => row.evidence_id)
         )
       )
 
@@ -360,7 +360,7 @@ export default eventHandler(async (event): Promise<EventDetailResponse | { succe
 
     const body = await readBody<UpdateEventBody>(event)
 
-    const update: Tables<'events'>['Update'] = {}
+    const update: TablesUpdate<'events'> = {}
 
     if (body.title !== undefined) update.title = body.title || 'Untitled event'
     if (body.description !== undefined) update.description = body.description || ''

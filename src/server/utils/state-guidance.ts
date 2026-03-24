@@ -74,15 +74,16 @@ Document events that demonstrate your involvement and any concerning behaviors b
 }
 
 const DEFAULT_KEY = '_default' as const
+const DEFAULT_STATE_GUIDANCE = STATE_CUSTODY_GUIDANCE[DEFAULT_KEY]!
 
 export function getStateGuidance(jurisdictionState: string | null | undefined): StateGuidance {
   if (!jurisdictionState) {
-    return STATE_CUSTODY_GUIDANCE[DEFAULT_KEY]
+    return DEFAULT_STATE_GUIDANCE
   }
 
   const normalized = normalizeStateName(jurisdictionState)
 
-  return STATE_CUSTODY_GUIDANCE[normalized] || STATE_CUSTODY_GUIDANCE[DEFAULT_KEY]
+  return STATE_CUSTODY_GUIDANCE[normalized] ?? DEFAULT_STATE_GUIDANCE
 }
 
 export function normalizeStateName(input: string): string {

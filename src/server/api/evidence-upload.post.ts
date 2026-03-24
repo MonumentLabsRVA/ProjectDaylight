@@ -115,6 +115,12 @@ export default defineEventHandler(async (event) => {
     }
 
     const row = data?.[0]
+    if (!row) {
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Evidence metadata was not returned after upload.'
+      })
+    }
 
     return {
       id: row.id,

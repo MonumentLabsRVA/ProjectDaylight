@@ -104,7 +104,7 @@ const links = [
 function extractSearchItems(items: NavigationMenuItem[]): SearchItem[] {
   const result: SearchItem[] = []
   for (const item of items) {
-    if (item.to) {
+    if (item.to && item.label) {
       result.push({
         label: item.label,
         icon: item.icon,

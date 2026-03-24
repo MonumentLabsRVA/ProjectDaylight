@@ -1,5 +1,6 @@
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 import { generateReportMetadata } from '../../utils/generate-subject'
+import type { Database } from '~/types/database.types'
 
 interface BugReportBody {
   description: string
@@ -33,7 +34,7 @@ export default defineEventHandler(async (event) => {
   const { subject, category } = await generateReportMetadata(body.description.trim())
 
   // Save to database
-  const supabase = await serverSupabaseClient(event)
+  const supabase = await serverSupabaseClient<Database>(event)
 
   const { data, error } = await supabase
     .from('bug_reports')

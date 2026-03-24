@@ -32,15 +32,14 @@ watch(session, (newSession) => {
 
 // Filter states
 const selectedTypes = ref<ExtractionEventType[]>([])
-const dateRange = ref<{ start: string | null; end: string | null }>({
-  start: null,
-  end: null
-})
+const dateRange = ref<{ start?: string; end?: string }>({})
 const sortOrder = ref<'newest' | 'oldest'>('newest')
 const searchQuery = ref('')
 
+type DatePreset = 'today' | 'week' | 'month' | '30days' | '90days' | 'all' | 'custom'
+
 // Quick date range presets
-const datePresets = [
+const datePresets: { label: string; value: Exclude<DatePreset, 'custom'> }[] = [
   { label: 'Today', value: 'today' },
   { label: 'This Week', value: 'week' },
   { label: 'This Month', value: 'month' },
@@ -49,7 +48,7 @@ const datePresets = [
   { label: 'All Time', value: 'all' }
 ]
 
-const selectedPreset = ref('all')
+const selectedPreset = ref<DatePreset>('all')
 
 // Helper to map legacy UI event types (incident, positive, etc.)
 // to the new, more granular extraction event types used by the AI.
@@ -74,7 +73,7 @@ function getExtractionType(event: TimelineEvent): ExtractionEventType {
 // Re-export shared type options for template use
 const typeOptions = extractionTypeOptions
 
-const sortOptions = [
+const sortOptions: { label: string; value: 'newest' | 'oldest'; icon: string }[] = [
   { label: 'Newest First', value: 'newest', icon: 'i-lucide-arrow-down' },
   { label: 'Oldest First', value: 'oldest', icon: 'i-lucide-arrow-up' }
 ]
@@ -83,14 +82,48 @@ const typeColors = extractionTypeColors
 
 // Handle date preset selection
 // Uses user's timezone for accurate "today", "this week" calculations
-function selectDatePreset(preset: string) {
+function parseDateParts(dateStr: string): [number, number, number] | null {
+  const parts = dateStr.split('-').map(Number)
+  if (parts.length !== 3 || parts.some(part => Number.isNaN(part))) {
+    return null
+  }
+
+  const [year, month, day] = parts
+  return [year!, month!, day!]
+}
+
+function showDateSeparator(index: number, event: TimelineEvent): boolean {
+  if (index === 0) return true
+
+  const previousEvent = filteredEvents.value[index - 1]
+  if (!previousEvent) return true
+
+  return getEventDateString(event.timestamp) !== getEventDateString(previousEvent.timestamp)
+}
+
+function showItemSeparator(index: number, event: TimelineEvent): boolean {
+  if (index === filteredEvents.value.length - 1) return false
+
+  const nextEvent = filteredEvents.value[index + 1]
+  if (!nextEvent) return false
+
+  return getEventDateString(event.timestamp) === getEventDateString(nextEvent.timestamp)
+}
+
+function selectDatePreset(preset: Exclude<DatePreset, 'custom'>) {
   selectedPreset.value = preset
   const now = new Date()
   const tz = timezone.value
   
   // Get today's date string in user's timezone (YYYY-MM-DD)
   const todayStr = getDateStringInTimezone(now, tz)
-  const [year, month, day] = todayStr.split('-').map(Number)
+  const todayParts = parseDateParts(todayStr)
+  if (!todayParts) {
+    dateRange.value = {}
+    return
+  }
+
+  const [year, month, day] = todayParts
   
   switch (preset) {
     case 'today':
@@ -140,7 +173,7 @@ function selectDatePreset(preset: string) {
     }
     case 'all':
     default:
-      dateRange.value = { start: null, end: null }
+      dateRange.value = {}
   }
 }
 
@@ -157,7 +190,7 @@ function toggleType(type: ExtractionEventType) {
 // Clear all filters
 function clearFilters() {
   selectedTypes.value = []
-  dateRange.value = { start: null, end: null }
+  dateRange.value = {}
   selectedPreset.value = 'all'
   searchQuery.value = ''
 }
@@ -165,8 +198,8 @@ function clearFilters() {
 // Check if any filters are active
 const hasActiveFilters = computed(() => {
   return selectedTypes.value.length > 0 || 
-         dateRange.value.start !== null || 
-         dateRange.value.end !== null ||
+         Boolean(dateRange.value.start) || 
+         Boolean(dateRange.value.end) ||
          searchQuery.value.length > 0
 })
 
@@ -390,7 +423,7 @@ function formatTime(timestamp: string): string {
                   <UButton
                     variant="ghost"
                     size="xs"
-                    @click="dateRange = { start: null, end: null }; selectedPreset = 'all'"
+                    @click="dateRange = {}; selectedPreset = 'all'"
                   >
                     Clear
                   </UButton>
@@ -554,7 +587,7 @@ function formatTime(timestamp: string): string {
           <div v-for="(event, index) in filteredEvents" :key="event.id">
             <!-- Date separator for new days -->
             <div
-              v-if="index === 0 || getEventDateString(event.timestamp) !== getEventDateString(filteredEvents[index - 1].timestamp)"
+              v-if="showDateSeparator(index, event)"
               class="flex items-center gap-2 mt-4 mb-2"
             >
               <USeparator class="flex-1" />
@@ -630,7 +663,7 @@ function formatTime(timestamp: string): string {
             </NuxtLink>
             <!-- Separator between items on the same day -->
             <USeparator
-              v-if="index !== filteredEvents.length - 1 && getEventDateString(event.timestamp) === getEventDateString(filteredEvents[index + 1].timestamp)"
+              v-if="showItemSeparator(index, event)"
               class="my-1 opacity-60"
             />
           </div>

@@ -2,6 +2,7 @@ import OpenAI from 'openai'
 import { zodTextFormat } from 'openai/helpers/zod'
 import { z } from 'zod'
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import type { TablesInsert } from '~/types/database.types'
 
 interface EventSuggestedEvidenceBody {
   /**
@@ -89,7 +90,7 @@ export default defineEventHandler(async (event) => {
       supabase
         .from('events')
         .select(
-          'id, user_id, type, title, description, primary_timestamp, timestamp_precision, location, child_involved, agreement_violation, safety_concern, welfare_impact'
+          'id, user_id, type, title, description, primary_timestamp, timestamp_precision, location, child_involved, agreement_violation, safety_concern, welfare_impact, created_at'
         )
         .in('id', eventIds)
         .eq('user_id', userId),
@@ -252,13 +253,7 @@ export default defineEventHandler(async (event) => {
     // Ensure we only insert suggestions for events that actually belong to this user.
     const validEventIdSet = new Set(eventRows.map((e: any) => e.id))
 
-    const rowsToInsert: Array<{
-      user_id: string
-      event_id: string
-      evidence_type: string
-      evidence_status: string
-      description: string
-    }> = []
+    const rowsToInsert: TablesInsert<'event_evidence_suggestions'>[] = []
 
     for (const perEvent of suggestions) {
       const eventId = perEvent.event_id

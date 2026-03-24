@@ -186,8 +186,11 @@ export default defineEventHandler(async (event) => {
       if (imageUrl.startsWith('data:')) {
         const match = /^data:([^;]+);base64,(.*)$/.exec(imageUrl)
         if (match) {
-          const inferredMime = match[1]
+          const inferredMime = match[1] ?? null
           const base64Data = match[2]
+          if (!base64Data) {
+            throw new Error('Invalid data URL payload')
+          }
 
           if (!persistedMimeType) {
             persistedMimeType = inferredMime

@@ -382,7 +382,6 @@ function openExport(row: Row<SavedExport>) {
           v-model:global-filter="globalFilter"
           :data="savedExports"
           :columns="columns"
-          :loading="status === 'pending'"
           sticky
           class="flex-1"
           @select="(_, row) => openExport(row)"
