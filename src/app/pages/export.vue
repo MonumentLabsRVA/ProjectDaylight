@@ -10,6 +10,51 @@ import type {
   ExportMetadata
 } from '~/types'
 
+interface FullEventDetail {
+  id: string
+  timestamp: string
+  type: string
+  extractionType?: string | null
+  title: string
+  description: string
+  location?: string
+  durationMinutes?: number
+  childInvolved?: boolean
+  agreementViolation?: boolean
+  safetyConcern?: boolean
+  welfareImpact?: string
+  welfareCategory?: string | null
+  welfareDirection?: string | null
+  welfareSeverity?: string | null
+  childStatements?: Array<{ statement: string; context?: string; concerning?: boolean }>
+  coparentInteraction?: {
+    your_tone?: string
+    their_tone?: string
+    your_response_appropriate?: boolean | null
+  } | null
+  participants: string[]
+  evidenceDetails?: Array<{
+    id: string
+    sourceType: string
+    originalName?: string
+    summary?: string
+  }>
+  actionItems?: Array<{
+    priority: string
+    type: string
+    description: string
+    deadline?: string
+    status: string
+  }>
+  communications?: Array<{
+    medium: string
+    direction: string
+    subject?: string
+    summary: string
+    sentAt?: string
+  }>
+}
+
 // Subscription check for feature gating
 const { canExport, isFetched: subscriptionFetched } = useSubscription()
 
@@ -87,13 +132,16 @@ watch(caseResponse, (res) => {
 // Export form state
 const exportFocus = ref<ExportFocus>('full-timeline')
 const includeEvidenceIndex = ref(true)
-const includeOverview = ref(true)
-const includeAISummary = ref(true)
+const includeOverview = ref(false)
+const includeAISummary = ref(false)
 
 const caseTitle = ref('')
 const courtName = ref('')
 const recipient = ref('')
 const overviewNotes = ref('')
+
+const fullEventsData = ref<FullEventDetail[]>([])
+const fullEventsLoading = ref(false)
 
 const markdown = ref('')
 const generating = ref(false)
@@ -117,7 +165,8 @@ const isLoadingData = computed(
   () =>
     timelineStatus.value === 'pending' ||
     evidenceStatus.value === 'pending' ||
-    caseStatus.value === 'pending'
+    caseStatus.value === 'pending' ||
+    fullEventsLoading.value
 )
 
 const exportFocusLabel = computed(() => {
@@ -136,6 +185,10 @@ const exportFocusOptions: { label: string; value: ExportFocus; description: stri
   label: 'Positive parenting',
   value: 'positive-parenting',
   description: 'Highlight your stability, routines, and positive involvement.'
+}, {
+  label: 'Complete record',
+  value: 'complete-record',
+  description: 'Every event with full details printed sequentially. Includes child statements, co-parent interactions, welfare impact, evidence, and action items.'
 }]
 
 const legacyToExtractionTypeMap: Record<EventType, ExtractionEventType> = {
@@ -349,6 +402,197 @@ function buildEvidenceSummaryForEvent(event: TimelineEvent): string | null {
   return parts.join(', ')
 }
 
+async function fetchFullEvents() {
+  fullEventsLoading.value = true
+  try {
+    const data = await $fetch<FullEventDetail[]>('/api/events-full', {
+      headers: useRequestHeaders(['cookie'])
+    })
+    fullEventsData.value = data || []
+  } catch (error) {
+    console.error('[Export] Failed to fetch full events:', error)
+    toast.add({
+      title: 'Failed to load events',
+      description: 'Could not fetch full event data for the complete record.',
+      color: 'error'
+    })
+    fullEventsData.value = []
+  } finally {
+    fullEventsLoading.value = false
+  }
+}
+
+function formatFullDate(value?: string) {
+  if (!value) return 'Unknown date'
+  return new Date(value).toLocaleString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  })
+}
+
+function buildCompleteRecordMarkdown() {
+  const lines: string[] = []
+
+  lines.push('# Complete case record', '')
+
+  if (aiSummary.value) {
+    lines.push('## Executive Summary', '')
+    lines.push('_AI-generated analysis of key patterns and important developments:_', '')
+    lines.push(aiSummary.value, '')
+    lines.push('---', '')
+  }
+
+  if (caseTitle.value.trim()) lines.push(`**Case:** ${caseTitle.value.trim()}`)
+  if (courtName.value.trim()) lines.push(`**Court:** ${courtName.value.trim()}`)
+  if (recipient.value.trim()) lines.push(`**Prepared for:** ${recipient.value.trim()}`)
+  lines.push(`**Generated on:** ${new Date().toLocaleString()}`)
+  lines.push(`**Total events:** ${fullEventsData.value.length}`, '')
+
+  if (includeOverview.value) {
+    lines.push('## Overview', '')
+    if (overviewNotes.value.trim()) {
+      lines.push(overviewNotes.value.trim(), '')
+    } else {
+      lines.push('_Use this section to briefly explain the current status of your case._', '')
+    }
+  }
+
+  lines.push('---', '')
+  lines.push('## Events', '')
+
+  const events = fullEventsData.value
+
+  if (!events.length) {
+    lines.push('_No events recorded._', '')
+  } else {
+    events.forEach((event, index) => {
+      const typeLabel = formatEventType(
+        event.type as EventType,
+        event.extractionType as ExtractionEventType | null | undefined
+      )
+
+      lines.push(`### ${index + 1}. ${event.title}`, '')
+      lines.push(`**Date:** ${formatFullDate(event.timestamp)}`)
+      lines.push(`**Type:** ${typeLabel}`)
+
+      if (event.location) lines.push(`**Location:** ${event.location}`)
+      if (event.participants?.length) lines.push(`**Participants:** ${event.participants.join(', ')}`)
+      if (event.durationMinutes) lines.push(`**Duration:** ${event.durationMinutes} minutes`)
+
+      // Flags
+      const flags: string[] = []
+      if (event.safetyConcern) flags.push('Safety Concern')
+      if (event.agreementViolation) flags.push('Agreement Violation')
+      if (event.childInvolved) flags.push('Child Involved')
+      if (flags.length) lines.push(`**Flags:** ${flags.join(', ')}`)
+
+      lines.push('')
+
+      // Description
+      if (event.description) {
+        lines.push(event.description, '')
+      }
+
+      // Co-parent interaction
+      if (event.coparentInteraction) {
+        const ci = event.coparentInteraction
+        const parts: string[] = []
+        if (ci.your_tone) parts.push(`Your tone: ${ci.your_tone}`)
+        if (ci.their_tone) parts.push(`Their tone: ${ci.their_tone}`)
+        if (ci.your_response_appropriate !== null && ci.your_response_appropriate !== undefined) {
+          parts.push(ci.your_response_appropriate ? 'Response was appropriate' : 'Response could improve')
+        }
+        if (parts.length) {
+          lines.push('**Co-parent interaction:**', '')
+          parts.forEach(p => lines.push(`- ${p}`))
+          lines.push('')
+        }
+      }
+
+      // Child statements
+      if (event.childStatements?.length) {
+        lines.push('**Child statements:**', '')
+        event.childStatements.forEach(s => {
+          const concern = s.concerning ? ' _(concerning)_' : ''
+          lines.push(`> "${s.statement}"${concern}`)
+          if (s.context) lines.push(`> _Context: ${s.context}_`)
+          lines.push('')
+        })
+      }
+
+      // Welfare impact
+      if (event.welfareCategory || event.welfareDirection || event.welfareSeverity) {
+        const wParts: string[] = []
+        if (event.welfareCategory) wParts.push(`Category: ${event.welfareCategory}`)
+        if (event.welfareDirection) wParts.push(`Direction: ${event.welfareDirection}`)
+        if (event.welfareSeverity) wParts.push(`Severity: ${event.welfareSeverity}`)
+        lines.push(`**Welfare impact:** ${wParts.join(' · ')}`, '')
+      }
+
+      // Evidence
+      if (event.evidenceDetails?.length) {
+        lines.push('**Evidence:**', '')
+        event.evidenceDetails.forEach(e => {
+          lines.push(`- ${e.originalName || 'Untitled'} (${e.sourceType})${e.summary ? ': ' + e.summary : ''}`)
+        })
+        lines.push('')
+      }
+
+      // Action items
+      if (event.actionItems?.length) {
+        lines.push('**Action items:**', '')
+        event.actionItems.forEach(a => {
+          const deadline = a.deadline ? ` (due ${formatDate(a.deadline)})` : ''
+          lines.push(`- [${a.status}] ${a.description}${deadline} — ${a.priority} priority`)
+        })
+        lines.push('')
+      }
+
+      // Communications
+      if (event.communications?.length) {
+        lines.push('**Communications:**', '')
+        event.communications.forEach(c => {
+          const when = c.sentAt ? ` on ${formatDate(c.sentAt)}` : ''
+          lines.push(`- ${c.direction} ${c.medium}${when}${c.subject ? ' — ' + c.subject : ''}: ${c.summary}`)
+        })
+        lines.push('')
+      }
+
+      lines.push('---', '')
+    })
+  }
+
+  // Evidence index
+  if (includeEvidenceIndex.value) {
+    lines.push('## Evidence index', '')
+
+    if (!evidenceData.value?.length) {
+      lines.push('_No evidence items found._', '')
+    } else {
+      ;(evidenceData.value || []).forEach((item, index) => {
+        lines.push(
+          `${index + 1}. [${formatDate(item.createdAt)}] **${item.originalName}** (${item.sourceType})`
+        )
+        if (item.summary) lines.push(`   - Summary: ${item.summary}`)
+        if (item.tags?.length) lines.push(`   - Tags: ${item.tags.join(', ')}`)
+        lines.push('')
+      })
+    }
+  }
+
+  lines.push(
+    '---',
+    '',
+    '_This complete record was generated from your Daylight timeline. Share it with your attorney or attach it as a supporting document for court. daylight.legal_'
+  )
+
+  return lines.join('\n')
+}
+
 function buildMarkdown() {
   const lines: string[] = []
 
@@ -449,7 +693,7 @@ function buildMarkdown() {
   lines.push(
     '---',
     '',
-    '_This export is generated from your Project Daylight timeline and evidence. Share it with your attorney or attach it as a supporting document for court._'
+    '_This export is generated from your Daylight timeline and evidence. Share it with your attorney or attach it as a supporting document for court. daylight.legal_'
   )
 
   return lines.join('\n')
@@ -504,7 +748,7 @@ async function saveExport(markdownContent: string) {
       include_evidence_index: includeEvidenceIndex.value,
       include_overview: includeOverview.value,
       include_ai_summary: includeAISummary.value,
-      events_count: filteredEvents.value.length,
+      events_count: exportFocus.value === 'complete-record' ? fullEventsData.value.length : filteredEvents.value.length,
       evidence_count: evidenceData.value?.length || 0,
       ai_summary_included: !!aiSummary.value
     }
@@ -550,16 +794,18 @@ async function generateMarkdown() {
   currentExportId.value = null
 
   try {
-    // Generate AI summary first if enabled (optional - won't block export if it fails)
-    if (includeAISummary.value) {
-      await generateAISummary()
-    } else {
-      aiSummary.value = null
+    // For complete record, fetch all events with full details
+    if (exportFocus.value === 'complete-record') {
+      await fetchFullEvents()
     }
+
+    // AI summary generation is disabled for now - kept for future use
+    aiSummary.value = null
     
-    markdown.value = buildMarkdown()
+    markdown.value = exportFocus.value === 'complete-record'
+      ? buildCompleteRecordMarkdown()
+      : buildMarkdown()
     lastGeneratedAt.value = new Date().toLocaleString()
-    // After generating an export, default to the rendered view
     showRendered.value = true
     viewMode.value = 'preview'
 
@@ -766,236 +1012,484 @@ async function downloadPdf() {
       format: 'letter'
     })
 
-    const margin = 54 // 0.75 inch
+    const margin = 60
     const pageWidth = doc.internal.pageSize.getWidth()
     const pageHeight = doc.internal.pageSize.getHeight()
     const contentWidth = pageWidth - margin * 2
-    
-    let cursorY = margin
-    
-    // Helper: Check for page break
+    const footerY = pageHeight - 36
+    const bodyTop = margin + 8
+
+    let cursorY = bodyTop
+
     const ensureSpace = (height: number) => {
-      if (cursorY + height > pageHeight - margin) {
+      if (cursorY + height > footerY - 20) {
         doc.addPage()
-        cursorY = margin
+        cursorY = bodyTop
         return true
       }
       return false
     }
 
+    // Render the Daylight logo icon onto a canvas and convert to PNG data URL
+    let logoDataUrl: string | null = null
+    try {
+      const logoSize = 80
+      const canvas = document.createElement('canvas')
+      canvas.width = logoSize
+      canvas.height = logoSize
+      const ctx = canvas.getContext('2d')!
+      const img = new Image()
+      const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="${logoSize}" height="${logoSize}" viewBox="0 0 400 400" fill="none"><path d="M68 20 L380 20 Q400 20 400 68 L400 332 Q400 380 332 380 L68 380 Q20 380 20 332 L20 180 A160 160 0 0 0 180 20 Z" fill="#0ea5e9"/></svg>`
+      await new Promise<void>((resolve) => {
+        img.onload = () => { ctx.drawImage(img, 0, 0, logoSize, logoSize); resolve() }
+        img.onerror = () => resolve()
+        img.src = 'data:image/svg+xml;base64,' + btoa(svgStr)
+      })
+      logoDataUrl = canvas.toDataURL('image/png')
+    } catch { /* logo is optional */ }
+
+    const isCompleteRecord = exportFocus.value === 'complete-record'
+
     // --- HEADER ---
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(18)
-    doc.text('Custody case timeline & evidence summary', margin, cursorY)
-    cursorY += 30
+    doc.setFont('times', 'bold')
+    doc.setFontSize(22)
+    doc.setTextColor(20, 20, 20)
+    const pdfTitle = isCompleteRecord
+      ? 'Complete Case Record'
+      : 'Timeline & Evidence Summary'
+    doc.text(pdfTitle, margin, cursorY)
+    cursorY += 32
 
+    // Meta block
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(10)
-    
-    // Case Meta
-    const metaLines = []
-    if (caseTitle.value.trim()) metaLines.push({ label: 'Case:', value: caseTitle.value.trim() })
-    if (courtName.value.trim()) metaLines.push({ label: 'Court:', value: courtName.value.trim() })
-    if (recipient.value.trim()) metaLines.push({ label: 'Prepared for:', value: recipient.value.trim() })
-    metaLines.push({ label: 'Generated on:', value: new Date().toLocaleString() })
+    doc.setFontSize(9)
+    doc.setTextColor(90, 90, 90)
 
-    metaLines.forEach(meta => {
+    const metaEntries: { label: string; value: string }[] = []
+    if (caseTitle.value.trim()) metaEntries.push({ label: 'Case', value: caseTitle.value.trim() })
+    if (courtName.value.trim()) metaEntries.push({ label: 'Court', value: courtName.value.trim() })
+    if (recipient.value.trim()) metaEntries.push({ label: 'Prepared for', value: recipient.value.trim() })
+    metaEntries.push({ label: 'Generated', value: new Date().toLocaleString() })
+    if (isCompleteRecord) {
+      metaEntries.push({ label: 'Total events', value: String(fullEventsData.value.length) })
+    }
+
+    metaEntries.forEach((meta) => {
       doc.setFont('helvetica', 'bold')
-      doc.text(meta.label, margin, cursorY)
-      const labelWidth = doc.getTextWidth(meta.label)
-      
-      doc.setFont('helvetica', 'normal')
-      doc.text(meta.value, margin + labelWidth + 5, cursorY)
-      
-      cursorY += 16
+      doc.setFontSize(9)
+      doc.setTextColor(90, 90, 90)
+      const labelStr = `${meta.label}:`
+      doc.text(labelStr, margin, cursorY)
+      const labelW = doc.getTextWidth(labelStr)
+
+      doc.setFont('times', 'normal')
+      doc.setFontSize(10)
+      doc.setTextColor(30, 30, 30)
+      doc.text(meta.value, margin + labelW + 6, cursorY)
+      cursorY += 15
     })
 
-    cursorY += 10
+    cursorY += 6
     doc.setDrawColor(200, 200, 200)
+    doc.setLineWidth(0.5)
     doc.line(margin, cursorY, pageWidth - margin, cursorY)
-    cursorY += 25
-
-    // --- SECTION 1: OVERVIEW ---
-    if (includeOverview.value) {
-      ensureSpace(100)
-      
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(14)
-      doc.text('1. Overview', margin, cursorY)
-      cursorY += 20
-      
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(10)
-      
-      const overviewText = overviewNotes.value.trim() || 'Use this section to briefly explain the current status of your case, upcoming court dates, and what you want the court or your attorney to understand.'
-      
-      const splitOverview = doc.splitTextToSize(overviewText, contentWidth)
-      
-      if (ensureSpace(splitOverview.length * 14)) {
-        // If page break happened, continue text
-      }
-      
-      doc.text(splitOverview, margin, cursorY)
-      cursorY += (splitOverview.length * 14) + 25
-    }
-
-    // --- SECTION 2: TIMELINE ---
-    ensureSpace(50)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(14)
-    doc.text('2. Timeline of key events', margin, cursorY)
     cursorY += 20
 
-    const events = filteredEvents.value
-    
-    if (!events.length) {
-      doc.setFont('helvetica', 'italic')
-      doc.setFontSize(10)
-      doc.text('No events found for this export.', margin, cursorY)
-      cursorY += 20
-    } else {
-      events.forEach((event, index) => {
-        const descLines = event.description ? doc.splitTextToSize(event.description, contentWidth - 15).length : 0
-        const evidenceSummary = buildEvidenceSummaryForEvent(event)
-        const metaCount =
-          (event.location ? 1 : 0) + (event.participants?.length ? 1 : 0) + (evidenceSummary ? 1 : 0)
-        const estimatedHeight = 20 + (descLines * 14) + (metaCount * 14) + 10
-        
-        ensureSpace(estimatedHeight)
+    // --- OVERVIEW ---
+    if (includeOverview.value) {
+      ensureSpace(80)
 
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(10)
-        doc.setTextColor(100, 100, 100)
-        
-        const dateStr = formatDate(event.timestamp)
-        const dateWidth = doc.getTextWidth(dateStr)
-        const numberStr = `${index + 1}. `
-        
-        doc.setTextColor(0, 0, 0)
-        doc.text(numberStr, margin, cursorY)
-        
-        doc.setTextColor(80, 80, 80)
-        doc.text(dateStr, margin + 15, cursorY)
-        
-        doc.setTextColor(0, 0, 0)
-        doc.setFont('helvetica', 'bold')
-        const titleX = margin + 15 + dateWidth + 10
-        doc.text(event.title, titleX, cursorY)
-        
-        const titleWidth = doc.getTextWidth(event.title)
-        doc.setFont('helvetica', 'italic')
-        doc.setTextColor(100, 100, 100)
-        doc.text(`(${formatEventType(event.type)})`, titleX + titleWidth + 5, cursorY)
-        
-        cursorY += 16
-
-        if (event.description) {
-          doc.setFont('helvetica', 'normal')
-          doc.setTextColor(0, 0, 0)
-          const splitDesc = doc.splitTextToSize(event.description, contentWidth - 15)
-          doc.text(splitDesc, margin + 15, cursorY)
-          cursorY += (splitDesc.length * 14) + 4
-        }
-
-        doc.setFontSize(9)
-        doc.setTextColor(80, 80, 80)
-        
-        if (event.location) {
-          doc.text(`Location: ${event.location}`, margin + 15, cursorY)
-          cursorY += 12
-        }
-        
-        if (event.participants?.length) {
-          doc.text(`Participants: ${event.participants.join(', ')}`, margin + 15, cursorY)
-          cursorY += 12
-        }
-
-        if (evidenceSummary) {
-          doc.text(`Evidence: ${evidenceSummary}`, margin + 15, cursorY)
-          cursorY += 12
-        }
-
-        cursorY += 10
-      })
-    }
-    
-    cursorY += 15
-
-    // --- SECTION 3: EVIDENCE INDEX ---
-    if (includeEvidenceIndex.value) {
-      ensureSpace(50)
-      doc.setFont('helvetica', 'bold')
+      doc.setFont('times', 'bold')
       doc.setFontSize(14)
-      doc.setTextColor(0, 0, 0)
-      doc.text('3. Evidence index', margin, cursorY)
-      cursorY += 20
+      doc.setTextColor(20, 20, 20)
+      doc.text(isCompleteRecord ? 'Overview' : '1. Overview', margin, cursorY)
+      cursorY += 18
 
-      const evidenceItems = (evidenceData.value || []) as EvidenceItem[]
+      doc.setFont('times', 'normal')
+      doc.setFontSize(10)
+      doc.setTextColor(40, 40, 40)
 
-      if (!evidenceItems.length) {
-        doc.setFont('helvetica', 'italic')
+      const overviewText = overviewNotes.value.trim() || 'Use this section to briefly explain the current status of your case, upcoming court dates, and what you want the court or your attorney to understand.'
+      const splitOverview = doc.splitTextToSize(overviewText, contentWidth)
+      ensureSpace(splitOverview.length * 14)
+      doc.text(splitOverview, margin, cursorY)
+      cursorY += (splitOverview.length * 14) + 20
+    }
+
+    // --- EVENTS ---
+    ensureSpace(40)
+    doc.setFont('times', 'bold')
+    doc.setFontSize(14)
+    doc.setTextColor(20, 20, 20)
+
+    if (isCompleteRecord) {
+      doc.text('Events', margin, cursorY)
+      cursorY += 22
+
+      const fullEvents = fullEventsData.value
+
+      if (!fullEvents.length) {
+        doc.setFont('times', 'italic')
         doc.setFontSize(10)
-        doc.text('No evidence items found for this export.', margin, cursorY)
+        doc.setTextColor(120, 120, 120)
+        doc.text('No events recorded.', margin, cursorY)
+        cursorY += 20
       } else {
-        evidenceItems.forEach((item, index) => {
-          const summaryLines = item.summary ? doc.splitTextToSize(item.summary, contentWidth - 15).length : 0
-          const metaHeight = item.tags?.length ? 14 : 0
-          const estimatedHeight = 20 + (summaryLines * 14) + metaHeight + 10
-          
+        fullEvents.forEach((event, index) => {
+          ensureSpace(70)
+
+          // Event number + title
+          doc.setFont('times', 'bold')
+          doc.setFontSize(11)
+          doc.setTextColor(20, 20, 20)
+          const headerText = `${index + 1}.  ${event.title}`
+          const splitHeader = doc.splitTextToSize(headerText, contentWidth)
+          doc.text(splitHeader, margin, cursorY)
+          cursorY += splitHeader.length * 15
+
+          // Date, type, location on one line
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(8)
+          doc.setTextColor(110, 110, 110)
+          const typeLabel = formatEventType(
+            event.type as EventType,
+            event.extractionType as ExtractionEventType | null | undefined
+          )
+          const dateParts = [formatFullDate(event.timestamp), typeLabel]
+          if (event.location) dateParts.push(event.location)
+          if (event.participants?.length) dateParts.push(event.participants.join(', '))
+          if (event.durationMinutes) dateParts.push(`${event.durationMinutes} min`)
+          const dateMetaStr = dateParts.join('   |   ')
+          const splitDateMeta = doc.splitTextToSize(dateMetaStr, contentWidth)
+          doc.text(splitDateMeta, margin, cursorY)
+          cursorY += splitDateMeta.length * 11
+
+          // Flags
+          const flags: string[] = []
+          if (event.safetyConcern) flags.push('SAFETY CONCERN')
+          if (event.agreementViolation) flags.push('AGREEMENT VIOLATION')
+          if (event.childInvolved) flags.push('CHILD INVOLVED')
+          if (flags.length) {
+            doc.setFont('helvetica', 'bold')
+            doc.setFontSize(7.5)
+            doc.setTextColor(170, 50, 50)
+            doc.text(flags.join('     '), margin, cursorY)
+            cursorY += 11
+          }
+
+          cursorY += 4
+
+          // Description
+          if (event.description) {
+            ensureSpace(24)
+            doc.setFont('times', 'normal')
+            doc.setFontSize(10)
+            doc.setTextColor(40, 40, 40)
+            const splitDesc = doc.splitTextToSize(event.description, contentWidth)
+            doc.text(splitDesc, margin, cursorY)
+            cursorY += (splitDesc.length * 13.5) + 6
+          }
+
+          // Co-parent interaction
+          if (event.coparentInteraction) {
+            ensureSpace(30)
+            const ci = event.coparentInteraction
+            doc.setFont('helvetica', 'bold')
+            doc.setFontSize(8)
+            doc.setTextColor(80, 80, 80)
+            doc.text('Co-parent interaction', margin, cursorY)
+            cursorY += 11
+            doc.setFont('times', 'normal')
+            doc.setFontSize(9)
+            doc.setTextColor(60, 60, 60)
+            const ciParts: string[] = []
+            if (ci.your_tone) ciParts.push(`Your tone: ${ci.your_tone}`)
+            if (ci.their_tone) ciParts.push(`Their tone: ${ci.their_tone}`)
+            if (ci.your_response_appropriate !== null && ci.your_response_appropriate !== undefined) {
+              ciParts.push(ci.your_response_appropriate ? 'Response appropriate' : 'Response could improve')
+            }
+            if (ciParts.length) {
+              doc.text(ciParts.join('   |   '), margin + 8, cursorY)
+              cursorY += 12
+            }
+          }
+
+          // Child statements
+          if (event.childStatements?.length) {
+            ensureSpace(28)
+            doc.setFont('helvetica', 'bold')
+            doc.setFontSize(8)
+            doc.setTextColor(80, 80, 80)
+            doc.text('Child statements', margin, cursorY)
+            cursorY += 11
+            event.childStatements.forEach(s => {
+              ensureSpace(18)
+              doc.setFont('times', 'italic')
+              doc.setFontSize(9)
+              doc.setTextColor(50, 50, 50)
+              const concern = s.concerning ? '  [CONCERNING]' : ''
+              const stmtText = `\u201C${s.statement}\u201D${concern}`
+              const splitStmt = doc.splitTextToSize(stmtText, contentWidth - 8)
+              doc.text(splitStmt, margin + 8, cursorY)
+              cursorY += splitStmt.length * 11
+              if (s.context) {
+                doc.setFont('times', 'normal')
+                doc.setFontSize(8)
+                doc.setTextColor(100, 100, 100)
+                doc.text(`Context: ${s.context}`, margin + 12, cursorY)
+                cursorY += 10
+              }
+              cursorY += 3
+            })
+          }
+
+          // Welfare impact
+          if (event.welfareCategory || event.welfareDirection || event.welfareSeverity) {
+            ensureSpace(16)
+            doc.setFont('helvetica', 'normal')
+            doc.setFontSize(8)
+            doc.setTextColor(110, 110, 110)
+            const wParts: string[] = []
+            if (event.welfareCategory) wParts.push(event.welfareCategory)
+            if (event.welfareDirection) wParts.push(event.welfareDirection)
+            if (event.welfareSeverity) wParts.push(`${event.welfareSeverity} severity`)
+            doc.text(`Welfare impact: ${wParts.join(' / ')}`, margin, cursorY)
+            cursorY += 11
+          }
+
+          // Evidence
+          if (event.evidenceDetails?.length) {
+            ensureSpace(20)
+            doc.setFont('helvetica', 'bold')
+            doc.setFontSize(8)
+            doc.setTextColor(80, 80, 80)
+            doc.text('Evidence', margin, cursorY)
+            cursorY += 11
+            doc.setFont('times', 'normal')
+            doc.setFontSize(9)
+            doc.setTextColor(50, 50, 50)
+            event.evidenceDetails.forEach(e => {
+              ensureSpace(12)
+              const evidenceText = `\u2022  ${e.originalName || 'Untitled'} (${e.sourceType})${e.summary ? ' \u2014 ' + e.summary : ''}`
+              const splitEvidence = doc.splitTextToSize(evidenceText, contentWidth - 8)
+              doc.text(splitEvidence, margin + 8, cursorY)
+              cursorY += splitEvidence.length * 11
+            })
+            cursorY += 3
+          }
+
+          // Action items
+          if (event.actionItems?.length) {
+            ensureSpace(20)
+            doc.setFont('helvetica', 'bold')
+            doc.setFontSize(8)
+            doc.setTextColor(80, 80, 80)
+            doc.text('Action items', margin, cursorY)
+            cursorY += 11
+            doc.setFont('times', 'normal')
+            doc.setFontSize(9)
+            doc.setTextColor(50, 50, 50)
+            event.actionItems.forEach(a => {
+              ensureSpace(12)
+              const deadline = a.deadline ? ` (due ${formatDate(a.deadline)})` : ''
+              const actionText = `\u2022  [${a.status}] ${a.description}${deadline} \u2014 ${a.priority} priority`
+              const splitAction = doc.splitTextToSize(actionText, contentWidth - 8)
+              doc.text(splitAction, margin + 8, cursorY)
+              cursorY += splitAction.length * 11
+            })
+            cursorY += 3
+          }
+
+          // Communications
+          if (event.communications?.length) {
+            ensureSpace(20)
+            doc.setFont('helvetica', 'bold')
+            doc.setFontSize(8)
+            doc.setTextColor(80, 80, 80)
+            doc.text('Communications', margin, cursorY)
+            cursorY += 11
+            doc.setFont('times', 'normal')
+            doc.setFontSize(9)
+            doc.setTextColor(50, 50, 50)
+            event.communications.forEach(c => {
+              ensureSpace(12)
+              const when = c.sentAt ? ` on ${formatDate(c.sentAt)}` : ''
+              const commText = `\u2022  ${c.direction} ${c.medium}${when}: ${c.summary}`
+              const splitComm = doc.splitTextToSize(commText, contentWidth - 8)
+              doc.text(splitComm, margin + 8, cursorY)
+              cursorY += splitComm.length * 11
+            })
+            cursorY += 3
+          }
+
+          // Divider
+          cursorY += 8
+          doc.setDrawColor(210, 210, 210)
+          doc.setLineWidth(0.4)
+          doc.line(margin, cursorY, pageWidth - margin, cursorY)
+          cursorY += 16
+        })
+      }
+    } else {
+      doc.text('2. Timeline of Key Events', margin, cursorY)
+      cursorY += 22
+
+      const events = filteredEvents.value
+
+      if (!events.length) {
+        doc.setFont('times', 'italic')
+        doc.setFontSize(10)
+        doc.setTextColor(120, 120, 120)
+        doc.text('No events found for this export.', margin, cursorY)
+        cursorY += 20
+      } else {
+        events.forEach((event, index) => {
+          const descLines = event.description ? doc.splitTextToSize(event.description, contentWidth).length : 0
+          const evidenceSummary = buildEvidenceSummaryForEvent(event)
+          const metaCount = (event.location ? 1 : 0) + (event.participants?.length ? 1 : 0) + (evidenceSummary ? 1 : 0)
+          const estimatedHeight = 20 + (descLines * 13.5) + (metaCount * 12) + 14
+
           ensureSpace(estimatedHeight)
 
+          // Date badge + title + type on a single block
           doc.setFont('helvetica', 'normal')
-          doc.setFontSize(10)
-          
-          const numberStr = `${index + 1}. `
-          doc.text(numberStr, margin, cursorY)
-          
-          const dateStr = `[${formatDate(item.createdAt)}] `
-          doc.setTextColor(80, 80, 80)
-          doc.text(dateStr, margin + 15, cursorY)
-          const dateWidth = doc.getTextWidth(dateStr)
-          
-          doc.setTextColor(0, 0, 0)
-          doc.setFont('helvetica', 'bold')
-          doc.text(item.originalName, margin + 15 + dateWidth, cursorY)
-          const nameWidth = doc.getTextWidth(item.originalName)
-          
-          doc.setFont('helvetica', 'italic')
-          doc.setTextColor(100, 100, 100)
-          doc.text(`(${item.sourceType})`, margin + 15 + dateWidth + nameWidth + 5, cursorY)
-          
-          cursorY += 16
+          doc.setFontSize(8)
+          doc.setTextColor(110, 110, 110)
+          const dateStr = formatDate(event.timestamp)
+          doc.text(`${index + 1}.`, margin, cursorY)
 
-          if (item.summary) {
-            doc.setFont('helvetica', 'normal')
-            doc.setTextColor(0, 0, 0)
-            const splitSummary = doc.splitTextToSize(item.summary, contentWidth - 15)
-            doc.text(splitSummary, margin + 15, cursorY)
-            cursorY += (splitSummary.length * 14) + 4
+          doc.setFont('times', 'bold')
+          doc.setFontSize(10.5)
+          doc.setTextColor(20, 20, 20)
+          doc.text(event.title, margin + 18, cursorY)
+
+          const titleW = doc.getTextWidth(event.title)
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(8)
+          doc.setTextColor(130, 130, 130)
+          doc.text(`${formatEventType(event.type)}`, margin + 18 + titleW + 6, cursorY)
+
+          cursorY += 13
+
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(8)
+          doc.setTextColor(110, 110, 110)
+          const eventMeta = [dateStr]
+          if (event.location) eventMeta.push(event.location)
+          if (event.participants?.length) eventMeta.push(event.participants.join(', '))
+          if (evidenceSummary) eventMeta.push(evidenceSummary)
+          doc.text(eventMeta.join('   |   '), margin + 18, cursorY)
+          cursorY += 12
+
+          if (event.description) {
+            doc.setFont('times', 'normal')
+            doc.setFontSize(10)
+            doc.setTextColor(40, 40, 40)
+            const splitDesc = doc.splitTextToSize(event.description, contentWidth - 18)
+            doc.text(splitDesc, margin + 18, cursorY)
+            cursorY += (splitDesc.length * 13.5) + 4
           }
 
-          if (item.tags?.length) {
-            doc.setFontSize(9)
-            doc.setTextColor(80, 80, 80)
-            doc.text(`Tags: ${item.tags.join(', ')}`, margin + 15, cursorY)
-            cursorY += 12
-          }
-          
           cursorY += 10
         })
       }
     }
-    
-    // Footer - page numbering
+
+    cursorY += 12
+
+    // --- EVIDENCE INDEX ---
+    if (includeEvidenceIndex.value) {
+      ensureSpace(40)
+      doc.setFont('times', 'bold')
+      doc.setFontSize(14)
+      doc.setTextColor(20, 20, 20)
+      doc.text(isCompleteRecord ? 'Evidence Index' : '3. Evidence Index', margin, cursorY)
+      cursorY += 22
+
+      const evidenceItems = (evidenceData.value || []) as EvidenceItem[]
+
+      if (!evidenceItems.length) {
+        doc.setFont('times', 'italic')
+        doc.setFontSize(10)
+        doc.setTextColor(120, 120, 120)
+        doc.text('No evidence items found for this export.', margin, cursorY)
+      } else {
+        evidenceItems.forEach((item, index) => {
+          const summaryLines = item.summary ? doc.splitTextToSize(item.summary, contentWidth - 18).length : 0
+          const estimatedHeight = 18 + (summaryLines * 13) + (item.tags?.length ? 12 : 0) + 10
+          ensureSpace(estimatedHeight)
+
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(8)
+          doc.setTextColor(110, 110, 110)
+          doc.text(`${index + 1}.`, margin, cursorY)
+
+          doc.setFont('times', 'bold')
+          doc.setFontSize(10)
+          doc.setTextColor(20, 20, 20)
+          doc.text(item.originalName, margin + 18, cursorY)
+          const nameW = doc.getTextWidth(item.originalName)
+
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(8)
+          doc.setTextColor(130, 130, 130)
+          doc.text(`${item.sourceType}   |   ${formatDate(item.createdAt)}`, margin + 18 + nameW + 6, cursorY)
+          cursorY += 14
+
+          if (item.summary) {
+            doc.setFont('times', 'normal')
+            doc.setFontSize(9.5)
+            doc.setTextColor(50, 50, 50)
+            const splitSummary = doc.splitTextToSize(item.summary, contentWidth - 18)
+            doc.text(splitSummary, margin + 18, cursorY)
+            cursorY += (splitSummary.length * 13) + 3
+          }
+
+          if (item.tags?.length) {
+            doc.setFont('helvetica', 'normal')
+            doc.setFontSize(7.5)
+            doc.setTextColor(130, 130, 130)
+            doc.text(`Tags: ${item.tags.join(', ')}`, margin + 18, cursorY)
+            cursorY += 11
+          }
+
+          cursorY += 8
+        })
+      }
+    }
+
+    // --- FOOTER on every page: logo + daylight.legal + page number ---
     const pageCount = (doc as any).getNumberOfPages ? (doc as any).getNumberOfPages() : doc.internal.pages.length - 1
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i)
+
+      // Thin rule above footer
+      doc.setDrawColor(200, 200, 200)
+      doc.setLineWidth(0.4)
+      doc.line(margin, footerY - 6, pageWidth - margin, footerY - 6)
+
+      // Logo icon
+      const logoX = margin
+      const logoIconSize = 12
+      if (logoDataUrl) {
+        try {
+          doc.addImage(logoDataUrl, 'PNG', logoX, footerY - 9, logoIconSize, logoIconSize)
+        } catch { /* skip logo if addImage fails */ }
+      }
+
+      // Brand text
+      doc.setFont('helvetica', 'normal')
       doc.setFontSize(8)
-      doc.setTextColor(150, 150, 150)
-      doc.text(`Project Daylight - Page ${i} of ${pageCount}`, margin, pageHeight - 20)
+      doc.setTextColor(140, 140, 140)
+      doc.text('daylight.legal', logoX + logoIconSize + 5, footerY)
+
+      // Page number right-aligned
+      const pageStr = `Page ${i} of ${pageCount}`
+      const pageStrWidth = doc.getTextWidth(pageStr)
+      doc.text(pageStr, pageWidth - margin - pageStrWidth, footerY)
     }
 
-    doc.save('project-daylight-report.pdf')
+    doc.save('daylight-report.pdf')
 
     toast.add({
       title: 'PDF ready',
@@ -1023,6 +1517,8 @@ function getFocusIcon(focus: ExportFocus) {
       return 'i-lucide-alert-triangle'
     case 'positive-parenting':
       return 'i-lucide-heart'
+    case 'complete-record':
+      return 'i-lucide-book-open'
     default:
       return 'i-lucide-file-text'
   }
@@ -1034,6 +1530,8 @@ function getFocusColor(focus: ExportFocus) {
       return 'text-warning'
     case 'positive-parenting':
       return 'text-success'
+    case 'complete-record':
+      return 'text-info'
     default:
       return 'text-primary'
   }
@@ -1258,113 +1756,40 @@ function getFocusColor(focus: ExportFocus) {
               </div>
             </div>
 
-            <!-- Advanced options -->
-            <UCollapsible class="flex flex-col gap-2">
-              <UButton
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                class="justify-between group self-start"
-                trailing-icon="i-lucide-chevron-down"
-                :ui="{
-                  trailingIcon: 'group-data-[state=open]:rotate-180 transition-transform duration-200'
-                }"
-              >
-                <span class="text-xs font-medium text-highlighted">
-                  Advanced sections & notes
-                </span>
-              </UButton>
-
-              <template #content>
-                <div class="pt-1 space-y-4">
-                  <!-- Sections -->
-                  <div class="space-y-3">
-                    <p class="text-xs font-medium uppercase tracking-wide text-muted">
-                      Sections
-                    </p>
-
-                    <div class="space-y-2">
-                      <USwitch
-                        v-model="includeOverview"
-                        label="Include overview section"
-                        description="Short narrative at the top explaining what the reader should understand."
-                      />
-
-                      <USwitch
-                        v-model="includeEvidenceIndex"
-                        label="Include evidence index"
-                        description="Numbered list of evidence items with summaries and tags."
-                      />
-                    </div>
-                  </div>
-
-                  <!-- Overview notes -->
-                  <div v-if="includeOverview" class="space-y-1">
-                    <p class="text-xs font-medium text-highlighted">
-                      Overview notes (optional)
-                    </p>
-                    <UTextarea
-                      v-model="overviewNotes"
-                      placeholder="Example: This report covers the last 60 days leading up to the temporary custody hearing on..."
-                      :rows="4"
-                      autoresize
-                      class="w-full"
-                    />
-                    <p class="text-[11px] text-muted">
-                      If you leave this blank, we'll include a prompt you can fill in later.
-                    </p>
-                  </div>
-                </div>
-              </template>
-            </UCollapsible>
-
             <!-- Actions -->
             <div class="pt-4 flex flex-col gap-3 border-t border-dashed border-default/60">
-              <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2 text-xs text-muted">
-                  <template v-if="summaryGenerating">
-                    <UIcon name="i-lucide-sparkles" class="size-4 animate-pulse text-primary" />
-                    <span>AI is analyzing your timeline and evidence...</span>
-                  </template>
-                  <template v-else-if="isLoadingData">
+                  <template v-if="isLoadingData">
                     <UIcon name="i-lucide-loader-2" class="size-4 animate-spin" />
                     <span>Loading timeline and evidence…</span>
                   </template>
                   <template v-else>
-                    <UCheckbox
-                      v-model="includeAISummary"
-                      label="Include AI executive summary"
-                      :ui="{ label: 'text-xs text-muted' }"
-                    />
-                    <UTooltip text="AI analyzes your timeline and evidence to highlight key patterns">
-                      <UIcon name="i-lucide-info" class="size-3.5 text-muted/60" />
-                    </UTooltip>
+                    <UButton
+                      color="neutral"
+                      variant="ghost"
+                      size="xs"
+                      icon="i-lucide-refresh-cw"
+                      :disabled="isLoadingData"
+                      @click="loadData"
+                    >
+                      Refresh data
+                    </UButton>
                   </template>
                 </div>
 
-                <div class="flex items-center gap-3">
-                  <UButton
-                    color="neutral"
-                    variant="ghost"
-                    size="sm"
-                    :disabled="isLoadingData"
-                    @click="loadData"
-                  >
-                    Refresh data
-                  </UButton>
-
-                  <UButton
-                    color="primary"
-                    variant="solid"
-                    icon="i-lucide-file-text"
-                    :loading="generating || summaryGenerating"
-                    :disabled="isLoadingData"
-                    @click="generateMarkdown"
-                  >
-                    <span v-if="summaryGenerating">Generating...</span>
-                    <span v-else>Generate export</span>
-                  </UButton>
-                </div>
+                <UButton
+                  color="primary"
+                  variant="solid"
+                  :icon="exportFocus === 'complete-record' ? 'i-lucide-book-open' : 'i-lucide-file-text'"
+                  :loading="generating || fullEventsLoading"
+                  :disabled="isLoadingData"
+                  @click="generateMarkdown"
+                >
+                  <span v-if="fullEventsLoading">Loading events...</span>
+                  <span v-else-if="exportFocus === 'complete-record'">Generate complete record</span>
+                  <span v-else>Generate export</span>
+                </UButton>
               </div>
             </div>
           </div>

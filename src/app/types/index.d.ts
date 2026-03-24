@@ -137,7 +137,7 @@ export interface InsightItem {
   evidenceIds: number[]
 }
 
-export type ExportFocus = 'full-timeline' | 'incidents-only' | 'positive-parenting'
+export type ExportFocus = 'full-timeline' | 'incidents-only' | 'positive-parenting' | 'complete-record'
 
 // Background job types
 export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed'
