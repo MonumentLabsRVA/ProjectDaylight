@@ -3,6 +3,7 @@ import fs from 'fs/promises'
 import { serverSupabaseClient } from '#supabase/server'
 import { canUploadEvidence } from '../utils/subscription'
 import { requireUserId } from '../utils/auth'
+import { logAnalyticsEvent } from '../utils/analytics'
 
 /**
  * POST /api/evidence-upload
@@ -121,6 +122,14 @@ export default defineEventHandler(async (event) => {
         statusMessage: 'Evidence metadata was not returned after upload.'
       })
     }
+
+    await logAnalyticsEvent(event, 'evidence_uploaded', {
+      evidenceId: row.id,
+      sourceType: row.source_type,
+      mimeType,
+      sizeBytes: buffer.length,
+      hasAnnotation: !!annotation
+    })
 
     return {
       id: row.id,

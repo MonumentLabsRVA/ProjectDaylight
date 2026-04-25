@@ -19,6 +19,9 @@ const { timezone: userTimezone } = useTimezone()
 const { trackJob } = useJobs()
 const toast = useToast()
 
+// Analytics
+const { logEvent } = useAnalytics()
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -117,6 +120,7 @@ onMounted(() => {
   if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
     isSupported.value = false
   }
+  logEvent('journal_new_opened')
 })
 
 onBeforeUnmount(() => {

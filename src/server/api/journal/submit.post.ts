@@ -2,6 +2,7 @@ import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 import { canCreateJournalEntry } from '../../utils/subscription'
 import { inngest } from '../../inngest/client'
 import { getTimezoneWithProfileFallback } from '../../utils/timezone'
+import { logAnalyticsEvent } from '../../utils/analytics'
 import type { JournalSubmitResponse } from '~/types'
 
 export default defineEventHandler(async (event): Promise<JournalSubmitResponse> => {
@@ -91,6 +92,14 @@ export default defineEventHandler(async (event): Promise<JournalSubmitResponse> 
       statusMessage: 'Failed to queue background processing'
     })
   }
+
+  await logAnalyticsEvent(event, 'journal_entry_submitted', {
+    journalEntryId: entry.id,
+    jobId: job.id,
+    hasReferenceDate: !!body.referenceDate,
+    evidenceIdsCount: (body.evidenceIds ?? []).length,
+    eventTextLength: body.eventText.length
+  })
 
   return {
     journalEntryId: entry.id,

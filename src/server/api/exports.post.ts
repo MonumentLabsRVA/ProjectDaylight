@@ -1,5 +1,6 @@
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 import { canExport } from '../utils/subscription'
+import { logAnalyticsEvent } from '../utils/analytics'
 
 interface ExportCreateBody {
   title: string
@@ -77,6 +78,14 @@ export default defineEventHandler(async (event) => {
       statusMessage: 'Failed to save export'
     })
   }
+
+  await logAnalyticsEvent(event, 'export_created', {
+    exportId: data.id,
+    focus: data.focus,
+    eventsCount: body.metadata?.events_count ?? null,
+    evidenceCount: body.metadata?.evidence_count ?? null,
+    aiSummaryIncluded: !!body.metadata?.ai_summary_included
+  })
 
   return { export: data }
 })
