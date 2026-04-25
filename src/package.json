@@ -28,7 +28,7 @@
     "better-sqlite3": "^12.4.6",
     "date-fns": "^4.1.0",
     "h3-formidable": "^1.0.0",
-    "inngest": "^3.46.0",
+    "inngest": "^3.54.0",
     "jspdf": "^2.5.1",
     "nuxt": "^4.4.2",
     "openai": "^6.9.1",
