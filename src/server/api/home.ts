@@ -1,11 +1,12 @@
 import type { TimelineEvent } from '~/types'
 import type { Tables } from '~/types/database.types'
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
-import { 
-  getStartOfDayInTimezone, 
+import {
+  getStartOfDayInTimezone,
   getDaysAgoInTimezone,
-  getTimezoneWithProfileFallback 
+  getTimezoneWithProfileFallback
 } from '../utils/timezone'
+import { getActiveCaseId } from '../utils/cases'
 
 type EventRow = Tables<'events'>
 
@@ -59,6 +60,7 @@ export default eventHandler(async (event): Promise<HomeResponse> => {
   const userTimezone = await getTimezoneWithProfileFallback(event, supabase, userId)
 
   try {
+    const caseId = await getActiveCaseId(supabase, userId)
 
     const [
       { data: eventsRows, error: eventsError },
@@ -70,12 +72,13 @@ export default eventHandler(async (event): Promise<HomeResponse> => {
         .select(
           'id, type, title, description, primary_timestamp, location, created_at'
         )
-        .eq('user_id', userId)
+        .eq('case_id', caseId)
         .order('primary_timestamp', { ascending: false, nullsFirst: false }),
       supabase
         .from('evidence')
         .select('id')
-        .eq('user_id', userId),
+        .eq('case_id', caseId),
+      // communications is not yet case-scoped (Plan 02 will add it); keep user_id filter.
       supabase
         .from('communications')
         .select('id')

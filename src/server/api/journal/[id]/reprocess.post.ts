@@ -31,10 +31,10 @@ export default defineEventHandler(async (event): Promise<JournalReprocessRespons
 
   const client = await serverSupabaseClient(event)
 
-  // Load the journal entry to reprocess
+  // Load the journal entry to reprocess (case_id is the source of truth for re-extraction)
   const { data: entry, error: entryError } = await client
     .from('journal_entries')
-    .select('id, event_text, reference_date, status')
+    .select('id, event_text, reference_date, status, case_id')
     .eq('id', journalEntryId)
     .eq('user_id', userId)
     .single()
@@ -139,6 +139,7 @@ export default defineEventHandler(async (event): Promise<JournalReprocessRespons
         jobId: job.id,
         journalEntryId,
         userId,
+        caseId: entry.case_id,
         eventText: entry.event_text,
         referenceDate: entry.reference_date || null,
         timezone,

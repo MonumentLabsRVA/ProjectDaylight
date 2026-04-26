@@ -3,6 +3,7 @@ import { canCreateJournalEntry } from '../../utils/subscription'
 import { inngest } from '../../inngest/client'
 import { getTimezoneWithProfileFallback } from '../../utils/timezone'
 import { logAnalyticsEvent } from '../../utils/analytics'
+import { getActiveCaseId } from '../../utils/cases'
 import type { JournalSubmitResponse } from '~/types'
 
 export default defineEventHandler(async (event): Promise<JournalSubmitResponse> => {
@@ -25,17 +26,21 @@ export default defineEventHandler(async (event): Promise<JournalSubmitResponse> 
     referenceDate?: string
     timezone?: string
     evidenceIds?: string[]
+    caseId?: string
   }>(event)
 
   if (!body.eventText?.trim()) {
     throw createError({ statusCode: 400, statusMessage: 'Event text is required' })
   }
 
+  const caseId = await getActiveCaseId(supabase, userId, body.caseId)
+
   // 1. Create journal entry in 'processing' state
   const { data: entry, error: entryError } = await supabase
     .from('journal_entries')
     .insert({
       user_id: userId,
+      case_id: caseId,
       event_text: body.eventText,
       reference_date: body.referenceDate || null,
       status: 'processing'
@@ -79,6 +84,7 @@ export default defineEventHandler(async (event): Promise<JournalSubmitResponse> 
         jobId: job.id,
         journalEntryId: entry.id,
         userId,
+        caseId,
         eventText: body.eventText,
         referenceDate: body.referenceDate || null,
         timezone,

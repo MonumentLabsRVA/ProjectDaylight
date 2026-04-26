@@ -2,6 +2,7 @@ import OpenAI from 'openai'
 import { zodTextFormat } from 'openai/helpers/zod'
 import { z } from 'zod'
 import { getTimezoneWithProfileFallback } from '../utils/timezone'
+import { getActiveCaseId } from '../utils/cases'
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 
 interface VoiceExtractionBody {
@@ -181,14 +182,15 @@ export default defineEventHandler(async (event) => {
     let caseContextDescription =
       'The speaker is involved in a family court / custody / divorce matter and is documenting events for legal purposes.'
 
+    let activeCaseId: string | null = null
     if (userId) {
       try {
+        activeCaseId = await getActiveCaseId(supabase, userId)
         const { data: caseRow } = await supabase
           .from('cases')
           .select('case_type, stage, your_role, opposing_party_name, goals_summary')
+          .eq('id', activeCaseId)
           .eq('user_id', userId)
-          .order('created_at', { ascending: false })
-          .limit(1)
           .maybeSingle()
 
         if (caseRow) {
@@ -310,8 +312,12 @@ export default defineEventHandler(async (event) => {
     let createdEventIds: string[] = []
 
     if (events.length) {
+      // Resolve active case for this insert. If we already loaded it for context, reuse.
+      const caseIdForInsert = activeCaseId ?? await getActiveCaseId(supabase, userId)
+
       const eventsToInsert = events.map((e) => ({
         user_id: userId,
+        case_id: caseIdForInsert,
         recording_id: null,
         type: e.type,
         title: e.title || 'Untitled event',
@@ -353,6 +359,7 @@ export default defineEventHandler(async (event) => {
 
       const evidenceMentionsToInsert: {
         user_id: string
+        case_id: string
         event_id: string
         type: EvidenceMention['type']
         description: string
@@ -402,6 +409,7 @@ export default defineEventHandler(async (event) => {
 
           evidenceMentionsToInsert.push({
             user_id: userId,
+            case_id: caseIdForInsert,
             event_id: eventId,
             type: mention.type,
             description: mention.description,

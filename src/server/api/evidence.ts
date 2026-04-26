@@ -1,6 +1,7 @@
 import type { EvidenceItem } from '~/types'
 import type { Tables } from '~/types/database.types'
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { getActiveCaseId } from '../utils/cases'
 
 type EvidenceRow = Tables<'evidence'>
 
@@ -68,10 +69,14 @@ export default eventHandler(async (event) => {
     })
   }
 
+  const query = getQuery(event)
+  const overrideCaseId = typeof query.caseId === 'string' ? query.caseId : null
+  const caseId = await getActiveCaseId(supabase, userId, overrideCaseId)
+
   const { data, error } = await supabase
     .from('evidence')
     .select('id, source_type, original_filename, storage_path, mime_type, summary, tags, created_at')
-    .eq('user_id', userId)
+    .eq('case_id', caseId)
     .order('created_at', { ascending: false })
 
   if (error) {

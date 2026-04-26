@@ -14,6 +14,7 @@ interface JournalExtractionEvent {
     jobId: string
     journalEntryId: string
     userId: string
+    caseId: string
     eventText: string
     referenceDate?: string | null
     evidenceIds?: string[]
@@ -262,6 +263,7 @@ async function processEvidenceItem(
 async function extractEventsFromText(
   supabase: PublicClient,
   userId: string,
+  caseId: string,
   eventText: string,
   referenceDate: string | null,
   evidenceSummaries: EvidenceSummary[]
@@ -322,9 +324,8 @@ async function extractEventsFromText(
         'next_court_date'
       ].join(', ')
     )
+    .eq('id', caseId)
     .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(1)
     .maybeSingle()
 
   // The Supabase client typing for this query falls back to a generic error type,
@@ -567,6 +568,7 @@ function mapNewToLegacyWelfare(
 async function saveExtractedEvents(
   supabase: PublicClient,
   userId: string,
+  caseId: string,
   journalEntryId: string,
   extraction: ExtractionPayload,
   evidenceIds: string[]
@@ -589,6 +591,7 @@ async function saveExtractedEvents(
 
     return {
       user_id: userId,
+      case_id: caseId,
       journal_entry_id: journalEntryId,
       recording_id: null,
       // New granular type column
@@ -639,6 +642,7 @@ async function saveExtractedEvents(
 
   const evidenceMentionsToInsert: {
     user_id: string
+    case_id: string
     event_id: string
     type: ExtractionEvidenceType
     description: string
@@ -685,6 +689,7 @@ async function saveExtractedEvents(
       if (!mention?.description) return
       evidenceMentionsToInsert.push({
         user_id: userId,
+        case_id: caseId,
         event_id: eventId,
         type: mention.type,
         description: mention.description,
@@ -807,6 +812,7 @@ async function saveExtractedEvents(
   if (actionItems.length) {
     const actionItemsToInsert = actionItems.map((item) => ({
       user_id: userId,
+      case_id: caseId,
       event_id: createdEventIds[0] ?? null,
       priority: item.priority,
       type: item.type,
@@ -864,8 +870,12 @@ export const journalExtractionFunction = inngest.createFunction(
   { event: 'journal/extraction.requested' },
   async ({ event, step }) => {
     const extractionEvent = event as unknown as JournalExtractionEvent
-    const { jobId, journalEntryId, userId, eventText, referenceDate, evidenceIds = [] } =
+    const { jobId, journalEntryId, userId, caseId, eventText, referenceDate, evidenceIds = [] } =
       extractionEvent.data
+
+    if (!caseId) {
+      throw new Error('caseId is required on journal/extraction.requested events')
+    }
 
     const supabase = createServiceClient()
 
@@ -907,6 +917,7 @@ export const journalExtractionFunction = inngest.createFunction(
       return await extractEventsFromText(
         supabase,
         userId,
+        caseId,
         eventText,
         referenceDate || null,
         evidenceSummaries
@@ -918,6 +929,7 @@ export const journalExtractionFunction = inngest.createFunction(
       return await saveExtractedEvents(
         supabase,
         userId,
+        caseId,
         journalEntryId,
         extraction as ExtractionPayload,
         evidenceIds

@@ -1,6 +1,7 @@
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 import type { Json, TablesInsert } from '~/types/database.types'
 import { canCreateJournalEntry } from '../../utils/subscription'
+import { getActiveCaseId } from '../../utils/cases'
 
 /**
  * POST /api/capture/save-events
@@ -175,6 +176,8 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
+    const caseId = await getActiveCaseId(supabase, userId)
+
     // Create a journal entry record to preserve the original narrative
     let journalEntryId: string | null = null
     if (eventText) {
@@ -182,6 +185,7 @@ export default defineEventHandler(async (event) => {
         .from('journal_entries')
         .insert({
           user_id: userId,
+          case_id: caseId,
           event_text: eventText,
           reference_date: referenceDate || null,
           reference_time_description: referenceTimeDescription || null,
@@ -227,6 +231,7 @@ export default defineEventHandler(async (event) => {
 
       return {
         user_id: userId,
+        case_id: caseId,
         recording_id: null,
         // New granular type column
         type_v2: e.type,
@@ -279,6 +284,7 @@ export default defineEventHandler(async (event) => {
 
     const evidenceMentionsToInsert: {
       user_id: string
+      case_id: string
       event_id: string
       type: ExtractionEvidenceMention['type']
       description: string
@@ -325,6 +331,7 @@ export default defineEventHandler(async (event) => {
         if (!mention?.description) return
         evidenceMentionsToInsert.push({
           user_id: userId,
+          case_id: caseId,
           event_id: eventId,
           type: mention.type,
           description: mention.description,
@@ -395,6 +402,7 @@ export default defineEventHandler(async (event) => {
     if (actionItems.length) {
       const actionItemsToInsert = actionItems.map((item) => ({
         user_id: userId,
+        case_id: caseId,
         event_id: createdEventIds[0] ?? null, // Link to first event
         priority: item.priority,
         type: item.type,

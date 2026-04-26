@@ -3,6 +3,7 @@ import { zodTextFormat } from 'openai/helpers/zod'
 import { z } from 'zod'
 import { serverSupabaseClient } from '#supabase/server'
 import { requireUserId } from '../utils/auth'
+import { getActiveCaseId } from '../utils/cases'
 
 interface EvidenceCommunicationExtractBody {
   /**
@@ -128,13 +129,14 @@ export default defineEventHandler(async (event) => {
     let caseContextDescription =
       'The user is involved in a family law / custody / divorce matter and is collecting communication evidence for their case.'
 
+    const caseId = await getActiveCaseId(supabase, userId)
+
     try {
       const { data: caseRow } = await supabase
         .from('cases')
         .select('case_type, stage, your_role, opposing_party_name, goals_summary')
+        .eq('id', caseId)
         .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(1)
         .maybeSingle()
 
       if (caseRow) {
@@ -369,6 +371,7 @@ export default defineEventHandler(async (event) => {
 
       const insertPayload = {
         user_id: userId,
+        case_id: caseId,
         source_type: sourceType,
         storage_path: persistedStoragePath,
         original_filename: persistedOriginalFilename,
@@ -400,6 +403,7 @@ export default defineEventHandler(async (event) => {
     if (dbSuggestions?.events?.length) {
       const eventsToInsert = dbSuggestions.events.map((ev) => ({
         user_id: userId,
+        case_id: caseId,
         recording_id: null,
         type: ev.type,
         title: ev.title || 'Communication event',

@@ -1,4 +1,5 @@
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { getActiveCaseId } from '../utils/cases'
 import type { Json } from '~/types/database.types'
 
 interface ExtractionEventParticipantGroups {
@@ -94,8 +95,11 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  const caseId = await getActiveCaseId(supabase, userId)
+
   const eventsToInsert = events.map((e) => ({
     user_id: userId,
+    case_id: caseId,
     recording_id: body.recordingId ?? null,
     type: e.type,
     title: e.title || 'Untitled event',
@@ -133,6 +137,7 @@ export default defineEventHandler(async (event) => {
 
   const evidenceMentionsToInsert: {
     user_id: string
+    case_id: string
     event_id: string
     type: ExtractionEvidenceMention['type']
     description: string
@@ -181,6 +186,7 @@ export default defineEventHandler(async (event) => {
 
       evidenceMentionsToInsert.push({
         user_id: userId,
+        case_id: caseId,
         event_id: eventId,
         type: mention.type,
         description: mention.description,

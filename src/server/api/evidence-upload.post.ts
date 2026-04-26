@@ -4,6 +4,7 @@ import { serverSupabaseClient } from '#supabase/server'
 import { canUploadEvidence } from '../utils/subscription'
 import { requireUserId } from '../utils/auth'
 import { logAnalyticsEvent } from '../utils/analytics'
+import { getActiveCaseId } from '../utils/cases'
 
 /**
  * POST /api/evidence-upload
@@ -91,10 +92,22 @@ export default defineEventHandler(async (event) => {
       annotation = rawAnnotation[0].trim() || null
     }
 
+    // Optional case override from the upload form (multipart field).
+    let overrideCaseId: string | null = null
+    const rawCaseId = (fields as any)?.caseId
+    if (typeof rawCaseId === 'string') {
+      overrideCaseId = rawCaseId.trim() || null
+    } else if (Array.isArray(rawCaseId) && typeof rawCaseId[0] === 'string') {
+      overrideCaseId = rawCaseId[0].trim() || null
+    }
+
+    const caseId = await getActiveCaseId(supabase, userId, overrideCaseId)
+
     const { data, error: insertError } = await supabase
       .from('evidence')
       .insert({
         user_id: userId,
+        case_id: caseId,
         source_type: sourceType,
         storage_path: storagePath,
         original_filename: originalName,  // Keep original name for display

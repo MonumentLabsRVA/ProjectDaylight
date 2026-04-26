@@ -1,6 +1,7 @@
 import type { TimelineEvent } from '~/types'
 import type { Tables } from '~/types/database.types'
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
+import { getActiveCaseId } from '../utils/cases'
 
 type EventRow = Tables<'events'> & {
   // New granular event type column added in migration 0039
@@ -74,6 +75,10 @@ export default eventHandler(async (event) => {
     })
   }
 
+  const query = getQuery(event)
+  const overrideCaseId = typeof query.caseId === 'string' ? query.caseId : null
+  const caseId = await getActiveCaseId(supabase, userId, overrideCaseId)
+
   const {
     data: eventsRows,
     error: eventsError
@@ -82,7 +87,7 @@ export default eventHandler(async (event) => {
     .select(
       'id, type, type_v2, title, description, primary_timestamp, location, created_at'
     )
-    .eq('user_id', userId)
+    .eq('case_id', caseId)
     .order('primary_timestamp', { ascending: false, nullsFirst: false })
     .limit(100)
 

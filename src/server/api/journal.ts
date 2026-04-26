@@ -1,5 +1,6 @@
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 import type { Database } from '~/types/database.types'
+import { getActiveCaseId } from '../utils/cases'
 
 export interface JournalEntry {
   id: string
@@ -36,7 +37,11 @@ export default defineEventHandler(async (event): Promise<JournalEntry[]> => {
 
   const client = await serverSupabaseClient<Database>(event)
 
-  // Fetch all journal entries for this user
+  const query = getQuery(event)
+  const overrideCaseId = typeof query.caseId === 'string' ? query.caseId : null
+  const caseId = await getActiveCaseId(client, userId, overrideCaseId)
+
+  // Fetch all journal entries for this user's active case
   const { data: entries, error: entriesError } = await client
     .from('journal_entries')
     .select(`
@@ -51,7 +56,7 @@ export default defineEventHandler(async (event): Promise<JournalEntry[]> => {
       processed_at,
       completed_at
     `)
-    .eq('user_id', userId)
+    .eq('case_id', caseId)
     .order('reference_date', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })
 
