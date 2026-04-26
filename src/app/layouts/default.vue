@@ -276,16 +276,7 @@ onMounted(async () => {
       :ui="{ footer: 'lg:border-t lg:border-default' }"
     >
       <template #header="{ collapsed }">
-        <NuxtLink 
-          to="/home" 
-          class="flex items-center gap-2.5 py-3"
-          :class="collapsed ? 'justify-center px-2' : 'px-3'"
-        >
-          <AppLogoIcon :size="collapsed ? 24 : 20" class="shrink-0" />
-          <div v-if="!collapsed" class="flex flex-col text-sm font-medium leading-tight text-highlighted">
-            <span>Daylight</span>
-          </div>
-        </NuxtLink>
+        <CaseSwitcher :collapsed="collapsed" />
       </template>
 
       <template #default="{ collapsed }">
@@ -310,6 +301,10 @@ onMounted(async () => {
       :loading="searchLoading"
       placeholder="Search pages, events, and evidence..."
     />
+
+    <div class="px-4 pt-4">
+      <CaseWorkspaceIntroBanner />
+    </div>
 
     <slot />
     
