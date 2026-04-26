@@ -31,75 +31,102 @@ interface SearchGroup {
   items: SearchItem[]
 }
 
-const links = [
-  [{
-    label: 'Home',
-    icon: 'i-lucide-house',
-    to: '/home',
-    onSelect: () => {
-      open.value = false
-    }
-  }, {
-    label: 'Case',
-    icon: 'i-lucide-briefcase',
-    to: '/case',
-    onSelect: () => {
-      open.value = false
-    }
-  }], 
-  [{
-    label: 'Journal',
-    icon: 'i-lucide-book-open',
-    children: [{
-      label: 'All Entries',
-      icon: 'i-lucide-list',
-      to: '/journal',
+const INTERNAL_ALLOWED_EMAILS = new Set([
+  'gkjohns@gmail.com',
+  'kyle@monumentlabs.io',
+  'kyle@tidewaterresearch.com'
+])
+
+const isInternalUser = computed(() => {
+  const email = (user.value as any)?.email
+  return Boolean(email && INTERNAL_ALLOWED_EMAILS.has(email))
+})
+
+const links = computed<NavigationMenuItem[][]>(() => {
+  const main: NavigationMenuItem[][] = [
+    [{
+      label: 'Home',
+      icon: 'i-lucide-house',
+      to: '/home',
       onSelect: () => {
         open.value = false
       }
     }, {
-      label: 'New Entry',
-      icon: 'i-lucide-plus',
-      to: '/journal/new',
+      label: 'Case',
+      icon: 'i-lucide-briefcase',
+      to: '/case',
       onSelect: () => {
         open.value = false
       }
-    }]
-  }, {
-    label: 'Timeline',
-    icon: 'i-lucide-calendar-clock',
-    to: '/timeline',
-    onSelect: () => {
-      open.value = false
-    }
-  }, {
-    label: 'Evidence',
-    icon: 'i-lucide-folder-open',
-    to: '/evidence',
-    onSelect: () => {
-      open.value = false
-    }
-  }], 
-  [{
-    label: 'Exports',
-    icon: 'i-lucide-file-down',
-    children: [{
-      label: 'All Exports',
-      icon: 'i-lucide-list',
-      to: '/exports',
+    }],
+    [{
+      label: 'Journal',
+      icon: 'i-lucide-book-open',
+      children: [{
+        label: 'All Entries',
+        icon: 'i-lucide-list',
+        to: '/journal',
+        onSelect: () => {
+          open.value = false
+        }
+      }, {
+        label: 'New Entry',
+        icon: 'i-lucide-plus',
+        to: '/journal/new',
+        onSelect: () => {
+          open.value = false
+        }
+      }]
+    }, {
+      label: 'Timeline',
+      icon: 'i-lucide-calendar-clock',
+      to: '/timeline',
       onSelect: () => {
         open.value = false
       }
     }, {
-      label: 'New Export',
-      icon: 'i-lucide-plus',
-      to: '/exports/new',
+      label: 'Evidence',
+      icon: 'i-lucide-folder-open',
+      to: '/evidence',
       onSelect: () => {
         open.value = false
       }
+    }],
+    [{
+      label: 'Exports',
+      icon: 'i-lucide-file-down',
+      children: [{
+        label: 'All Exports',
+        icon: 'i-lucide-list',
+        to: '/exports',
+        onSelect: () => {
+          open.value = false
+        }
+      }, {
+        label: 'New Export',
+        icon: 'i-lucide-plus',
+        to: '/exports/new',
+        onSelect: () => {
+          open.value = false
+        }
+      }]
     }]
+  ]
+
+  if (!isInternalUser.value) return main
+
+  const internal: NavigationMenuItem[] = [{
+    label: 'Internal',
+    icon: 'i-lucide-wrench',
+    to: '/internal',
+    badge: { color: 'info' as const, variant: 'subtle' as const, label: 'Employee' },
+    onSelect: () => {
+      open.value = false
+    }
   }]
-] satisfies NavigationMenuItem[][]
+
+  return [...main, internal]
+})
 
 function extractSearchItems(items: NavigationMenuItem[]): SearchItem[] {
   const result: SearchItem[] = []
@@ -122,7 +149,7 @@ function extractSearchItems(items: NavigationMenuItem[]): SearchItem[] {
 const searchGroups = ref<SearchGroup[]>([{
   id: 'links',
   label: 'Go to',
-  items: extractSearchItems(links.flat())
+  items: extractSearchItems(links.value.flat())
 }])
 
 const searchLoading = ref(false)
@@ -197,7 +224,7 @@ async function loadSearchData() {
     const groups: SearchGroup[] = [{
       id: 'links',
       label: 'Go to',
-      items: extractSearchItems(links.flat())
+      items: extractSearchItems(links.value.flat())
     }]
 
     if (eventItems.length) {
