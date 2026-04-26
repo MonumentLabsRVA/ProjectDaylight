@@ -1423,8 +1423,10 @@ function getFocusColor(focus: ExportFocus) {
             </template>
             <template v-else>
               <div class="bg-white dark:bg-gray-900 rounded-md p-6">
-                <MDC
-                  :value="markdown"
+                <UEditor
+                  :model-value="markdown"
+                  content-type="markdown"
+                  :editable="false"
                   class="prose prose-sm dark:prose-invert max-w-none"
                 />
               </div>

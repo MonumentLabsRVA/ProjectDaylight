@@ -5,10 +5,8 @@ export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui',
-    '@nuxt/content',
     '@nuxtjs/supabase',
-    '@vueuse/nuxt',
-    '@nuxtjs/mdc'
+    '@vueuse/nuxt'
   ],
 
   devtools: {

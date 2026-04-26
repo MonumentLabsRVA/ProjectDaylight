@@ -16,9 +16,7 @@
   "dependencies": {
     "@iconify-json/lucide": "^1.2.73",
     "@iconify-json/simple-icons": "^1.2.58",
-    "@nuxt/content": "3.8.2",
     "@nuxt/ui": "^4.6.0",
-    "@nuxtjs/mdc": "^0.18.4",
     "@nuxtjs/supabase": "^2.0.1",
     "@types/formidable": "^3.4.6",
     "@unovis/ts": "^1.6.1",

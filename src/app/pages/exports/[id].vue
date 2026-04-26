@@ -342,8 +342,10 @@ async function deleteExport() {
           </template>
           <template v-else>
             <div class="bg-white dark:bg-gray-900 rounded-lg p-6 shadow-sm border border-default">
-              <MDC
-                :value="currentExport.markdown_content"
+              <UEditor
+                :model-value="currentExport.markdown_content"
+                content-type="markdown"
+                :editable="false"
                 class="prose prose-sm dark:prose-invert max-w-none"
               />
             </div>
