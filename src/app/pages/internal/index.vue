@@ -157,6 +157,45 @@ const plannedLabs = [
   { plan: 'Plan 02', title: 'Chat tool dry-run', desc: 'Pick a chat tool (search_events, find_contradictions, etc.), supply args, and inspect the JSON the LLM would receive.', icon: 'i-lucide-message-square' },
   { plan: 'Plan 03', title: 'Attorney share preview', desc: 'Spin up a sandbox attorney session against your own case and click through the read-only views as they will appear to outside counsel.', icon: 'i-lucide-share-2' }
 ]
+
+// Inngest test
+const inngestMessage = ref('Hello from Daylight!')
+const inngestLoading = ref(false)
+const inngestResults = ref<Array<{
+  id: string
+  timestamp: string
+  success: boolean
+  eventId?: string
+  error?: string
+}>>([])
+
+async function triggerInngestJob() {
+  inngestLoading.value = true
+  const id = crypto.randomUUID()
+
+  try {
+    const response = await $fetch<{ eventId?: string }>('/api/test-job', {
+      method: 'POST',
+      body: { message: inngestMessage.value }
+    })
+
+    inngestResults.value.unshift({
+      id,
+      timestamp: new Date().toISOString(),
+      success: true,
+      eventId: response.eventId
+    })
+  } catch (error: any) {
+    inngestResults.value.unshift({
+      id,
+      timestamp: new Date().toISOString(),
+      success: false,
+      error: error?.data?.message || error?.message || 'Unknown error'
+    })
+  } finally {
+    inngestLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -410,23 +449,81 @@ const plannedLabs = [
             </div>
           </section>
 
-          <!-- Existing dev pages -->
+          <!-- Inngest test -->
           <section class="pb-6">
-            <h2 class="text-lg font-semibold text-highlighted mb-4">Other dev pages</h2>
-            <UCard :ui="{ body: 'space-y-2' }">
+            <h2 class="text-lg font-semibold text-highlighted mb-4">Inngest test</h2>
+
+            <UAlert
+              title="How to test"
+              icon="i-lucide-info"
+              color="info"
+              variant="subtle"
+              class="mb-4"
+            >
+              <template #description>
+                <ol class="list-decimal list-inside space-y-1 text-sm mt-2">
+                  <li>Run <UKbd>npx inngest-cli@latest dev -u http://localhost:3000/api/inngest</UKbd></li>
+                  <li>Open <ULink to="http://localhost:8288" target="_blank">localhost:8288</ULink></li>
+                  <li>Trigger a job below</li>
+                </ol>
+              </template>
+            </UAlert>
+
+            <UCard :ui="{ body: 'space-y-4' }">
+              <UFormField label="Message">
+                <UInput v-model="inngestMessage" placeholder="Enter a test message..." />
+              </UFormField>
               <UButton
-                to="/dev/inngest-test"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                icon="i-lucide-external-link"
                 block
-                :ui="{ base: 'justify-between' }"
+                icon="i-lucide-zap"
+                :loading="inngestLoading"
+                @click="triggerInngestJob"
               >
-                <span>Inngest test page</span>
-                <span class="text-xs text-muted font-mono">/dev/inngest-test</span>
+                Trigger Test Job
               </UButton>
             </UCard>
+
+            <UCard
+              v-if="inngestResults.length > 0"
+              class="mt-4"
+            >
+              <template #header>
+                <div class="flex items-center justify-between">
+                  <span class="font-medium">Results</span>
+                  <UButton
+                    variant="ghost"
+                    size="xs"
+                    @click="inngestResults = []"
+                  >
+                    Clear
+                  </UButton>
+                </div>
+              </template>
+              <div class="space-y-2">
+                <UAlert
+                  v-for="result in inngestResults"
+                  :key="result.id"
+                  :color="result.success ? 'success' : 'error'"
+                  :icon="result.success ? 'i-lucide-check-circle' : 'i-lucide-x-circle'"
+                  :title="result.success ? 'Job Queued' : 'Failed'"
+                  variant="subtle"
+                >
+                  <template #description>
+                    <div class="text-xs space-y-1">
+                      <p v-if="result.eventId" class="font-mono truncate">
+                        Event ID: {{ result.eventId }}
+                      </p>
+                      <p v-if="result.error">{{ result.error }}</p>
+                      <p class="text-muted">{{ new Date(result.timestamp).toLocaleTimeString() }}</p>
+                    </div>
+                  </template>
+                </UAlert>
+              </div>
+            </UCard>
+
+            <p class="text-xs text-muted mt-3 italic">
+              Jobs complete after ~3 seconds. Check the Inngest dashboard for details.
+            </p>
           </section>
         </div>
       </div>

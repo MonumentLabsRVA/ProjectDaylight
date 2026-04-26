@@ -17,8 +17,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     '/privacy',               // Privacy policy page
     '/terms',                 // Terms and conditions page
     '/security',              // Security page
-    '/help',                  // Help & FAQ page
-    '/dev/inngest-test'       // Inngest test page (dev only)
+    '/help'                   // Help & FAQ page
   ]
   
   // Check if the current route is public
