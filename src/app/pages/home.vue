@@ -82,6 +82,8 @@ function goToEntry(entry: JournalEntry) {
 
     <template #body>
       <div class="p-4 sm:p-6 space-y-6">
+        <CaseWorkspaceIntroBanner />
+
         <!-- Greeting -->
         <div>
           <h1 class="text-2xl sm:text-3xl font-semibold text-highlighted tracking-tight">

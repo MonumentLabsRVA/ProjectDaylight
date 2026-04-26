@@ -302,10 +302,6 @@ onMounted(async () => {
       placeholder="Search pages, events, and evidence..."
     />
 
-    <div class="px-4 pt-4">
-      <CaseWorkspaceIntroBanner />
-    </div>
-
     <slot />
     
     <!-- Mobile-only floating action button for quick voice recording -->
