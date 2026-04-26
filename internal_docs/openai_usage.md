@@ -20,9 +20,9 @@
 
 | Model | Use Case |
 |---|---|
-| `gpt-5.4` | Flagship — best quality, most capable |
-| `gpt-5-mini` | Smaller/faster reasoning model, good balance of cost and quality |
-| `gpt-5-nano` | Smallest/cheapest, best for high-volume low-complexity tasks |
+| `gpt-5.5` | Flagship — best quality, most capable (released Apr 2026; no mini/nano variants yet) |
+| `gpt-5.4-mini` | Smaller/faster reasoning model, good balance of cost and quality |
+| `gpt-5.4-nano` | Smallest/cheapest, best for high-volume low-complexity tasks |
 
 All three are reasoning models and support the `reasoning` parameter.
 
@@ -34,7 +34,7 @@ All three are reasoning models and support the `reasoning` parameter.
 
 ```typescript
 openai.responses.create({
-  model: string,          // Required — "gpt-5.4", "gpt-5-mini", "gpt-5-nano"
+  model: string,          // Required — "gpt-5.5", "gpt-5.4-mini", "gpt-5.4-nano"
   input: string | Item[], // The user input — can be a plain string or array of items
   instructions: string,   // System/developer message (replaces the "system" role message)
   stream: boolean,        // Default: false — enable SSE streaming
@@ -136,7 +136,7 @@ import OpenAI from "openai";
 const openai = new OpenAI();
 
 const response = await openai.responses.create({
-  model: "gpt-5.4",
+  model: "gpt-5.5",
   instructions: "You are a helpful assistant.",
   input: "Hello!",
 });
@@ -151,7 +151,7 @@ import OpenAI from "openai";
 const openai = new OpenAI();
 
 const response = await openai.responses.create({
-  model: "gpt-5.4",
+  model: "gpt-5.5",
   instructions: "You are a helpful assistant.",
   input: "Hello!",
   stream: true,
@@ -169,7 +169,7 @@ import OpenAI from "openai";
 const openai = new OpenAI();
 
 const response = await openai.responses.create({
-  model: "gpt-5-mini",
+  model: "gpt-5.4-mini",
   input: "How much wood would a woodchuck chuck?",
   reasoning: {
     effort: "high"
@@ -186,7 +186,7 @@ import OpenAI from "openai";
 const openai = new OpenAI();
 
 const response = await openai.responses.create({
-  model: "gpt-5.4",
+  model: "gpt-5.5",
   input: "What is the capital of France?",
   reasoning: {
     effort: "low",
@@ -205,7 +205,7 @@ import OpenAI from "openai";
 const openai = new OpenAI();
 
 const response = await openai.responses.create({
-  model: "gpt-5.4",
+  model: "gpt-5.5",
   tools: [{ type: "web_search_preview" }],
   input: "What was a positive news story from today?",
 });
@@ -220,7 +220,7 @@ import OpenAI from "openai";
 const openai = new OpenAI();
 
 const response = await openai.responses.create({
-  model: "gpt-5.4",
+  model: "gpt-5.5",
   input: "Jane, 54 years old",
   text: {
     format: {
@@ -250,7 +250,7 @@ import OpenAI from "openai";
 const openai = new OpenAI();
 
 const response = await openai.responses.create({
-  model: "gpt-5.4",
+  model: "gpt-5.5",
   input: "What's the weather in San Francisco?",
   tools: [
     {
@@ -280,13 +280,13 @@ import OpenAI from "openai";
 const openai = new OpenAI();
 
 const res1 = await openai.responses.create({
-  model: "gpt-5-nano",
+  model: "gpt-5.4-nano",
   input: "What is the capital of France?",
   store: true,
 });
 
 const res2 = await openai.responses.create({
-  model: "gpt-5-nano",
+  model: "gpt-5.4-nano",
   input: "And what's its population?",
   previous_response_id: res1.id,
   store: true,
@@ -304,7 +304,7 @@ const openai = new OpenAI();
 let context: any[] = [{ role: "user", content: "What is the capital of France?" }];
 
 const res1 = await openai.responses.create({
-  model: "gpt-5-nano",
+  model: "gpt-5.4-nano",
   input: context,
 });
 
@@ -312,7 +312,7 @@ const res1 = await openai.responses.create({
 context = [...context, ...res1.output, { role: "user", content: "And its population?" }];
 
 const res2 = await openai.responses.create({
-  model: "gpt-5-nano",
+  model: "gpt-5.4-nano",
   input: context,
 });
 
@@ -328,7 +328,7 @@ console.log(res2.output_text);
   "id": "resp_...",
   "object": "response",
   "status": "completed",       // "completed" | "incomplete" | "cancelled" | "failed"
-  "model": "gpt-5.4-...",
+  "model": "gpt-5.5-...",
   "output": [                  // Array of output items
     {
       "type": "reasoning",     // Only present for reasoning models

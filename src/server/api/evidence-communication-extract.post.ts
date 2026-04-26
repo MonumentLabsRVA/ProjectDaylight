@@ -248,7 +248,7 @@ export default defineEventHandler(async (event) => {
      * - Produce a validated JSON object matching the communications evidence schema.
      */
     const response = await openai.responses.parse({
-      model: 'gpt-5-mini',
+      model: 'gpt-5.4-mini',
       text: {
         format: zodTextFormat(ExtractionSchema, 'extraction')
       },
@@ -470,7 +470,7 @@ export default defineEventHandler(async (event) => {
       }
 
       payload._cost = {
-        model: 'gpt-5-mini',
+        model: 'gpt-5.4-mini',
         currency: 'USD',
         total_usd: costEstimateUsd,
         input_rate_per_1k: process.env.OPENAI_GPT4_1_MINI_INPUT_RATE_USD_PER_1K_TOKENS || null,

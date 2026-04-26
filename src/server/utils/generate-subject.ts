@@ -31,7 +31,7 @@ export async function generateReportMetadata(description: string): Promise<Repor
     })
 
     const response = await openai.responses.parse({
-      model: 'gpt-5-mini',
+      model: 'gpt-5.4-mini',
       reasoning: { effort: 'minimal' },
       text: {
         format: zodTextFormat(ReportMetadataSchema, 'report_metadata')

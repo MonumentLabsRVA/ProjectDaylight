@@ -187,13 +187,13 @@ export default defineEventHandler(async (event) => {
     /**
      * Use the Responses API with structured output parsing via Zod schemas, mirroring
      * the existing voice-extraction and communication extraction routes, but using
-     * the lower-cost gpt-5-nano model.
+     * the lower-cost gpt-5.4-nano model.
      *
      * The model receives a compact description of each event and must emit
      * per-event evidence suggestions that map cleanly onto our enums.
      */
     const response = await openai.responses.parse({
-      model: 'gpt-5-nano',
+      model: 'gpt-5.4-nano',
       text: {
         format: zodTextFormat(ExtractionSchema, 'extraction')
       },
@@ -303,7 +303,7 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Optional cost estimation for gpt-5-nano if per-1K token pricing is provided via env.
+    // Optional cost estimation for gpt-5.4-nano if per-1K token pricing is provided via env.
     let costEstimateUsd: number | null = null
 
     if (usage) {
@@ -321,7 +321,7 @@ export default defineEventHandler(async (event) => {
       }
 
       payload._cost = {
-        model: 'gpt-5-nano',
+        model: 'gpt-5.4-nano',
         currency: 'USD',
         total_usd: costEstimateUsd,
         input_rate_per_1k: process.env.OPENAI_GPT5_NANO_INPUT_RATE_USD_PER_1K_TOKENS || null,

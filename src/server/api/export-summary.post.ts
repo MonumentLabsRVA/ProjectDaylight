@@ -226,7 +226,7 @@ ${contextParts.join('\n')}
 Generate a summary following the structure and requirements specified in your instructions.`
 
     const response = await openai.responses.create({
-      model: 'gpt-5-mini',
+      model: 'gpt-5.4-mini',
       input: [
         {
           role: 'system',

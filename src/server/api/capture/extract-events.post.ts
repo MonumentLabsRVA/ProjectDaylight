@@ -403,7 +403,7 @@ export default defineEventHandler(async (event) => {
     })
 
     const response = await openai.responses.parse({
-      model: 'gpt-5-mini',
+      model: 'gpt-5.4-mini',
       text: {
         format: zodTextFormat(ExtractionSchema, 'extraction')
       },
