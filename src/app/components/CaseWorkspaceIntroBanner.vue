@@ -25,9 +25,9 @@ const shouldShow = computed(() =>
 const description = computed(() => {
   const caseTitle = activeCase.value?.title ?? 'your active case'
   if (cases.value.length > 1) {
-    return `All your existing notes, evidence, and journal entries are now in ${caseTitle}. Switch between your other cases anytime from the menu in the top-left of the sidebar.`
+    return `Your active case is ${caseTitle}. Switch between your cases anytime from the menu in the top-left of the sidebar.`
   }
-  return `Everything you've captured is now organized under ${caseTitle}. You can switch cases or start a new one from the menu in the top-left of the sidebar.`
+  return `Your active case is ${caseTitle}. You can switch cases or add a new one from the menu in the top-left of the sidebar.`
 })
 
 function dismiss() {
@@ -38,7 +38,7 @@ function dismiss() {
 <template>
   <UAlert
     v-if="shouldShow"
-    icon="i-lucide-sparkles"
+    icon="i-lucide-folders"
     color="primary"
     variant="subtle"
     title="Daylight now organizes work by case"

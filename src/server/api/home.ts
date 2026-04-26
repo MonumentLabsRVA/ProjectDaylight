@@ -6,7 +6,7 @@ import {
   getDaysAgoInTimezone,
   getTimezoneWithProfileFallback
 } from '../utils/timezone'
-import { getActiveCaseId } from '../utils/cases'
+import { getActiveCaseIdOrNull } from '../utils/cases'
 
 type EventRow = Tables<'events'>
 
@@ -60,7 +60,22 @@ export default eventHandler(async (event): Promise<HomeResponse> => {
   const userTimezone = await getTimezoneWithProfileFallback(event, supabase, userId)
 
   try {
-    const caseId = await getActiveCaseId(supabase, userId)
+    const caseId = await getActiveCaseIdOrNull(supabase, userId)
+
+    // No case yet → empty home. Onboarding will create one and the user comes back.
+    if (!caseId) {
+      return {
+        summary: {
+          todayEvents: 0,
+          incidentsThisWeek: 0,
+          positiveThisWeek: 0,
+          totalEvents: 0,
+          totalEvidence: 0,
+          totalCommunications: 0
+        },
+        recentEvents: []
+      }
+    }
 
     const [
       { data: eventsRows, error: eventsError },
