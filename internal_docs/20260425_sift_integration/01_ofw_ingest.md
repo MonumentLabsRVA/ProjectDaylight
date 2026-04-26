@@ -60,7 +60,7 @@ The standalone has been validated on a real contested-custody export: 1,271 mess
 1. Copy `Workspace/ofw-parser/server/utils/ofw-parser.ts` → `src/server/utils/ofw-parser.ts`. The file is self-contained.
 2. Add `"pdfjs-dist": "^5.5.207"` to `src/package.json`.
 3. **PDF.js worker config in Nuxt server context.** This is the one thing that breaks if you wing it. Lift the worker setup from `Workspace/ofw-parser` exactly. Document in `internal_docs/20260425_sift_integration/migration_verification.md` the resolved import path (typically `pdfjs-dist/legacy/build/pdf.mjs` for Node).
-4. Drop a synthetic OFW fixture at `src/server/utils/__fixtures__/ofw_sample.pdf` (NEVER a real export — see Risks). Add to `.gitignore`. The fixture only needs ~10 messages — enough to assert structural invariants.
+4. Local fixture at `src/server/utils/__fixtures__/ofw_sample.pdf`. The validated 1,271-message export from the proof-point case has been copied here for parser development. **Gitignored** — see Risks; real exports contain children's PII and must never be committed.
 5. Add `src/server/utils/ofw-parser.test.ts` asserting:
    - `totalMessages` matches the fixture's expected count
    - `senders` array is non-empty and contains expected names
@@ -68,6 +68,24 @@ The standalone has been validated on a real contested-custody export: 1,271 mess
    - `messageNumber` runs 1..N without gaps
 
 **Done when:** `npm test` passes against the fixture.
+
+### Required OFW export settings
+
+Reference: [`ofw-export-settings.png`](./ofw-export-settings.png) (mock of the OFW "Messages Report" dialog).
+
+When telling users how to generate their export, surface these required settings:
+
+| Setting | Required value | Why |
+|---|---|---|
+| Messages | **All In Folder** | Full case history, not a single thread |
+| Sort messages by | **Oldest to newest** | Parser numbers messages 1..N starting from the oldest; reverse-sort breaks `message_number` |
+| Attachments | **Exclude all attachments** | Smaller file (well under our 100 MB cap); attachment metadata is preserved in the message body, the binaries themselves come in via Plan 03 separate-evidence-upload flow |
+| Include official OurFamilyWizard header | **Unchecked** | Header pages add ~10 PDF pages of branding the parser has to skip |
+| Include message replies | **Checked** | Without this, threaded context is lost and the parser can't reconstruct conversations |
+| Include private messages with your Professional | **Unchecked** | Attorney-client privileged; defaults off in OFW too |
+| New page per message | **Checked** | Required for the parser's page-break message-boundary detection |
+
+The parser currently *handles* deviations gracefully (skips header pages if present, dedupes reply duplication) but counts and `messageNumber` are most consistent under the recommended settings. Surface these settings in the upload UI as a "Generate your OFW export" expandable.
 
 ### Phase 2 — Schema, storage, ingest pipeline (~2 days)
 
