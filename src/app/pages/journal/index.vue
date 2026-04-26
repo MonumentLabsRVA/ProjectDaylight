@@ -460,9 +460,7 @@ function truncateText(text: string | null, maxLength: number) {
               >
                 <UCard
                   :ui="{
-                    root: entry.status === 'processing'
-                      ? 'hover:bg-muted/5 transition-colors cursor-pointer animate-pulse'
-                      : 'hover:bg-muted/5 transition-colors cursor-pointer'
+                    root: 'hover:bg-muted/5 transition-colors cursor-pointer'
                   }"
                 >
                   <div class="space-y-3">

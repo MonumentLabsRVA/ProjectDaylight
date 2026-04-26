@@ -384,7 +384,7 @@ async function skipToHome() {
             <!-- Step 2: Events -->
             <div class="bg-elevated/50 rounded-xl p-5 border border-default flex gap-4">
               <div class="flex-shrink-0 flex items-center justify-center size-12 rounded-xl bg-info/10 text-info">
-                <UIcon name="i-lucide-sparkles" class="size-6" />
+                <UIcon name="i-lucide-scan-text" class="size-6" />
               </div>
               <div>
                 <h3 class="font-semibold text-highlighted flex items-center gap-2">

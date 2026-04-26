@@ -570,7 +570,7 @@ onUnmounted(() => {
                 <!-- AI Extraction progress -->
                 <div class="rounded-xl border border-default bg-default p-5 shadow-sm">
                     <div class="flex items-center gap-2 mb-4">
-                    <UIcon name="i-lucide-sparkles" class="size-4 text-primary" />
+                    <UIcon name="i-lucide-scan-text" class="size-4 text-primary" />
                     <p class="text-sm font-medium text-highlighted">AI Analysis</p>
                     </div>
 

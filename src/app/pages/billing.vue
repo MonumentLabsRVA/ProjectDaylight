@@ -289,7 +289,7 @@ function transformPlan(plan: PricingPlan, isCurrent: boolean) {
                 <div class="flex items-start gap-3">
                   <div :class="['p-2.5 rounded-lg shrink-0', isAlpha ? 'bg-success/10' : isPro ? 'bg-primary/10' : 'bg-muted']">
                     <UIcon
-                      :name="isAlpha ? 'i-lucide-sparkles' : isPro ? 'i-lucide-crown' : 'i-lucide-user'"
+                      :name="isAlpha ? 'i-lucide-flag' : isPro ? 'i-lucide-crown' : 'i-lucide-user'"
                       :class="['w-6 h-6', isAlpha ? 'text-success' : isPro ? 'text-primary' : 'text-muted']"
                     />
                   </div>

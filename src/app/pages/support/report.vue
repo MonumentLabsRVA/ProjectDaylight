@@ -187,7 +187,7 @@ async function submitFeedback() {
 
                   <!-- Submitting state -->
                   <div v-if="isSubmitting" class="flex items-center justify-center gap-2 py-2 text-sm text-primary">
-                    <UIcon name="i-lucide-sparkles" class="size-4 animate-pulse" />
+                    <UIcon name="i-lucide-loader-2" class="size-4 animate-spin" />
                     <span>Generating a title for your feedback...</span>
                   </div>
 

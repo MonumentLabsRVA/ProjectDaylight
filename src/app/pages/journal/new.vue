@@ -669,7 +669,7 @@ Nothing concerning to report from this exchange. Just want to keep the documenta
                     v-if="state.hasRecording"
                     color="neutral"
                     variant="outline"
-                    icon="i-lucide-sparkles"
+                    icon="i-lucide-file-text"
                     :loading="isTranscribing"
                     :disabled="state.isRecording || isTranscribing || !canRecord"
                     @click="transcribeRecording"

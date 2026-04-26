@@ -81,7 +81,7 @@ function goToBilling() {
           class="mt-4"
           @click="goToBilling"
         >
-          <UIcon name="i-lucide-sparkles" class="w-4 h-4 mr-1" />
+          <UIcon name="i-lucide-arrow-up-right" class="w-4 h-4 mr-1" />
           Upgrade to Pro
         </UButton>
       </div>

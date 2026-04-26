@@ -270,7 +270,7 @@ async function redoExtraction() {
       title: 'Redoing AI extraction',
       description: 'This usually takes 30–60 seconds and will update automatically.',
       color: 'info',
-      icon: 'i-lucide-sparkles'
+      icon: 'i-lucide-refresh-cw'
     })
 
     await refresh()
@@ -394,7 +394,7 @@ const statusConfig = computed(() => {
               color="neutral"
               variant="soft"
               size="sm"
-              icon="i-lucide-sparkles"
+              icon="i-lucide-refresh-cw"
               :loading="isReprocessing"
               :disabled="data.status === 'processing'"
               @click="redoExtraction"
@@ -561,10 +561,10 @@ const statusConfig = computed(() => {
           v-if="data.status === 'processing'"
           color="info"
           variant="subtle"
-          icon="i-lucide-sparkles"
+          icon="i-lucide-loader-2"
           title="Analyzing your entry"
           description="We're extracting events and processing evidence. This usually takes 30-60 seconds."
-          :ui="{ icon: 'animate-pulse' }"
+          :ui="{ icon: 'animate-spin' }"
         />
 
         <UAlert
