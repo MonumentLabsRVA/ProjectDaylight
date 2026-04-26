@@ -62,7 +62,6 @@ watch(caseResponse, (res) => {
 
 // Export form state
 const exportFocus = ref<ExportFocus>('full-timeline')
-const includeEvidenceIndex = ref(true)
 const includeOverview = ref(false)
 const includeAISummary = ref(false)
 
@@ -324,29 +323,6 @@ function buildMarkdown() {
     })
   }
 
-  if (includeEvidenceIndex.value) {
-    lines.push('## Evidence index', '')
-
-    if (!evidenceData.value?.length) {
-      lines.push('_No evidence items found for this export._', '')
-    } else {
-      ;(evidenceData.value || []).forEach((item, index) => {
-        lines.push(
-          `${index + 1}. [${formatDate(item.createdAt)}] **${item.originalName}** (${item.sourceType})`
-        )
-
-        if (item.summary) {
-          lines.push(`   - Summary: ${item.summary}`)
-        }
-
-        if (item.tags?.length) {
-          lines.push(`   - Tags: ${item.tags.join(', ')}`)
-        }
-
-        lines.push('')
-      })
-    }
-  }
 
   lines.push(
     '---',
@@ -409,7 +385,6 @@ async function generateAndSaveExport() {
       court_name: courtName.value,
       recipient: recipient.value,
       overview_notes: overviewNotes.value,
-      include_evidence_index: includeEvidenceIndex.value,
       include_overview: includeOverview.value,
       include_ai_summary: includeAISummary.value,
       events_count: filteredEvents.value.length,
