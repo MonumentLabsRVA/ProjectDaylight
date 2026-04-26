@@ -38,14 +38,18 @@ function captureFirstTouch() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
 }
 
+let flushing = false
+
 async function flushIfReady() {
-  const raw = localStorage.getItem(STORAGE_KEY)
-  if (!raw) return
+  if (flushing) return
   if (localStorage.getItem(FLUSHED_KEY)) {
     localStorage.removeItem(STORAGE_KEY)
     return
   }
+  const raw = localStorage.getItem(STORAGE_KEY)
+  if (!raw) return
 
+  flushing = true
   try {
     const res = await $fetch('/api/signup-attribution', {
       method: 'POST',
@@ -57,6 +61,8 @@ async function flushIfReady() {
     }
   } catch (err) {
     console.warn('[signup-attribution] flush failed', err)
+  } finally {
+    flushing = false
   }
 }
 
@@ -66,11 +72,6 @@ export default defineNuxtPlugin(() => {
   captureFirstTouch()
 
   const supabase = useSupabaseClient()
-  const user = useSupabaseUser()
-
-  if (user.value) {
-    flushIfReady()
-  }
 
   supabase.auth.onAuthStateChange((event) => {
     if (event === 'SIGNED_IN') {

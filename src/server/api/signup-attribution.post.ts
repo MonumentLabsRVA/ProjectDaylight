@@ -45,23 +45,6 @@ export default defineEventHandler(async (event) => {
     if (cleaned) payload[field] = cleaned
   }
 
-  const { data: existing, error: existsError } = await supabase
-    .schema('analytics' as any)
-    .from('events')
-    .select('id')
-    .eq('event_type', 'signup_attribution')
-    .eq('actor_id', userId)
-    .limit(1)
-    .maybeSingle()
-
-  if (existsError && existsError.code !== 'PGRST116') {
-    console.error('[signup-attribution] dedupe check failed:', existsError)
-  }
-
-  if (existing) {
-    return { success: true, logged: false, reason: 'already_logged' }
-  }
-
   const context = {
     source: 'client',
     ip: getRequestIP(event, { xForwardedFor: true }),
