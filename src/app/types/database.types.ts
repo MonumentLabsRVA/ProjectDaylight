@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       action_items: {
         Row: {
+          case_id: string | null
           created_at: string
           deadline: string | null
           description: string
@@ -28,6 +29,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          case_id?: string | null
           created_at?: string
           deadline?: string | null
           description: string
@@ -40,6 +42,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          case_id?: string | null
           created_at?: string
           deadline?: string | null
           description?: string
@@ -52,6 +55,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "action_items_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "action_items_event_id_fkey"
             columns: ["event_id"]
@@ -138,96 +148,6 @@ export type Database = {
           subject?: string
           updated_at?: string
           user_agent?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      journal_entry_evidence: {
-        Row: {
-          journal_entry_id: string
-          created_at: string
-          evidence_id: string
-          id: string
-          is_processed: boolean
-          processed_at: string | null
-          sort_order: number
-        }
-        Insert: {
-          journal_entry_id: string
-          created_at?: string
-          evidence_id: string
-          id?: string
-          is_processed?: boolean
-          processed_at?: string | null
-          sort_order?: number
-        }
-        Update: {
-          journal_entry_id?: string
-          created_at?: string
-          evidence_id?: string
-          id?: string
-          is_processed?: boolean
-          processed_at?: string | null
-          sort_order?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "journal_entry_evidence_journal_entry_id_fkey"
-            columns: ["journal_entry_id"]
-            isOneToOne: false
-            referencedRelation: "journal_entries"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "journal_entry_evidence_evidence_id_fkey"
-            columns: ["evidence_id"]
-            isOneToOne: false
-            referencedRelation: "evidence"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      journal_entries: {
-        Row: {
-          completed_at: string | null
-          created_at: string
-          event_text: string | null
-          extraction_raw: Json | null
-          id: string
-          processed_at: string | null
-          processing_error: string | null
-          reference_date: string | null
-          reference_time_description: string | null
-          status: Database["public"]["Enums"]["journal_entry_status"]
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          completed_at?: string | null
-          created_at?: string
-          event_text?: string | null
-          extraction_raw?: Json | null
-          id?: string
-          processed_at?: string | null
-          processing_error?: string | null
-          reference_date?: string | null
-          reference_time_description?: string | null
-          status?: Database["public"]["Enums"]["journal_entry_status"]
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          completed_at?: string | null
-          created_at?: string
-          event_text?: string | null
-          extraction_raw?: Json | null
-          id?: string
-          processed_at?: string | null
-          processing_error?: string | null
-          reference_date?: string | null
-          reference_time_description?: string | null
-          status?: Database["public"]["Enums"]["journal_entry_status"]
-          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -552,6 +472,7 @@ export type Database = {
       events: {
         Row: {
           agreement_violation: boolean | null
+          case_id: string
           child_involved: boolean
           child_statements: Json
           coparent_interaction: Json | null
@@ -578,6 +499,7 @@ export type Database = {
         }
         Insert: {
           agreement_violation?: boolean | null
+          case_id: string
           child_involved?: boolean
           child_statements?: Json
           coparent_interaction?: Json | null
@@ -604,6 +526,7 @@ export type Database = {
         }
         Update: {
           agreement_violation?: boolean | null
+          case_id?: string
           child_involved?: boolean
           child_statements?: Json
           coparent_interaction?: Json | null
@@ -630,6 +553,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "events_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "events_journal_entry_id_fkey"
             columns: ["journal_entry_id"]
             isOneToOne: false
@@ -647,6 +577,7 @@ export type Database = {
       }
       evidence: {
         Row: {
+          case_id: string
           created_at: string
           extraction_raw: Json | null
           id: string
@@ -661,6 +592,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          case_id: string
           created_at?: string
           extraction_raw?: Json | null
           id?: string
@@ -675,6 +607,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          case_id?: string
           created_at?: string
           extraction_raw?: Json | null
           id?: string
@@ -688,10 +621,19 @@ export type Database = {
           user_annotation?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "evidence_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       evidence_mentions: {
         Row: {
+          case_id: string | null
           created_at: string
           description: string
           event_id: string
@@ -701,6 +643,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          case_id?: string | null
           created_at?: string
           description: string
           event_id: string
@@ -710,6 +653,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          case_id?: string | null
           created_at?: string
           description?: string
           event_id?: string
@@ -719,6 +663,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "evidence_mentions_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "evidence_mentions_event_id_fkey"
             columns: ["event_id"]
@@ -811,6 +762,117 @@ export type Database = {
           },
         ]
       }
+      journal_entries: {
+        Row: {
+          case_id: string
+          completed_at: string | null
+          created_at: string
+          event_text: string | null
+          extraction_job_id: string | null
+          extraction_raw: Json | null
+          id: string
+          processed_at: string | null
+          processing_error: string | null
+          reference_date: string | null
+          reference_time_description: string | null
+          status: Database["public"]["Enums"]["journal_entry_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          case_id: string
+          completed_at?: string | null
+          created_at?: string
+          event_text?: string | null
+          extraction_job_id?: string | null
+          extraction_raw?: Json | null
+          id?: string
+          processed_at?: string | null
+          processing_error?: string | null
+          reference_date?: string | null
+          reference_time_description?: string | null
+          status?: Database["public"]["Enums"]["journal_entry_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          case_id?: string
+          completed_at?: string | null
+          created_at?: string
+          event_text?: string | null
+          extraction_job_id?: string | null
+          extraction_raw?: Json | null
+          id?: string
+          processed_at?: string | null
+          processing_error?: string | null
+          reference_date?: string | null
+          reference_time_description?: string | null
+          status?: Database["public"]["Enums"]["journal_entry_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entries_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_extraction_job_id_fkey"
+            columns: ["extraction_job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_entry_evidence: {
+        Row: {
+          created_at: string
+          evidence_id: string
+          id: string
+          is_processed: boolean
+          journal_entry_id: string
+          processed_at: string | null
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          evidence_id: string
+          id?: string
+          is_processed?: boolean
+          journal_entry_id: string
+          processed_at?: string | null
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          evidence_id?: string
+          id?: string
+          is_processed?: boolean
+          journal_entry_id?: string
+          processed_at?: string | null
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entry_evidence_evidence_id_fkey"
+            columns: ["evidence_id"]
+            isOneToOne: false
+            referencedRelation: "evidence"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entry_evidence_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patterns: {
         Row: {
           created_at: string
@@ -837,6 +899,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          active_case_id: string | null
           avatar_url: string | null
           created_at: string
           email: string | null
@@ -848,6 +911,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          active_case_id?: string | null
           avatar_url?: string | null
           created_at?: string
           email?: string | null
@@ -859,6 +923,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          active_case_id?: string | null
           avatar_url?: string | null
           created_at?: string
           email?: string | null
@@ -869,7 +934,15 @@ export type Database = {
           timezone?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_active_case_id_fkey"
+            columns: ["active_case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       subscriptions: {
         Row: {
@@ -989,7 +1062,6 @@ export type Database = {
         | "resolved"
         | "closed"
         | "wont_fix"
-      journal_entry_status: "draft" | "processing" | "review" | "completed" | "cancelled"
       communication_direction: "incoming" | "outgoing" | "mixed" | "unknown"
       communication_medium: "text" | "email" | "unknown"
       event_type:
@@ -1009,8 +1081,14 @@ export type Database = {
         | "other"
       job_status: "pending" | "processing" | "completed" | "failed"
       job_type: "journal_extraction" | "evidence_processing"
-      plan_tier: "free" | "alpha" | "starter" | "pro" | "enterprise"
+      journal_entry_status:
+        | "draft"
+        | "processing"
+        | "review"
+        | "completed"
+        | "cancelled"
       participant_role: "primary" | "witness" | "professional"
+      plan_tier: "free" | "alpha" | "starter" | "pro" | "enterprise"
       subscription_status:
         | "active"
         | "trialing"
@@ -1174,7 +1252,6 @@ export const Constants = {
         "closed",
         "wont_fix",
       ],
-      journal_entry_status: ["draft", "processing", "review", "completed", "cancelled"],
       communication_direction: ["incoming", "outgoing", "mixed", "unknown"],
       communication_medium: ["text", "email", "unknown"],
       event_type: [
@@ -1196,8 +1273,15 @@ export const Constants = {
       ],
       job_status: ["pending", "processing", "completed", "failed"],
       job_type: ["journal_extraction", "evidence_processing"],
-      plan_tier: ["free", "alpha", "starter", "pro", "enterprise"],
+      journal_entry_status: [
+        "draft",
+        "processing",
+        "review",
+        "completed",
+        "cancelled",
+      ],
       participant_role: ["primary", "witness", "professional"],
+      plan_tier: ["free", "alpha", "starter", "pro", "enterprise"],
       subscription_status: [
         "active",
         "trialing",
