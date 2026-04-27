@@ -246,8 +246,10 @@ export interface ExportMetadata {
   include_evidence_index?: boolean
   include_overview?: boolean
   include_ai_summary?: boolean
+  include_messages?: boolean
   events_count?: number
   evidence_count?: number
+  messages_count?: number
   ai_summary_included?: boolean
 }
 

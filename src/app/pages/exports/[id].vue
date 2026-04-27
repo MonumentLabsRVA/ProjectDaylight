@@ -331,9 +331,12 @@ async function deleteExport() {
               · Created {{ formatDate(currentExport.created_at) }}
             </span>
 
-            <span v-if="currentExport.metadata?.events_count || currentExport.metadata?.evidence_count">
+            <span v-if="currentExport.metadata?.events_count || currentExport.metadata?.evidence_count || currentExport.metadata?.messages_count">
               · {{ currentExport.metadata?.events_count || 0 }} events ·
               {{ currentExport.metadata?.evidence_count || 0 }} evidence
+              <template v-if="currentExport.metadata?.messages_count">
+                · {{ currentExport.metadata.messages_count }} messages
+              </template>
             </span>
           </div>
 

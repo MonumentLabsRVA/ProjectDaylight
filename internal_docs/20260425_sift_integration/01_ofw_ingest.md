@@ -355,7 +355,9 @@ Performance: a 1,271-message case + ~50 events is fine for in-memory merge. Beyo
 
 **Done when:** a user uploads a PDF on `/evidence`, sees a "Parsing… N messages" job notification, and within 60 seconds sees messages on `/timeline`.
 
-### Phase 4 — Export integration (~1 day)
+### Phase 4 — Export integration (~1 day) ✅ shipped 2026-04-27
+
+> Browser-tested against the prod test account: imported 331-message fixture, opened /exports/new, the new "Include OFW messages (331)" toggle defaults to checked. Generated export contained exactly 331 stable citations matching `[OFW msg #N, sent YYYY-MM-DD HH:MM]` (verified via SQL regex against `exports.markdown_content`), 14 attachment blocks rendered as `[Attachments: ...]`, and the detail header shows `118 events · 16 evidence · 331 messages`. Test data + storage cleaned up post-run.
 
 In `src/app/pages/exports/new.vue` and the export pipeline (`generate-pdf.ts`):
 
