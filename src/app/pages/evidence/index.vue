@@ -33,6 +33,21 @@ const ofwStatus = ref<{
   jobId?: string
 }>({ state: 'idle' })
 
+// "How to export from OFW" instructions slideover state.
+const ofwHelpOpen = ref(false)
+
+// Settings list mirrors Plan 01's required-settings table — keep in sync if
+// OFW changes their report dialog.
+const ofwExportSettings: { setting: string; value: string; why: string }[] = [
+  { setting: 'Messages', value: 'All In Folder', why: 'Pulls the full case history. Single threads or filtered views miss context.' },
+  { setting: 'Sort messages by', value: 'Oldest to newest', why: 'Required for stable message numbering — reverse-sort breaks the parser\'s 1..N counter.' },
+  { setting: 'Attachments', value: 'Exclude all attachments', why: 'Keeps the PDF small. Attachment names are still preserved in the message body; upload binaries separately as evidence if you need them.' },
+  { setting: 'Include official OurFamilyWizard header', value: 'Unchecked', why: 'OFW\'s branded cover pages are extra pages the parser has to skip. Cleaner to omit.' },
+  { setting: 'Include message replies', value: 'Checked', why: 'Without this, threaded context is lost and the parser can\'t reconstruct conversations.' },
+  { setting: 'Include private messages with your Professional', value: 'Unchecked', why: 'Attorney-client privileged. Off by default in OFW too.' },
+  { setting: 'New page per message', value: 'Checked', why: 'Required so the parser can detect message boundaries by page break.' }
+]
+
 async function pickOfwFile() {
   ofwInput.value?.click()
 }
@@ -270,10 +285,16 @@ function onImageError(id: string) {
             </div>
             <div class="flex-1 min-w-0">
               <p class="font-medium text-highlighted">Import Our Family Wizard messages</p>
-              <p class="text-xs text-muted mt-0.5">
+              <div class="text-xs text-muted mt-0.5">
                 Upload an OFW Message Report PDF — every message lands on your timeline.
-                Use settings: All In Folder · Oldest to Newest · New page per message · Exclude attachments.
-              </p>
+                <button
+                  type="button"
+                  class="text-primary hover:underline cursor-pointer"
+                  @click="ofwHelpOpen = true"
+                >
+                  How to export from OFW
+                </button>
+              </div>
               <div v-if="ofwStatus.state !== 'idle'" class="mt-3 text-xs">
                 <UAlert
                   :color="ofwStatus.state === 'error' ? 'error' : ofwStatus.state === 'done' ? 'success' : 'info'"
@@ -504,6 +525,37 @@ function onImageError(id: string) {
       </div>
     </template>
   </UDashboardPanel>
+
+  <USlideover
+    v-model:open="ofwHelpOpen"
+    title="OFW export settings"
+    description="In OFW, click Messages → Report. Match these settings:"
+    side="right"
+    :ui="{ content: 'max-w-2xl' }"
+  >
+    <template #body>
+      <div class="space-y-4 p-2">
+        <img
+          src="/ofw-export-settings.png"
+          alt="OFW Messages Report dialog with the required settings filled in"
+          class="w-full rounded-lg border border-default"
+        >
+
+        <div class="divide-y divide-default rounded-lg border border-default">
+          <div
+            v-for="row in ofwExportSettings"
+            :key="row.setting"
+            class="py-2.5 px-3 first:pt-2.5 last:pb-2.5 grid grid-cols-[1fr,auto] gap-x-3 items-center"
+          >
+            <p class="text-sm font-medium text-highlighted">{{ row.setting }}</p>
+            <UBadge color="primary" variant="subtle" size="xs">
+              {{ row.value }}
+            </UBadge>
+          </div>
+        </div>
+      </div>
+    </template>
+  </USlideover>
 </template>
 
 
