@@ -8,6 +8,7 @@ type Attribution = {
   landing_path: string
   landing_at: string
   user_agent: string | null
+  gclid?: string
 } & Partial<Record<(typeof UTM_KEYS)[number], string>>
 
 function captureFirstTouch() {
@@ -21,18 +22,22 @@ function captureFirstTouch() {
     if (value) utm[key] = value
   }
 
+  const gclid = url.searchParams.get('gclid') || undefined
   const referrer = document.referrer || null
   const internal = referrer && referrer.startsWith(window.location.origin)
   const hasUtm = Object.keys(utm).length > 0
 
-  if (internal && !hasUtm) return
+  // Skip silent internal navigations, but always capture if there's any
+  // ad-attributable signal (UTMs or a gclid from a Google Ads click).
+  if (internal && !hasUtm && !gclid) return
 
   const payload: Attribution = {
     referrer: internal ? null : referrer,
     landing_path: url.pathname + url.search,
     landing_at: new Date().toISOString(),
     user_agent: navigator.userAgent || null,
-    ...utm
+    ...utm,
+    ...(gclid ? { gclid } : {})
   }
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
@@ -67,7 +72,7 @@ async function flushIfReady() {
 }
 
 export default defineNuxtPlugin(() => {
-  if (!process.client) return
+  if (!import.meta.client) return
 
   captureFirstTouch()
 

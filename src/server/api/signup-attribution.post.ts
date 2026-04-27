@@ -12,6 +12,7 @@ interface AttributionBody {
   utm_campaign?: string
   utm_content?: string
   utm_term?: string
+  gclid?: string
 }
 
 const STRING_FIELDS = [
@@ -23,7 +24,8 @@ const STRING_FIELDS = [
   'utm_medium',
   'utm_campaign',
   'utm_content',
-  'utm_term'
+  'utm_term',
+  'gclid'
 ] as const
 
 function pickString(value: unknown, max = 2048): string | null {
@@ -62,6 +64,24 @@ export default defineEventHandler(async (event) => {
   if (error) {
     console.error('[signup-attribution] log_event failed:', error)
     throw createError({ statusCode: 500, statusMessage: 'Failed to log signup attribution' })
+  }
+
+  // Persist gclid on the profile so Stripe → Google Ads offline conversion
+  // attribution can join on a single column without scanning analytics events.
+  // First-touch wins: only set if not already populated.
+  if (payload.gclid) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase-generated types lag migration 0051 until regenerated; matches the existing 'analytics' as any pattern above.
+    const { error: profileError } = await (supabase.from('profiles') as any)
+      .update({
+        gclid: payload.gclid,
+        gclid_captured_at: new Date().toISOString()
+      })
+      .eq('id', userId)
+      .is('gclid', null)
+
+    if (profileError) {
+      console.error('[signup-attribution] profile gclid update failed:', profileError)
+    }
   }
 
   return { success: true, logged: true }
