@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { Analytics } from '@vercel/analytics/nuxt';
 
+const colorMode = useColorMode()
+const loadingIndicatorColor = computed(() => colorMode.value === 'dark' ? '#38bdf8' : '#0369a1')
+
 useHead({
   titleTemplate: (titleChunk) => {
     if (!titleChunk || titleChunk === 'Daylight') {
@@ -15,7 +18,7 @@ useHead({
 
 <template>
   <UApp>
-    <NuxtLoadingIndicator />
+    <NuxtLoadingIndicator :color="loadingIndicatorColor" />
 
     <NuxtLayout>
       <NuxtPage />
