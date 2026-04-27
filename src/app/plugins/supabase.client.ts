@@ -2,7 +2,7 @@ export default defineNuxtPlugin(async () => {
   const supabase = useSupabaseClient()
   
   // Ensure session is initialized on client
-  if (process.client) {
+  if (import.meta.client) {
     await supabase.auth.getSession()
     
     // Listen for auth changes and update the session cookie
