@@ -263,6 +263,7 @@ async function redoExtraction() {
 
     trackJob({
       id: result.jobId,
+      type: 'journal_extraction',
       journal_entry_id: result.journalEntryId
     })
 

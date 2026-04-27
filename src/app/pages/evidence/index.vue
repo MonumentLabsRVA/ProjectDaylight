@@ -22,23 +22,45 @@ watch(session, (newSession) => {
   }
 })
 
-// OFW import: hidden file input + status banner.
-// The endpoint enforces the 100 MB cap server-side; we mirror it here for UX.
+// OFW import: hidden file input + status banner. Job-in-flight state lives in
+// the global useJobs tracker so navigating away and back keeps the spinner.
+// We only keep local state for the upload phase (pre-DB) and for transient
+// errors that haven't reached the jobs table.
 const OFW_MAX_BYTES = 100 * 1024 * 1024
 const ofwInput = ref<HTMLInputElement | null>(null)
-const ofwStatus = ref<{
-  state: 'idle' | 'uploading' | 'processing' | 'done' | 'error'
+const ofwLocalState = ref<{
+  state: 'idle' | 'uploading' | 'error'
   message?: string
-  evidenceId?: string
-  jobId?: string
 }>({ state: 'idle' })
+
+const { trackJob, activeJobsOfType } = useJobs()
+const ofwActiveJobs = activeJobsOfType('ofw_ingest')
+
+const ofwBanner = computed<{ kind: 'uploading' | 'processing' | 'error', message: string } | null>(() => {
+  if (ofwLocalState.value.state === 'uploading') {
+    return { kind: 'uploading', message: ofwLocalState.value.message ?? 'Uploading…' }
+  }
+  if (ofwLocalState.value.state === 'error') {
+    return { kind: 'error', message: ofwLocalState.value.message ?? 'Upload failed.' }
+  }
+  if (ofwActiveJobs.value.length > 0) {
+    return { kind: 'processing', message: 'Parsing your messages — this usually takes under a minute.' }
+  }
+  return null
+})
+
+// When a tracked OFW job goes terminal, useJobs removes it from activeJobs.
+// Refresh the evidence list so the new file's row picks up its parsed messages.
+watch(() => ofwActiveJobs.value.length, (now, prev) => {
+  if (prev && prev > 0 && now === 0) refresh()
+})
 
 // "How to export from OFW" instructions slideover state.
 const ofwHelpOpen = ref(false)
 
 // Settings list mirrors Plan 01's required-settings table — keep in sync if
 // OFW changes their report dialog.
-const ofwExportSettings: { setting: string; value: string; why: string }[] = [
+const ofwExportSettings: { setting: string, value: string, why: string }[] = [
   { setting: 'Messages', value: 'All In Folder', why: 'Pulls the full case history. Single threads or filtered views miss context.' },
   { setting: 'Sort messages by', value: 'Oldest to newest', why: 'Required for stable message numbering — reverse-sort breaks the parser\'s 1..N counter.' },
   { setting: 'Attachments', value: 'Exclude all attachments', why: 'Keeps the PDF small. Attachment names are still preserved in the message body; upload binaries separately as evidence if you need them.' },
@@ -58,107 +80,42 @@ async function handleOfwSelected(ev: Event) {
   if (!file) return
 
   if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
-    ofwStatus.value = { state: 'error', message: 'OFW exports must be PDF files.' }
+    ofwLocalState.value = { state: 'error', message: 'OFW exports must be PDF files.' }
     input.value = ''
     return
   }
   if (file.size > OFW_MAX_BYTES) {
-    ofwStatus.value = { state: 'error', message: `File too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Max is 100 MB.` }
+    ofwLocalState.value = { state: 'error', message: `File too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Max is 100 MB.` }
     input.value = ''
     return
   }
 
-  ofwStatus.value = { state: 'uploading', message: `Uploading ${file.name}…` }
+  ofwLocalState.value = { state: 'uploading', message: `Uploading ${file.name}…` }
 
   try {
     const fd = new FormData()
     fd.append('file', file, file.name)
 
-    const res = await $fetch<{ evidenceId: string; jobId: string; message: string }>(
+    const res = await $fetch<{ evidenceId: string, jobId: string, message: string }>(
       '/api/evidence-ofw-upload',
       { method: 'POST', body: fd }
     )
 
-    ofwStatus.value = {
-      state: 'processing',
-      message: 'Parsing your messages — this usually takes under a minute.',
-      evidenceId: res.evidenceId,
-      jobId: res.jobId
-    }
-
-    await watchJobUntilTerminal(res.evidenceId, res.jobId)
+    // Hand the job off to the global tracker; useJobs handles Realtime, the
+    // completion toast, and the navigate-away-and-back recovery via recoverJobs.
+    trackJob({ id: res.jobId, type: 'ofw_ingest', status: 'pending' })
+    ofwLocalState.value = { state: 'idle' }
   } catch (err: any) {
-    ofwStatus.value = { state: 'error', message: err?.statusMessage || err?.message || 'Upload failed.' }
+    ofwLocalState.value = { state: 'error', message: err?.statusMessage || err?.message || 'Upload failed.' }
   } finally {
     input.value = ''
   }
 }
 
-const supabase = useSupabaseClient()
-
-// Watches a single ofw_ingest job. Polls every 1.5 s and listens via Realtime
-// in parallel — whichever fires first wins. Total deadline 5 minutes; after
-// that we tell the user to refresh.
-async function watchJobUntilTerminal(evidenceId: string, jobId: string) {
-  return new Promise<void>((resolve) => {
-    let settled = false
-    let pollHandle: ReturnType<typeof setInterval> | null = null
-    let deadlineHandle: ReturnType<typeof setTimeout> | null = null
-
-    const finish = (status: { state: typeof ofwStatus.value.state; message?: string }) => {
-      if (settled) return
-      settled = true
-      ofwStatus.value = { ...status, evidenceId, jobId }
-      if (pollHandle) clearInterval(pollHandle)
-      if (deadlineHandle) clearTimeout(deadlineHandle)
-      void supabase.removeChannel(channel)
-      void refresh()
-      resolve()
-    }
-
-    const handleRow = (row: { status: string; result_summary?: { messages_inserted?: number; messages_parsed?: number } | null; error_message?: string | null }) => {
-      if (row.status === 'completed') {
-        const inserted = row.result_summary?.messages_inserted ?? 0
-        const parsed = row.result_summary?.messages_parsed ?? 0
-        finish({ state: 'done', message: `Imported ${inserted} new messages (${parsed} parsed).` })
-      } else if (row.status === 'failed') {
-        finish({ state: 'error', message: row.error_message || 'Parsing failed.' })
-      }
-    }
-
-    const channel = supabase
-      .channel(`ofw-job-${jobId}`)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'jobs',
-        filter: `id=eq.${jobId}`
-      }, (payload) => handleRow(payload.new as Parameters<typeof handleRow>[0]))
-      .subscribe()
-
-    pollHandle = setInterval(async () => {
-      if (settled) return
-      const { data: row } = await supabase
-        .from('jobs')
-        .select('status, result_summary, error_message')
-        .eq('id', jobId)
-        .maybeSingle()
-      if (row) handleRow(row as Parameters<typeof handleRow>[0])
-    }, 1500)
-
-    deadlineHandle = setTimeout(() => {
-      finish({
-        state: 'done',
-        message: 'Parsing is still running. Refresh in a minute to see imported messages.'
-      })
-    }, 5 * 60 * 1000)
-  })
-}
-
 const q = ref('')
 const sourceFilter = ref<'all' | EvidenceItem['sourceType']>('all')
 
-const sourceOptions: { label: string; value: 'all' | EvidenceItem['sourceType'] }[] = [{
+const sourceOptions: { label: string, value: 'all' | EvidenceItem['sourceType'] }[] = [{
   label: 'All sources',
   value: 'all'
 }, {
@@ -268,7 +225,7 @@ function onImageError(id: string) {
             trailingIcon: 'group-data-[state=open]:rotate-180 transition-transform duration-200'
           }"
         />
-        
+
         <span class="text-xs text-muted shrink-0 sm:hidden">
           {{ filteredEvidence.length }} items
         </span>
@@ -281,10 +238,15 @@ function onImageError(id: string) {
         <UCard>
           <div class="flex items-start gap-4">
             <div class="size-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-              <UIcon name="i-lucide-message-square-text" class="size-5 text-primary" />
+              <UIcon
+                name="i-lucide-message-square-text"
+                class="size-5 text-primary"
+              />
             </div>
             <div class="flex-1 min-w-0">
-              <p class="font-medium text-highlighted">Import Our Family Wizard messages</p>
+              <p class="font-medium text-highlighted">
+                Import Our Family Wizard messages
+              </p>
               <div class="text-xs text-muted mt-0.5">
                 Upload an OFW Message Report PDF — every message lands on your timeline.
                 <button
@@ -295,23 +257,19 @@ function onImageError(id: string) {
                   How to export from OFW
                 </button>
               </div>
-              <div v-if="ofwStatus.state !== 'idle'" class="mt-3 text-xs">
+              <div
+                v-if="ofwBanner"
+                class="mt-3 text-xs"
+              >
                 <UAlert
-                  :color="ofwStatus.state === 'error' ? 'error' : ofwStatus.state === 'done' ? 'success' : 'info'"
-                  :icon="ofwStatus.state === 'uploading' || ofwStatus.state === 'processing'
-                    ? 'i-lucide-loader-2'
-                    : ofwStatus.state === 'error'
-                      ? 'i-lucide-circle-alert'
-                      : 'i-lucide-check'"
+                  :color="ofwBanner.kind === 'error' ? 'error' : 'info'"
+                  :icon="ofwBanner.kind === 'error' ? 'i-lucide-circle-alert' : 'i-lucide-loader-2'"
                   variant="subtle"
-                  :title="ofwStatus.state === 'uploading' ? 'Uploading…'
-                    : ofwStatus.state === 'processing' ? 'Parsing…'
-                    : ofwStatus.state === 'error' ? 'Upload failed'
-                    : 'Done'"
-                  :description="ofwStatus.message"
-                  :ui="{
-                    icon: ofwStatus.state === 'uploading' || ofwStatus.state === 'processing' ? 'animate-spin' : ''
-                  }"
+                  :title="ofwBanner.kind === 'uploading' ? 'Uploading…'
+                    : ofwBanner.kind === 'processing' ? 'Parsing…'
+                      : 'Upload failed'"
+                  :description="ofwBanner.message"
+                  :ui="{ icon: ofwBanner.kind === 'error' ? '' : 'animate-spin' }"
                 />
               </div>
             </div>
@@ -320,7 +278,7 @@ function onImageError(id: string) {
               color="primary"
               size="sm"
               icon="i-lucide-upload"
-              :loading="ofwStatus.state === 'uploading' || ofwStatus.state === 'processing'"
+              :loading="ofwBanner?.kind === 'uploading' || ofwBanner?.kind === 'processing'"
               @click="pickOfwFile"
             >
               Import OFW PDF
@@ -354,7 +312,11 @@ function onImageError(id: string) {
 
         <!-- Loading state with skeleton placeholders -->
         <UPageGrid v-if="status === 'pending'">
-          <UPageCard v-for="i in 6" :key="i" variant="outline">
+          <UPageCard
+            v-for="i in 6"
+            :key="i"
+            variant="outline"
+          >
             <template #header>
               <div class="flex items-center gap-2">
                 <USkeleton class="h-5 w-16" />
@@ -416,14 +378,14 @@ function onImageError(id: string) {
                     v-if="getImageState(item.id) === 'loading'"
                     class="absolute inset-0 bg-muted/30 animate-pulse"
                   />
-                  
+
                   <!-- Error fallback -->
                   <UIcon
                     v-if="getImageState(item.id) === 'error'"
                     name="i-lucide-image-off"
                     class="size-8 text-muted"
                   />
-                  
+
                   <!-- Actual image -->
                   <img
                     :src="`/api/evidence/${item.id}/image`"
@@ -435,11 +397,11 @@ function onImageError(id: string) {
                     @error="onImageError(item.id)"
                   >
                 </template>
-                
+
                 <!-- Non-image file icon -->
                 <template v-else>
                   <div class="flex flex-col items-center justify-center gap-2 text-muted">
-                    <UIcon 
+                    <UIcon
                       :name="item.sourceType === 'photo' ? 'i-lucide-image' : item.sourceType === 'document' ? 'i-lucide-file-text' : item.sourceType === 'email' ? 'i-lucide-mail' : item.sourceType === 'ofw_export' ? 'i-lucide-message-square-text' : 'i-lucide-message-square'"
                       class="size-10"
                     />
@@ -450,7 +412,10 @@ function onImageError(id: string) {
             </template>
 
             <template #footer>
-              <div v-if="item.tags.length" class="flex flex-wrap gap-1">
+              <div
+                v-if="item.tags.length"
+                class="flex flex-wrap gap-1"
+              >
                 <UBadge
                   v-for="tag in item.tags.slice(0, 3)"
                   :key="tag"
@@ -480,7 +445,10 @@ function onImageError(id: string) {
             v-if="q || sourceFilter !== 'all'"
             class="flex flex-col items-center justify-center py-12 text-center"
           >
-            <UIcon name="i-lucide-filter-x" class="size-12 text-dimmed mb-3" />
+            <UIcon
+              name="i-lucide-filter-x"
+              class="size-12 text-dimmed mb-3"
+            />
             <p class="text-base font-medium text-highlighted mb-1">
               No evidence matches your filters
             </p>
@@ -503,7 +471,10 @@ function onImageError(id: string) {
             class="flex flex-col items-center justify-center py-16 text-center"
           >
             <div class="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-              <UIcon name="i-lucide-paperclip" class="size-10 text-primary" />
+              <UIcon
+                name="i-lucide-paperclip"
+                class="size-10 text-primary"
+              />
             </div>
             <p class="text-lg font-medium text-highlighted mb-2">
               No Evidence Yet
@@ -547,8 +518,14 @@ function onImageError(id: string) {
             :key="row.setting"
             class="py-2.5 px-3 first:pt-2.5 last:pb-2.5 grid grid-cols-[1fr,auto] gap-x-3 items-center"
           >
-            <p class="text-sm font-medium text-highlighted">{{ row.setting }}</p>
-            <UBadge color="primary" variant="subtle" size="xs">
+            <p class="text-sm font-medium text-highlighted">
+              {{ row.setting }}
+            </p>
+            <UBadge
+              color="primary"
+              variant="subtle"
+              size="xs"
+            >
               {{ row.value }}
             </UBadge>
           </div>
@@ -557,5 +534,3 @@ function onImageError(id: string) {
     </template>
   </USlideover>
 </template>
-
-

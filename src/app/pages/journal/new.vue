@@ -411,7 +411,7 @@ async function submitCapture() {
     })
 
     // Step 3: Track job for toast notification
-    trackJob({ id: result.jobId, journal_entry_id: result.journalEntryId })
+    trackJob({ id: result.jobId, type: 'journal_extraction', journal_entry_id: result.journalEntryId })
 
     // Step 4: Increment usage count
     incrementJournalEntryCount()

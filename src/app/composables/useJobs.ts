@@ -1,6 +1,6 @@
 /**
  * Composable for tracking background job status with Realtime subscriptions.
- * 
+ *
  * Features:
  * - Tracks active jobs with toast notifications on completion
  * - Uses Supabase Realtime for push updates
@@ -9,7 +9,38 @@
  * - Recovery mechanism to re-track jobs on app mount
  */
 
-import type { Job, JobResultSummary } from '~/types'
+import type { Job, JobResultSummary, JobType } from '~/types'
+
+// Per-job-type rendering for completion toasts. Add an entry here when wiring
+// a new job type into the global tracker.
+type CompletionToast = { title: string, description: string, href?: string }
+const completionToastByType: Record<JobType, (job: Job) => CompletionToast> = {
+  journal_extraction: (job) => {
+    const s = job.result_summary as JobResultSummary | null
+    return {
+      title: 'Journal entry ready!',
+      description: s?.events_created
+        ? `${s.events_created} event${s.events_created !== 1 ? 's' : ''} extracted`
+        : 'Processing complete',
+      href: job.journal_entry_id ? `/journal/${job.journal_entry_id}` : undefined
+    }
+  },
+  ofw_ingest: (job) => {
+    const s = job.result_summary as { messages_inserted?: number, messages_parsed?: number } | null
+    const inserted = s?.messages_inserted ?? 0
+    return {
+      title: 'OFW import complete',
+      description: inserted
+        ? `Imported ${inserted} message${inserted !== 1 ? 's' : ''}`
+        : 'No new messages — already imported.',
+      href: '/messages'
+    }
+  },
+  evidence_processing: () => ({
+    title: 'Evidence processed',
+    description: 'Processing complete'
+  })
+}
 
 type SupabaseRealtimeChannel = ReturnType<ReturnType<typeof useSupabaseClient>['channel']>
 
@@ -31,15 +62,18 @@ export function useJobs() {
    * Subscribes to Realtime updates and shows toast when job finishes.
    * Includes timeout protection to auto-cleanup stuck jobs.
    */
-  function trackJob(job: Pick<Job, 'id' | 'journal_entry_id'> & { status?: Job['status'] }, options?: { silent?: boolean }) {
+  function trackJob(
+    job: Pick<Job, 'id' | 'type'> & Partial<Pick<Job, 'journal_entry_id' | 'status'>>,
+    options?: { silent?: boolean }
+  ) {
     // Don't double-track
     if (activeJobs.value.has(job.id)) return
 
     // Store job in active tracking
     activeJobs.value.set(job.id, {
+      journal_entry_id: null,
       ...job,
       user_id: '',
-      type: 'journal_extraction',
       status: job.status || 'pending',
       started_at: null,
       completed_at: null,
@@ -85,22 +119,23 @@ export function useJobs() {
    */
   function handleJobUpdate(job: Job, options?: { silent?: boolean }) {
     if (job.status === 'completed') {
-      const summary = job.result_summary as JobResultSummary | null
       if (!options?.silent) {
+        const render = completionToastByType[job.type] ?? completionToastByType.journal_extraction
+        const { title, description, href } = render(job)
         toast.add({
-          title: 'Journal entry ready!',
-          description: summary?.events_created
-            ? `${summary.events_created} event${summary.events_created !== 1 ? 's' : ''} extracted`
-            : 'Processing complete',
+          title,
+          description,
           icon: 'i-lucide-check-circle',
           color: 'success',
-          actions: job.journal_entry_id ? [{
-            label: 'View',
-            onClick: (event) => {
-              event?.stopPropagation()
-              navigateTo(`/journal/${job.journal_entry_id}`)
-            }
-          }] : undefined
+          actions: href
+            ? [{
+                label: 'View',
+                onClick: (event) => {
+                  event?.stopPropagation()
+                  navigateTo(href)
+                }
+              }]
+            : undefined
         })
       }
       cleanup(job.id)
@@ -175,7 +210,7 @@ export function useJobs() {
     try {
       const { data: pendingJobs, error } = await supabase
         .from('jobs')
-        .select('id, journal_entry_id, status')
+        .select('id, type, journal_entry_id, status')
         .eq('user_id', userId)
         .in('status', ['pending', 'processing'])
         .order('created_at', { ascending: false })
@@ -190,6 +225,7 @@ export function useJobs() {
       for (const job of pendingJobs || []) {
         trackJob({
           id: job.id,
+          type: job.type as JobType,
           journal_entry_id: job.journal_entry_id,
           status: job.status as Job['status']
         }, { silent: false }) // Will still show completion toast
@@ -223,6 +259,11 @@ export function useJobs() {
     return job?.status || null
   }
 
+  // Reactive list of active jobs of a given type — for per-feature status banners.
+  function activeJobsOfType(type: JobType) {
+    return computed(() => Array.from(activeJobs.value.values()).filter(j => j.type === type))
+  }
+
   return {
     // State
     activeJobs: computed(() => activeJobs.value),
@@ -234,7 +275,7 @@ export function useJobs() {
     cleanup,
     cleanupAll,
     getJobStatus,
+    activeJobsOfType,
     recoverJobs
   }
 }
-
