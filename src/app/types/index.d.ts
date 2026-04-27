@@ -83,7 +83,23 @@ export interface TimelineEvent {
   evidenceIds?: string[]
 }
 
-export type EvidenceSourceType = 'text' | 'email' | 'photo' | 'document'
+export interface TimelineMessage {
+  id: string
+  timestamp: string         // sent_at
+  sender: string
+  recipient: string
+  subject: string | null
+  bodyPreview: string       // first 240 chars
+  threadId: string | null
+  messageNumber: number | null
+  evidenceId: string        // back to the source PDF
+}
+
+export type TimelineItem =
+  | ({ kind: 'event' } & TimelineEvent)
+  | ({ kind: 'message' } & TimelineMessage)
+
+export type EvidenceSourceType = 'text' | 'email' | 'photo' | 'document' | 'ofw_export'
 
 export interface EvidenceItem {
   id: string
@@ -141,7 +157,7 @@ export type ExportFocus = 'full-timeline' | 'incidents-only' | 'positive-parenti
 
 // Background job types
 export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed'
-export type JobType = 'journal_extraction' | 'evidence_processing'
+export type JobType = 'journal_extraction' | 'evidence_processing' | 'ofw_ingest'
 
 export interface JobResultSummary {
   events_created: number
@@ -230,8 +246,10 @@ export interface ExportMetadata {
   include_evidence_index?: boolean
   include_overview?: boolean
   include_ai_summary?: boolean
+  include_messages?: boolean
   events_count?: number
   evidence_count?: number
+  messages_count?: number
   ai_summary_included?: boolean
 }
 

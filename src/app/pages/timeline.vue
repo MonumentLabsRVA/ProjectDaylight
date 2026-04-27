@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { EventType, ExtractionEventType, TimelineEvent } from '~/types'
-import { 
-  getDateStringInTimezone, 
-  getStartOfDayInTimezone 
+import type { EventType, ExtractionEventType, TimelineEvent, TimelineItem, TimelineMessage } from '~/types'
+import {
+  getDateStringInTimezone,
+  getStartOfDayInTimezone
 } from '~/composables/useTimezone'
 import {
   extractionTypeOptions,
@@ -14,13 +14,17 @@ import {
 // Get user's timezone
 const { timezone, formatDate: formatTzDate } = useTimezone()
 
-// Fetch timeline via SSR-aware useFetch and cookie-based auth
-const { data, status, error, refresh } = await useFetch<TimelineEvent[]>('/api/timeline', {
+// Fetch timeline via SSR-aware useFetch and cookie-based auth.
+// API now returns the discriminated TimelineItem union (events + messages).
+const { data, status, error, refresh } = await useFetch<TimelineItem[]>('/api/timeline', {
   headers: {
     ...useRequestHeaders(['cookie']),
     'X-Timezone': timezone.value
   }
 })
+
+const isMessage = (i: TimelineItem): i is { kind: 'message' } & TimelineMessage => i.kind === 'message'
+const isEvent = (i: TimelineItem): i is { kind: 'event' } & TimelineEvent => i.kind === 'event'
 
 const session = useSupabaseSession()
 
@@ -35,6 +39,7 @@ const selectedTypes = ref<ExtractionEventType[]>([])
 const dateRange = ref<{ start?: string; end?: string }>({})
 const sortOrder = ref<'newest' | 'oldest'>('newest')
 const searchQuery = ref('')
+const showMessages = ref(true) // toggle OFW messages alongside events
 
 type DatePreset = 'today' | 'week' | 'month' | '30days' | '90days' | 'all' | 'custom'
 
@@ -70,6 +75,23 @@ function getExtractionType(event: TimelineEvent): ExtractionEventType {
   return legacyToExtractionTypeMap[event.type]
 }
 
+function searchableTextForItem(item: TimelineItem): string {
+  if (isEvent(item)) {
+    return [
+      item.title,
+      item.description,
+      item.participants.join(' '),
+      item.location ?? ''
+    ].join(' ').toLowerCase()
+  }
+  return [
+    item.subject ?? '',
+    item.bodyPreview,
+    item.sender,
+    item.recipient
+  ].join(' ').toLowerCase()
+}
+
 // Re-export shared type options for template use
 const typeOptions = extractionTypeOptions
 
@@ -92,22 +114,22 @@ function parseDateParts(dateStr: string): [number, number, number] | null {
   return [year!, month!, day!]
 }
 
-function showDateSeparator(index: number, event: TimelineEvent): boolean {
+function showDateSeparator(index: number, item: TimelineItem): boolean {
   if (index === 0) return true
 
-  const previousEvent = filteredEvents.value[index - 1]
-  if (!previousEvent) return true
+  const previous = filteredEvents.value[index - 1]
+  if (!previous) return true
 
-  return getEventDateString(event.timestamp) !== getEventDateString(previousEvent.timestamp)
+  return getEventDateString(item.timestamp) !== getEventDateString(previous.timestamp)
 }
 
-function showItemSeparator(index: number, event: TimelineEvent): boolean {
+function showItemSeparator(index: number, item: TimelineItem): boolean {
   if (index === filteredEvents.value.length - 1) return false
 
-  const nextEvent = filteredEvents.value[index + 1]
-  if (!nextEvent) return false
+  const next = filteredEvents.value[index + 1]
+  if (!next) return false
 
-  return getEventDateString(event.timestamp) === getEventDateString(nextEvent.timestamp)
+  return getEventDateString(item.timestamp) === getEventDateString(next.timestamp)
 }
 
 function selectDatePreset(preset: Exclude<DatePreset, 'custom'>) {
@@ -193,73 +215,69 @@ function clearFilters() {
   dateRange.value = {}
   selectedPreset.value = 'all'
   searchQuery.value = ''
+  showMessages.value = true
 }
 
 // Check if any filters are active
 const hasActiveFilters = computed(() => {
-  return selectedTypes.value.length > 0 || 
-         Boolean(dateRange.value.start) || 
+  return selectedTypes.value.length > 0 ||
+         Boolean(dateRange.value.start) ||
          Boolean(dateRange.value.end) ||
-         searchQuery.value.length > 0
+         searchQuery.value.length > 0 ||
+         !showMessages.value
 })
 
-// Filtered and sorted events
-const filteredEvents = computed(() => {
-  let events = data.value || []
+// Filtered and sorted timeline items (events + messages)
+const filteredEvents = computed<TimelineItem[]>(() => {
+  let items: TimelineItem[] = data.value || []
+
+  if (!showMessages.value) {
+    items = items.filter(isEvent)
+  }
 
   // Filter by search query
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
-    events = events.filter(event => 
-      event.title.toLowerCase().includes(query) ||
-      event.description.toLowerCase().includes(query) ||
-      event.participants.some(p => p.toLowerCase().includes(query)) ||
-      (event.location && event.location.toLowerCase().includes(query))
-    )
+    items = items.filter(item => searchableTextForItem(item).includes(query))
   }
 
-  // Filter by event types (using granular extraction event types)
+  // Filter by event types (using granular extraction event types).
+  // When the user filters by event types, only events match — messages are
+  // hidden because they don't carry a custody-relevant type yet.
   if (selectedTypes.value.length > 0) {
-    events = events.filter((event) => {
-      const extractionType = getExtractionType(event)
+    items = items.filter((item) => {
+      if (!isEvent(item)) return false
+      const extractionType = getExtractionType(item)
       return selectedTypes.value.includes(extractionType)
     })
   }
 
   // Filter by date range (using user's timezone for accurate date comparison)
   if (dateRange.value.start || dateRange.value.end) {
-    events = events.filter(event => {
-      // Get the event's date in the user's timezone
-      const eventDate = getDateStringInTimezone(new Date(event.timestamp), timezone.value)
-      
-      if (dateRange.value.start && eventDate < dateRange.value.start) {
-        return false
-      }
-      
-      if (dateRange.value.end && eventDate > dateRange.value.end) {
-        return false
-      }
-      
+    items = items.filter(item => {
+      const eventDate = getDateStringInTimezone(new Date(item.timestamp), timezone.value)
+      if (dateRange.value.start && eventDate < dateRange.value.start) return false
+      if (dateRange.value.end && eventDate > dateRange.value.end) return false
       return true
     })
   }
 
-  // Sort events
-  events = [...events].sort((a, b) => {
+  // Sort
+  return [...items].sort((a, b) => {
     const dateA = new Date(a.timestamp).getTime()
     const dateB = new Date(b.timestamp).getTime()
     return sortOrder.value === 'newest' ? dateB - dateA : dateA - dateB
   })
-
-  return events
 })
 
 // Stats for the toolbar
 const eventStats = computed(() => {
-  const events = data.value || []
+  const items = data.value || []
   return {
-    total: events.length,
-    filtered: filteredEvents.value.length
+    total: items.length,
+    filtered: filteredEvents.value.length,
+    eventCount: items.filter(isEvent).length,
+    messageCount: items.filter(isMessage).length
   }
 })
 
@@ -471,7 +489,7 @@ function formatTime(timestamp: string): string {
                       variant="subtle"
                       :color="type.color"
                     >
-                      {{ data.filter(e => getExtractionType(e) === type.value).length }}
+                      {{ data.filter(isEvent).filter(e => getExtractionType(e) === type.value).length }}
                     </UBadge>
                   </label>
                 </div>
@@ -531,6 +549,21 @@ function formatTime(timestamp: string): string {
             </template>
           </UPopover>
 
+          <!-- Messages toggle chip -->
+          <UButton
+            :variant="showMessages ? 'solid' : 'soft'"
+            :color="showMessages ? 'primary' : 'neutral'"
+            size="xs"
+            icon="i-lucide-message-square-text"
+            class="shrink-0"
+            @click="showMessages = !showMessages"
+          >
+            <span class="hidden sm:inline">Messages</span>
+            <span v-if="eventStats.messageCount" class="ml-1 text-[10px] opacity-80">
+              {{ eventStats.messageCount }}
+            </span>
+          </UButton>
+
           <!-- Clear Filters Button -->
           <UButton
             v-if="hasActiveFilters"
@@ -583,87 +616,111 @@ function formatTime(timestamp: string): string {
           v-else-if="filteredEvents.length > 0"
           class="space-y-0"
         >
-          <!-- Group events by date (using user's timezone) -->
-          <div v-for="(event, index) in filteredEvents" :key="event.id">
+          <div v-for="(item, index) in filteredEvents" :key="item.id">
             <!-- Date separator for new days -->
             <div
-              v-if="showDateSeparator(index, event)"
+              v-if="showDateSeparator(index, item)"
               class="flex items-center gap-2 mt-4 mb-2"
             >
               <USeparator class="flex-1" />
               <span class="text-xs font-medium text-muted px-2">
-                {{ formatDateSeparator(event.timestamp) }}
+                {{ formatDateSeparator(item.timestamp) }}
               </span>
               <USeparator class="flex-1" />
             </div>
 
+            <!-- Event row -->
             <NuxtLink
-              :to="`/event/${event.id}`"
+              v-if="item.kind === 'event'"
+              :to="`/event/${item.id}`"
               class="block"
             >
               <div class="py-2 px-3 flex flex-col gap-1 hover:bg-muted/5 transition-colors cursor-pointer">
-                <!-- Primary row: type, title, location, time, evidence -->
                 <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
                   <div class="flex items-center gap-2 min-w-0">
                     <UBadge
-                      :color="typeColors[getExtractionType(event)]"
+                      :color="typeColors[getExtractionType(item)]"
                       variant="subtle"
                       size="xs"
                       class="capitalize shrink-0"
                     >
-                      <UIcon :name="getExtractionTypeIcon(getExtractionType(event))" class="size-3.5 mr-1" />
-                      {{ formatExtractionEventType(getExtractionType(event)) }}
+                      <UIcon :name="getExtractionTypeIcon(getExtractionType(item))" class="size-3.5 mr-1" />
+                      {{ formatExtractionEventType(getExtractionType(item)) }}
                     </UBadge>
 
                     <p class="font-medium text-highlighted truncate">
-                      {{ event.title }}
+                      {{ item.title }}
                     </p>
 
                     <span
-                      v-if="event.location"
+                      v-if="item.location"
                       class="hidden sm:inline-flex items-center gap-1 text-xs text-muted truncate"
                     >
                       <UIcon name="i-lucide-map-pin" class="size-3" />
-                      <span class="truncate">
-                        {{ event.location }}
-                      </span>
+                      <span class="truncate">{{ item.location }}</span>
                     </span>
                   </div>
 
                   <div class="flex items-center gap-3 text-xs text-muted">
                     <span
-                      v-if="event.evidenceIds?.length"
+                      v-if="item.evidenceIds?.length"
                       class="inline-flex items-center gap-1"
                     >
                       <UIcon name="i-lucide-paperclip" class="size-3" />
-                      {{ event.evidenceIds.length }} evidence
+                      {{ item.evidenceIds.length }} evidence
                     </span>
-
-                    <p>
-                      {{ formatTime(event.timestamp) }}
-                    </p>
+                    <p>{{ formatTime(item.timestamp) }}</p>
                     <UIcon name="i-lucide-chevron-right" class="size-4 text-muted" />
                   </div>
                 </div>
 
-                <!-- Secondary row: description & participants -->
                 <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
-                  <p class="flex-1 min-w-0 line-clamp-1">
-                    {{ event.description }}
-                  </p>
-
+                  <p class="flex-1 min-w-0 line-clamp-1">{{ item.description }}</p>
                   <span class="inline-flex items-center gap-1 shrink-0">
                     <UIcon name="i-lucide-users" class="size-3.5" />
                     <span class="truncate max-w-[10rem] sm:max-w-xs">
-                      {{ event.participants.join(', ') }}
+                      {{ item.participants.join(', ') }}
                     </span>
                   </span>
                 </div>
               </div>
             </NuxtLink>
-            <!-- Separator between items on the same day -->
+
+            <!-- Message row -->
+            <NuxtLink
+              v-else
+              :to="`/messages/${item.id}`"
+              class="block"
+            >
+              <div class="py-2 px-3 flex flex-col gap-1 hover:bg-muted/5 transition-colors cursor-pointer">
+                <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <UBadge color="neutral" variant="subtle" size="xs" class="shrink-0">
+                      <UIcon name="i-lucide-message-square-text" class="size-3.5 mr-1" />
+                      {{ item.sender }}
+                    </UBadge>
+                    <p class="font-medium text-highlighted truncate">
+                      {{ item.subject || '(no subject)' }}
+                    </p>
+                  </div>
+
+                  <div class="flex items-center gap-3 text-xs text-muted">
+                    <span v-if="item.messageNumber" class="text-muted">
+                      OFW #{{ item.messageNumber }}
+                    </span>
+                    <p>{{ formatTime(item.timestamp) }}</p>
+                    <UIcon name="i-lucide-chevron-right" class="size-4 text-muted" />
+                  </div>
+                </div>
+
+                <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+                  <p class="flex-1 min-w-0 line-clamp-1">{{ item.bodyPreview }}</p>
+                </div>
+              </div>
+            </NuxtLink>
+
             <USeparator
-              v-if="showItemSeparator(index, event)"
+              v-if="showItemSeparator(index, item)"
               class="my-1 opacity-60"
             />
           </div>
@@ -703,9 +760,10 @@ function formatTime(timestamp: string): string {
               Your timeline is empty
             </p>
             <p class="text-sm text-muted mb-4">
-              Start capturing events to build your chronological record
+              Start capturing events to build your chronological record. Have an Our Family Wizard account?
+              Import a Message Report to bring every message into the timeline.
             </p>
-            <div class="flex gap-2">
+            <div class="flex flex-wrap justify-center gap-2">
               <UButton
                 variant="solid"
                 size="sm"
@@ -713,6 +771,14 @@ function formatTime(timestamp: string): string {
                 to="/journal/new"
               >
                 Record event
+              </UButton>
+              <UButton
+                variant="soft"
+                size="sm"
+                icon="i-lucide-message-square-text"
+                to="/evidence"
+              >
+                Import OFW Export
               </UButton>
               <UButton
                 variant="soft"

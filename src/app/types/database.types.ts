@@ -873,6 +873,78 @@ export type Database = {
           },
         ]
       }
+      messages: {
+        Row: {
+          attachments: Json
+          body: string
+          case_id: string
+          created_at: string
+          evidence_id: string
+          first_viewed_at: string | null
+          id: string
+          message_number: number | null
+          recipient: string
+          sender: string
+          sent_at: string
+          sequence_number: number
+          subject: string | null
+          thread_id: string | null
+          user_id: string
+          word_count: number | null
+        }
+        Insert: {
+          attachments?: Json
+          body: string
+          case_id: string
+          created_at?: string
+          evidence_id: string
+          first_viewed_at?: string | null
+          id?: string
+          message_number?: number | null
+          recipient: string
+          sender: string
+          sent_at: string
+          sequence_number: number
+          subject?: string | null
+          thread_id?: string | null
+          user_id: string
+          word_count?: number | null
+        }
+        Update: {
+          attachments?: Json
+          body?: string
+          case_id?: string
+          created_at?: string
+          evidence_id?: string
+          first_viewed_at?: string | null
+          id?: string
+          message_number?: number | null
+          recipient?: string
+          sender?: string
+          sent_at?: string
+          sequence_number?: number
+          subject?: string | null
+          thread_id?: string | null
+          user_id?: string
+          word_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_evidence_id_fkey"
+            columns: ["evidence_id"]
+            isOneToOne: false
+            referencedRelation: "evidence"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patterns: {
         Row: {
           created_at: string
@@ -1079,8 +1151,9 @@ export type Database = {
         | "document"
         | "recording"
         | "other"
+        | "ofw_export"
       job_status: "pending" | "processing" | "completed" | "failed"
-      job_type: "journal_extraction" | "evidence_processing"
+      job_type: "journal_extraction" | "evidence_processing" | "ofw_ingest"
       journal_entry_status:
         | "draft"
         | "processing"
@@ -1270,9 +1343,10 @@ export const Constants = {
         "document",
         "recording",
         "other",
+        "ofw_export",
       ],
       job_status: ["pending", "processing", "completed", "failed"],
-      job_type: ["journal_extraction", "evidence_processing"],
+      job_type: ["journal_extraction", "evidence_processing", "ofw_ingest"],
       journal_entry_status: [
         "draft",
         "processing",

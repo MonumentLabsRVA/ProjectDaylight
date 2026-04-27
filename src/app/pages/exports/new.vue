@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { EvidenceItem, TimelineEvent, EventType, ExtractionEventType, ExportFocus, ExportMetadata, SavedExport } from '~/types'
+import type { EvidenceItem, TimelineEvent, TimelineItem, EventType, ExtractionEventType, ExportFocus, ExportMetadata, SavedExport } from '~/types'
 
 const session = useSupabaseSession()
 const toast = useToast()
@@ -29,14 +29,17 @@ interface CaseResponse {
   case: CaseRow | null
 }
 
-// Data from API via SSR-aware useFetch and cookie-based auth
+// Data from API via SSR-aware useFetch and cookie-based auth.
+// /api/timeline returns the discriminated TimelineItem union (events + OFW messages).
 const {
   data: timelineData,
   status: timelineStatus,
   refresh: refreshTimeline
-} = await useFetch<TimelineEvent[]>('/api/timeline', {
+} = await useFetch<TimelineItem[]>('/api/timeline', {
   headers: useRequestHeaders(['cookie'])
 })
+
+const isEvent = (i: TimelineItem): i is { kind: 'event' } & TimelineEvent => i.kind === 'event'
 
 const {
   data: evidenceData,
@@ -54,6 +57,35 @@ const {
   headers: useRequestHeaders(['cookie'])
 })
 
+// Messages need the full body + attachments for export rendering — the timeline
+// endpoint only returns body previews. Cap at 1000 per export; the messages
+// list endpoint paginates so we ask for the largest reasonable slice.
+type MessagesListResponse = {
+  messages: Array<{
+    id: string
+    sent_at: string
+    sender: string
+    recipient: string
+    subject: string | null
+    body: string
+    thread_id: string | null
+    message_number: number | null
+    sequence_number: number
+    attachments: unknown
+    evidence_id: string
+  }>
+  total: number
+}
+
+const {
+  data: messagesData,
+  status: messagesStatus,
+  refresh: refreshMessages
+} = await useFetch<MessagesListResponse>('/api/messages', {
+  headers: useRequestHeaders(['cookie']),
+  query: { limit: 1000 }
+})
+
 const currentCase = ref<CaseRow | null>(null)
 
 watch(caseResponse, (res) => {
@@ -64,6 +96,7 @@ watch(caseResponse, (res) => {
 const exportFocus = ref<ExportFocus>('full-timeline')
 const includeOverview = ref(false)
 const includeAISummary = ref(false)
+const includeMessages = ref(true) // OFW messages on by default when present
 
 const caseTitle = ref('')
 const courtName = ref('')
@@ -78,7 +111,8 @@ const isLoadingData = computed(
   () =>
     timelineStatus.value === 'pending' ||
     evidenceStatus.value === 'pending' ||
-    caseStatus.value === 'pending'
+    caseStatus.value === 'pending' ||
+    messagesStatus.value === 'pending'
 )
 
 const exportFocusOptions: { label: string; value: ExportFocus; description: string }[] = [{
@@ -193,7 +227,8 @@ async function loadData() {
   await Promise.allSettled([
     refreshTimeline(),
     refreshEvidence(),
-    refreshCase()
+    refreshCase(),
+    refreshMessages()
   ])
 }
 
@@ -232,17 +267,20 @@ function formatEventType(type: EventType, extractionType?: ExtractionEventType |
   return map[effective] || effective
 }
 
-const filteredEvents = computed(() => {
-  let events = (timelineData.value || []) as TimelineEvent[]
+type FullMessage = MessagesListResponse['messages'][number]
+
+const allEvents = computed<TimelineEvent[]>(() => (timelineData.value || []).filter(isEvent))
+const allMessagesFull = computed<FullMessage[]>(() => messagesData.value?.messages ?? [])
+
+const filteredEvents = computed<TimelineEvent[]>(() => {
+  let events = allEvents.value
 
   if (exportFocus.value === 'incidents-only') {
-    // Include conflict-oriented events: co-parent conflict and gatekeeping
     events = events.filter((event) => {
       const extractionType = getExtractionType(event)
       return extractionType === 'coparent_conflict' || extractionType === 'gatekeeping'
     })
   } else if (exportFocus.value === 'positive-parenting') {
-    // Include positive parenting and caregiving events
     events = events.filter((event) => {
       const extractionType = getExtractionType(event)
       return extractionType === 'parenting_time' || extractionType === 'caregiving'
@@ -251,6 +289,26 @@ const filteredEvents = computed(() => {
 
   return events
 })
+
+// Messages are an all-or-nothing addition controlled by `includeMessages`.
+// Focus filters apply to events only — they don't carry custody-relevant types yet.
+const filteredMessages = computed<FullMessage[]>(() => {
+  if (!includeMessages.value) return []
+  return allMessagesFull.value
+})
+
+function attachmentLabels(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((s): s is string => typeof s === 'string' && s.length > 0)
+}
+
+function formatMessageCitation(msg: { message_number?: number | null; sequence_number?: number; sent_at: string }): string {
+  // Stable across regenerations because both message_number and sent_at are
+  // immutable for a given parsed message.
+  const num = msg.message_number ?? msg.sequence_number ?? '?'
+  const isoMinutes = msg.sent_at.replace('T', ' ').slice(0, 16)
+  return `[OFW msg #${num}, sent ${isoMinutes}]`
+}
 
 function buildMarkdown() {
   const lines: string[] = []
@@ -293,32 +351,51 @@ function buildMarkdown() {
 
   lines.push('## Timeline of key events', '')
 
-  const events = filteredEvents.value
+  // Interleave events + messages by timestamp (newest-first to match the UI).
+  type EventRow = { kind: 'event'; ts: string; data: TimelineEvent }
+  type MessageRow = { kind: 'message'; ts: string; data: FullMessage }
+  const items: (EventRow | MessageRow)[] = [
+    ...filteredEvents.value.map((e): EventRow => ({ kind: 'event', ts: e.timestamp, data: e })),
+    ...filteredMessages.value.map((m): MessageRow => ({ kind: 'message', ts: m.sent_at, data: m }))
+  ].sort((a, b) => {
+    if (a.ts === b.ts) return a.data.id < b.data.id ? 1 : -1
+    return a.ts < b.ts ? 1 : -1
+  })
 
-  if (!events.length) {
+  if (!items.length) {
     lines.push('_No events found for this export._', '')
   } else {
-    events.forEach((event, index) => {
-      lines.push(
-        `${index + 1}. ${formatDate(event.timestamp)} — **${event.title}** (${formatEventType(event.type, (event as any).extractionType as ExtractionEventType | null | undefined)})`
-      )
-
-      if (event.description) {
-        lines.push(`   - Details: ${event.description}`)
+    items.forEach((item, index) => {
+      const num = index + 1
+      if (item.kind === 'event') {
+        const event = item.data
+        lines.push(
+          `${num}. ${formatDate(event.timestamp)} — **${event.title}** (${formatEventType(event.type, event.extractionType ?? null)})`
+        )
+        if (event.description) lines.push(`   - Details: ${event.description}`)
+        if (event.location) lines.push(`   - Location: ${event.location}`)
+        if (event.participants?.length) lines.push(`   - Participants: ${event.participants.join(', ')}`)
+        if (event.evidenceIds?.length) lines.push(`   - Linked evidence IDs: ${event.evidenceIds.join(', ')}`)
+      } else {
+        const msg = item.data
+        const subj = msg.subject ? `: ${msg.subject}` : ''
+        const citation = formatMessageCitation(msg)
+        const atts = attachmentLabels(msg.attachments)
+        // Sender bolded, then subject, citation. Body on its own line so
+        // long-form messages survive PDF rendering with regular weight.
+        lines.push(`${num}. ${formatDate(msg.sent_at)} — **${msg.sender}**${subj} ${citation}`)
+        if (msg.recipient) lines.push(`   - To: ${msg.recipient}`)
+        if (msg.body) {
+          // Indent body lines so they hang under the list item in markdown.
+          const trimmed = msg.body.trim()
+          for (const bodyLine of trimmed.split(/\r?\n/)) {
+            lines.push(`   ${bodyLine}`)
+          }
+        }
+        if (atts.length) {
+          lines.push(`   [Attachments: ${atts.join(', ')}]`)
+        }
       }
-
-      if (event.location) {
-        lines.push(`   - Location: ${event.location}`)
-      }
-
-      if (event.participants?.length) {
-        lines.push(`   - Participants: ${event.participants.join(', ')}`)
-      }
-
-      if (event.evidenceIds?.length) {
-        lines.push(`   - Linked evidence IDs: ${event.evidenceIds.join(', ')}`)
-      }
-
       lines.push('')
     })
   }
@@ -389,7 +466,9 @@ async function generateAndSaveExport() {
       include_ai_summary: includeAISummary.value,
       events_count: filteredEvents.value.length,
       evidence_count: evidenceData.value?.length || 0,
-      ai_summary_included: !!aiSummary.value
+      ai_summary_included: !!aiSummary.value,
+      include_messages: includeMessages.value,
+      messages_count: filteredMessages.value.length
     }
 
     const response = await $fetch<{ export: SavedExport }>('/api/exports', {
@@ -558,6 +637,20 @@ async function generateAndSaveExport() {
                 <p class="mt-1 text-xs text-muted">
                   {{ exportFocusOptions.find(option => option.value === exportFocus)?.description }}
                 </p>
+              </div>
+
+              <div v-if="allMessagesFull.length" class="flex items-start gap-3 pt-2">
+                <UCheckbox v-model="includeMessages" />
+                <div class="space-y-1">
+                  <p class="text-sm font-medium text-highlighted">
+                    Include OFW messages ({{ allMessagesFull.length }})
+                  </p>
+                  <p class="text-xs text-muted">
+                    Render every imported Our Family Wizard message inline with events,
+                    chronologically. Each gets a stable citation like
+                    <code class="text-[11px]">[OFW msg #N, sent YYYY-MM-DD HH:MM]</code>.
+                  </p>
+                </div>
               </div>
             </div>
 

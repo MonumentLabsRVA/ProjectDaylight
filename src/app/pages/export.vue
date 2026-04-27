@@ -376,7 +376,8 @@ function buildEvidenceSummaryForEvent(event: TimelineEvent): string | null {
     text: 0,
     email: 0,
     photo: 0,
-    document: 0
+    document: 0,
+    ofw_export: 0
   }
 
   for (const evidenceId of event.evidenceIds) {
@@ -396,6 +397,7 @@ function buildEvidenceSummaryForEvent(event: TimelineEvent): string | null {
   pushPart(counts.text, 'text message', 'text messages')
   pushPart(counts.email, 'email', 'emails')
   pushPart(counts.document, 'document', 'documents')
+  pushPart(counts.ofw_export, 'OFW export', 'OFW exports')
 
   if (!parts.length) return null
   return parts.join(', ')
