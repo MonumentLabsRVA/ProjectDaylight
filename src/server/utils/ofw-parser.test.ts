@@ -10,7 +10,6 @@ const hasFixture = existsSync(fixturePath)
 
 const itFixture = hasFixture ? it : it.skip
 if (!hasFixture) {
-  // eslint-disable-next-line no-console
   console.warn(
     `[ofw-parser.test] Skipping fixture-backed assertions — ${fixturePath} not present.\n`
     + 'Real OFW exports contain children\'s PII and are gitignored. Drop a fixture in to run these tests locally.'
@@ -68,5 +67,16 @@ describe('parseOFWPdf', () => {
     }
     expect(result.metadata.dateRange.start).toBe(result.messages[0]!.sent)
     expect(result.metadata.dateRange.end).toBe(result.messages.at(-1)!.sent)
+  })
+
+  // Regression: header-stripped exports drop the literal "at" between date and time.
+  it('parses both "MM/DD/YYYY at h:mm AM" and "MM/DD/YYYY h:mm AM" header formats', () => {
+    const withAt = /^Sent:\s*(\d{2}\/\d{2}\/\d{4})\s+(?:at\s+)?(\d{1,2}:\d{2}\s+[AP]M)\s*$/
+    expect('Sent: 01/02/2024 at 09:00 AM'.match(withAt)?.[1]).toBe('01/02/2024')
+    expect('Sent: 01/02/2024 09:00 AM'.match(withAt)?.[2]).toBe('09:00 AM')
+
+    const toFv = /^To:\s+(.+?)\(First Viewed:\s*(\d{2}\/\d{2}\/\d{4})\s+(?:at\s+)?(\d{1,2}:\d{2}\s+[AP]M)\)\s*$/
+    expect('To: Sample Recipient(First Viewed: 01/02/2024 at 09:30 AM)'.match(toFv)?.[1]).toBe('Sample Recipient')
+    expect('To: Sample Recipient(First Viewed: 01/02/2024 09:30 AM)'.match(toFv)?.[3]).toBe('09:30 AM')
   })
 })

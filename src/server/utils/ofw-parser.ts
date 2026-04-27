@@ -50,9 +50,11 @@ export interface OFWParseResult {
 
 // ── Regex patterns ──
 
-const SENT_RE = /^Sent:\s*(\d{2}\/\d{2}\/\d{4})\s+at\s+(\d{1,2}:\d{2}\s+[AP]M)\s*$/
+// OFW exports vary by report settings: older/branded exports use "MM/DD/YYYY at h:mm AM",
+// newer/header-stripped exports drop the literal "at". Accept both.
+const SENT_RE = /^Sent:\s*(\d{2}\/\d{2}\/\d{4})\s+(?:at\s+)?(\d{1,2}:\d{2}\s+[AP]M)\s*$/
 const FROM_RE = /^From:\s+(.+)$/
-const TO_FV_RE = /^To:\s+(.+?)\(First Viewed:\s*(\d{2}\/\d{2}\/\d{4})\s+at\s+(\d{1,2}:\d{2}\s+[AP]M)\)\s*$/
+const TO_FV_RE = /^To:\s+(.+?)\(First Viewed:\s*(\d{2}\/\d{2}\/\d{4})\s+(?:at\s+)?(\d{1,2}:\d{2}\s+[AP]M)\)\s*$/
 const TO_RE = /^To:\s+(.+)$/
 const SUBJECT_RE = /^Subject:\s+(.*)$/
 const PAGE_HDR_RE = /^\| Message Report Page \d+ of \d+$/
