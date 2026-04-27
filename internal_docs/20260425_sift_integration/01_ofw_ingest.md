@@ -303,7 +303,9 @@ Both use `requireUserId` + `requireCaseAccess` from Plan 00.
 
 **Done when:** uploading a fixture PDF in dev results in N messages in the DB within 60 seconds; re-uploading the same PDF inserts 0 new rows.
 
-### Phase 3 — Timeline + UI surface (~2 days)
+### Phase 3 — Timeline + UI surface (~2 days) ✅ shipped 2026-04-27
+
+> Browser-tested end-to-end against the prod test account: OFW import tile on /evidence runs the upload + Realtime/poll job-watch and shows "Imported 331 new messages" within ~5 s. /messages list view paginates 331 rows with sender/date/FTS filters; /messages/:id shows message + 32-row thread context. /timeline now UNIONs events + messages (449 total = 118 events + 331 messages); the Messages chip toggles them off → "118 of 449 events". Test data and storage object cleaned up after the run.
 
 #### 3a. Unified timeline shape
 

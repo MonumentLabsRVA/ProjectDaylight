@@ -85,6 +85,13 @@ const links = computed<NavigationMenuItem[][]>(() => {
         open.value = false
       }
     }, {
+      label: 'Messages',
+      icon: 'i-lucide-message-square-text',
+      to: '/messages',
+      onSelect: () => {
+        open.value = false
+      }
+    }, {
       label: 'Evidence',
       icon: 'i-lucide-folder-open',
       to: '/evidence',
@@ -185,7 +192,8 @@ function mapEvidenceToSearchItem(evidence: EvidenceItem): SearchItem {
     text: 'i-lucide-message-square',
     email: 'i-lucide-mail',
     photo: 'i-lucide-image',
-    document: 'i-lucide-file-text'
+    document: 'i-lucide-file-text',
+    ofw_export: 'i-lucide-message-square-text'
   }
 
   return {

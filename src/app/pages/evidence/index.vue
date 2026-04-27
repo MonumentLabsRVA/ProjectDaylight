@@ -2,8 +2,8 @@
 import type { EvidenceItem } from '~/types'
 
 // Subscription check for feature gating
-const { 
-  canUploadEvidence, 
+const {
+  canUploadEvidence,
   evidenceUploadsRemaining,
   isFree,
   limits
@@ -21,6 +21,124 @@ watch(session, (newSession) => {
     refresh()
   }
 })
+
+// OFW import: hidden file input + status banner.
+// The endpoint enforces the 100 MB cap server-side; we mirror it here for UX.
+const OFW_MAX_BYTES = 100 * 1024 * 1024
+const ofwInput = ref<HTMLInputElement | null>(null)
+const ofwStatus = ref<{
+  state: 'idle' | 'uploading' | 'processing' | 'done' | 'error'
+  message?: string
+  evidenceId?: string
+  jobId?: string
+}>({ state: 'idle' })
+
+async function pickOfwFile() {
+  ofwInput.value?.click()
+}
+
+async function handleOfwSelected(ev: Event) {
+  const input = ev.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
+    ofwStatus.value = { state: 'error', message: 'OFW exports must be PDF files.' }
+    input.value = ''
+    return
+  }
+  if (file.size > OFW_MAX_BYTES) {
+    ofwStatus.value = { state: 'error', message: `File too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Max is 100 MB.` }
+    input.value = ''
+    return
+  }
+
+  ofwStatus.value = { state: 'uploading', message: `Uploading ${file.name}…` }
+
+  try {
+    const fd = new FormData()
+    fd.append('file', file, file.name)
+
+    const res = await $fetch<{ evidenceId: string; jobId: string; message: string }>(
+      '/api/evidence-ofw-upload',
+      { method: 'POST', body: fd }
+    )
+
+    ofwStatus.value = {
+      state: 'processing',
+      message: 'Parsing your messages — this usually takes under a minute.',
+      evidenceId: res.evidenceId,
+      jobId: res.jobId
+    }
+
+    await watchJobUntilTerminal(res.evidenceId, res.jobId)
+  } catch (err: any) {
+    ofwStatus.value = { state: 'error', message: err?.statusMessage || err?.message || 'Upload failed.' }
+  } finally {
+    input.value = ''
+  }
+}
+
+const supabase = useSupabaseClient()
+
+// Watches a single ofw_ingest job. Polls every 1.5 s and listens via Realtime
+// in parallel — whichever fires first wins. Total deadline 5 minutes; after
+// that we tell the user to refresh.
+async function watchJobUntilTerminal(evidenceId: string, jobId: string) {
+  return new Promise<void>((resolve) => {
+    let settled = false
+    let pollHandle: ReturnType<typeof setInterval> | null = null
+    let deadlineHandle: ReturnType<typeof setTimeout> | null = null
+
+    const finish = (status: { state: typeof ofwStatus.value.state; message?: string }) => {
+      if (settled) return
+      settled = true
+      ofwStatus.value = { ...status, evidenceId, jobId }
+      if (pollHandle) clearInterval(pollHandle)
+      if (deadlineHandle) clearTimeout(deadlineHandle)
+      void supabase.removeChannel(channel)
+      void refresh()
+      resolve()
+    }
+
+    const handleRow = (row: { status: string; result_summary?: { messages_inserted?: number; messages_parsed?: number } | null; error_message?: string | null }) => {
+      if (row.status === 'completed') {
+        const inserted = row.result_summary?.messages_inserted ?? 0
+        const parsed = row.result_summary?.messages_parsed ?? 0
+        finish({ state: 'done', message: `Imported ${inserted} new messages (${parsed} parsed).` })
+      } else if (row.status === 'failed') {
+        finish({ state: 'error', message: row.error_message || 'Parsing failed.' })
+      }
+    }
+
+    const channel = supabase
+      .channel(`ofw-job-${jobId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'jobs',
+        filter: `id=eq.${jobId}`
+      }, (payload) => handleRow(payload.new as Parameters<typeof handleRow>[0]))
+      .subscribe()
+
+    pollHandle = setInterval(async () => {
+      if (settled) return
+      const { data: row } = await supabase
+        .from('jobs')
+        .select('status, result_summary, error_message')
+        .eq('id', jobId)
+        .maybeSingle()
+      if (row) handleRow(row as Parameters<typeof handleRow>[0])
+    }, 1500)
+
+    deadlineHandle = setTimeout(() => {
+      finish({
+        state: 'done',
+        message: 'Parsing is still running. Refresh in a minute to see imported messages.'
+      })
+    }, 5 * 60 * 1000)
+  })
+}
 
 const q = ref('')
 const sourceFilter = ref<'all' | EvidenceItem['sourceType']>('all')
@@ -40,6 +158,9 @@ const sourceOptions: { label: string; value: 'all' | EvidenceItem['sourceType'] 
 }, {
   label: 'Documents',
   value: 'document'
+}, {
+  label: 'OFW Exports',
+  value: 'ofw_export'
 }]
 
 const filteredEvidence = computed(() => {
@@ -77,7 +198,8 @@ function sourceLabel(type: EvidenceItem['sourceType']) {
     text: 'Text',
     email: 'Email',
     photo: 'Photo',
-    document: 'Document'
+    document: 'Document',
+    ofw_export: 'OFW Export'
   }[type]
 }
 
@@ -140,6 +262,58 @@ function onImageError(id: string) {
 
     <template #body>
       <div class="space-y-4">
+        <!-- OFW import card -->
+        <UCard>
+          <div class="flex items-start gap-4">
+            <div class="size-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+              <UIcon name="i-lucide-message-square-text" class="size-5 text-primary" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-highlighted">Import Our Family Wizard messages</p>
+              <p class="text-xs text-muted mt-0.5">
+                Upload an OFW Message Report PDF — every message lands on your timeline.
+                Use settings: All In Folder · Oldest to Newest · New page per message · Exclude attachments.
+              </p>
+              <div v-if="ofwStatus.state !== 'idle'" class="mt-3 text-xs">
+                <UAlert
+                  :color="ofwStatus.state === 'error' ? 'error' : ofwStatus.state === 'done' ? 'success' : 'info'"
+                  :icon="ofwStatus.state === 'uploading' || ofwStatus.state === 'processing'
+                    ? 'i-lucide-loader-2'
+                    : ofwStatus.state === 'error'
+                      ? 'i-lucide-circle-alert'
+                      : 'i-lucide-check'"
+                  variant="subtle"
+                  :title="ofwStatus.state === 'uploading' ? 'Uploading…'
+                    : ofwStatus.state === 'processing' ? 'Parsing…'
+                    : ofwStatus.state === 'error' ? 'Upload failed'
+                    : 'Done'"
+                  :description="ofwStatus.message"
+                  :ui="{
+                    icon: ofwStatus.state === 'uploading' || ofwStatus.state === 'processing' ? 'animate-spin' : ''
+                  }"
+                />
+              </div>
+            </div>
+            <UButton
+              variant="solid"
+              color="primary"
+              size="sm"
+              icon="i-lucide-upload"
+              :loading="ofwStatus.state === 'uploading' || ofwStatus.state === 'processing'"
+              @click="pickOfwFile"
+            >
+              Import OFW PDF
+            </UButton>
+            <input
+              ref="ofwInput"
+              type="file"
+              accept="application/pdf,.pdf"
+              class="hidden"
+              @change="handleOfwSelected"
+            >
+          </div>
+        </UCard>
+
         <!-- Feature gate: Free tier limit warning -->
         <UpgradePrompt
           v-if="isFree && !canUploadEvidence"
@@ -245,7 +419,7 @@ function onImageError(id: string) {
                 <template v-else>
                   <div class="flex flex-col items-center justify-center gap-2 text-muted">
                     <UIcon 
-                      :name="item.sourceType === 'photo' ? 'i-lucide-image' : item.sourceType === 'document' ? 'i-lucide-file-text' : item.sourceType === 'email' ? 'i-lucide-mail' : 'i-lucide-message-square'"
+                      :name="item.sourceType === 'photo' ? 'i-lucide-image' : item.sourceType === 'document' ? 'i-lucide-file-text' : item.sourceType === 'email' ? 'i-lucide-mail' : item.sourceType === 'ofw_export' ? 'i-lucide-message-square-text' : 'i-lucide-message-square'"
                       class="size-10"
                     />
                     <span class="text-xs">{{ sourceLabel(item.sourceType) }}</span>

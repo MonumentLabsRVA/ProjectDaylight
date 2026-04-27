@@ -104,7 +104,8 @@ function sourceLabel(type: EvidenceItem['sourceType']) {
     text: 'Text Message',
     email: 'Email',
     photo: 'Photo',
-    document: 'Document'
+    document: 'Document',
+    ofw_export: 'OFW Export'
   }[type] || 'Evidence'
 }
 
@@ -113,7 +114,8 @@ function sourceIcon(type: EvidenceItem['sourceType']) {
     text: 'i-lucide-message-square',
     email: 'i-lucide-mail',
     photo: 'i-lucide-image',
-    document: 'i-lucide-file-text'
+    document: 'i-lucide-file-text',
+    ofw_export: 'i-lucide-message-square-text'
   }[type] || 'i-lucide-file'
 }
 

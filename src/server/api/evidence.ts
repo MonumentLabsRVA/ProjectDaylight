@@ -38,7 +38,8 @@ function mapEvidenceRowToItem(row: EvidenceRow): EvidenceItem {
       email: 'Email communication',
       text: 'Text message',
       photo: 'Photo evidence',
-      document: 'Document'
+      document: 'Document',
+      ofw_export: 'OFW Message Report'
     }[sourceType] || 'Evidence item'
     originalName = typeLabel
   }
