@@ -388,7 +388,7 @@ Pre-merge checklist (run 2026-04-27):
 1. [x] No `// HACK` / `// TEMP` / `// FIXME` shims found in `src/server/**` or `src/app/**`.
 2. [x] No hot-fix was needed on `main` — the case-scoping code was already merged via the Plan 00 commits, so there's no temporary patch to absorb or revert.
 3. [x] Pre-merge DB sanity (run before the merge): events/evidence/journal_entries with NULL case_id all returned 0; messages table returned 0 rows (test data was cleaned up after each phase).
-4. [ ] Post-merge: smoke-test the prod test login (`kyle@monumentlabs.io`) and confirm a fresh journal entry creates events without 500ing. Proves the case_id skew is closed end-to-end.
+4. [x] Post-merge prod smoke (2026-04-27 after merge `fcdda4e` shipped): `POST /api/journal/submit` from the prod test login returned 200, the new journal_entries row landed with `case_id` populated, and the Inngest extraction job completed cleanly. Confirms the case_id skew is closed end-to-end.
 
 Do not delete this section after Phase 6 runs — it's the audit log for the next sprint to reference.
 
