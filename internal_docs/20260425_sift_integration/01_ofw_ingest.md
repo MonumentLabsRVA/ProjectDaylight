@@ -85,7 +85,9 @@ When telling users how to generate their export, surface these required settings
 
 The parser currently *handles* deviations gracefully (skips header pages if present, dedupes reply duplication) but counts and `messageNumber` are most consistent under the recommended settings. Surface these settings in the upload UI as a "Generate your OFW export" expandable.
 
-### Phase 2 — Schema, storage, ingest pipeline (~2 days)
+### Phase 2 — Schema, storage, ingest pipeline (~2 days) ✅ shipped 2026-04-27
+
+> Smoke-tested end-to-end against the prod DB via the local dev server: fixture upload → Inngest worker → 331 messages parsed and inserted in ~3 seconds; retry inserted 0 rows; `/api/messages` and `/api/messages/:id` both return clean shapes. Test data cleaned up after the run. Details in [`migration_verification.md`](./migration_verification.md).
 
 #### 2a. Migration `0048_ofw_messages.sql`
 
@@ -365,6 +367,26 @@ In `src/app/pages/exports/new.vue` and the export pipeline (`generate-pdf.ts`):
 ### Phase 5 — Optional: event extraction from messages (deferred)
 
 Promote message *content* into structured events ("late pickup," "schedule change request") using the existing extraction schema, adapted. Keep deferred behind a per-case "Run extraction on messages" action so we don't auto-burn LLM budget on every upload.
+
+### Phase 6 — Pre-merge compatibility audit (gating the merge to `main`)
+
+Before this branch (`feat/sift-integration`) is merged, run through the audit below. Anything flagged "temporary patch" must be deleted by this phase so it does not leak into `main`'s history.
+
+| Artifact | Status (as of Phase 2) | Backwards-compatible with `main`? |
+|---|---|---|
+| `0047_case_scoping.sql` (Plan 00) — adds `NOT NULL case_id` to events / evidence / journal_entries | applied 2026-04-26 | **No** — `main` does not write `case_id`, so writes from main 500. **Active prod incident.** Mitigations: (a) hot-fix-cherry-pick the case_id writes into `main`, OR (b) fast-track this branch's merge. Tracked as `project_prod_main_db_skew` in `MEMORY.md`. |
+| `0048_profiles_active_case.sql` (Plan 00) — adds nullable `profiles.active_case_id` | applied 2026-04-26 | Yes (nullable column, ignored by `main`). |
+| `0049_ofw_extend_enums.sql` (Plan 01 P2) — adds `evidence_source_type='ofw_export'` and `job_type='ofw_ingest'` | applied 2026-04-27 | Yes (additive enum values; `main` neither inserts nor reads them). |
+| `0050_ofw_messages.sql` (Plan 01 P2) — creates `messages` table | applied 2026-04-27 | Yes (new table; `main` never references it). |
+
+Pre-merge checklist:
+
+1. [ ] Confirm no temporary `// HACK` / `// TEMP` shims remain in `src/server/api/**` or `src/server/inngest/**`. None should exist for Plan 01; this row is a reminder for future phases.
+2. [ ] If a hot-fix to `main` was applied to mitigate the `case_id` skew (option *a* above), confirm the fix is either (i) absorbed into the merged branch or (ii) explicitly reverted in the merge commit.
+3. [ ] After merge, run the verification queries from `migration_verification.md` against prod: `SELECT count(*) FROM messages;` should still return rows; `SELECT count(*) FROM evidence WHERE source_type = 'ofw_export';` should match.
+4. [ ] Smoke test the prod test login (`kyle@monumentlabs.io`) post-merge: create a journal entry → confirm it lands. This proves the case_id skew is closed.
+
+Do not delete this section after Phase 6 runs — it's the audit log for the next sprint to reference.
 
 ## Risks & mitigations
 

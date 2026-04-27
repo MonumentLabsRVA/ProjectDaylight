@@ -47,3 +47,36 @@ The fixture's `reportExpected` (163) diverged from `totalMessages` (331), so the
 
 ### Fixtures policy
 `src/server/utils/__fixtures__/*.pdf` is gitignored (root `.gitignore`). Real OFW exports contain children's PII; never commit them. Tests skip with a console warning when no fixture is present so contributors without one can still run the suite.
+
+## Plan 01 Phase 2 — Schema + ingest pipeline (applied 2026-04-27)
+
+### Migrations
+| File | Effect | Backwards-compat with `main`? |
+|---|---|---|
+| `0049_ofw_extend_enums.sql` | `ALTER TYPE evidence_source_type ADD VALUE 'ofw_export'`; `ALTER TYPE job_type ADD VALUE 'ofw_ingest'` | Yes — additive |
+| `0050_ofw_messages.sql` | `CREATE TABLE messages` + indexes + RLS + audit trigger | Yes — net-new table |
+
+`ALTER TYPE ADD VALUE` was split into its own migration (0049) because Postgres forbids a freshly-added enum value from being used in the same transaction.
+
+### Code shipped
+- `src/server/api/evidence-ofw-upload.post.ts` — multipart POST. Uploads PDF to `daylight-files/evidence/{userId}/ofw/...`, inserts `evidence` row (`source_type='ofw_export'`), inserts `jobs` row (`type='ofw_ingest'`), fires `evidence/ofw_export.uploaded`. 100 MB cap. Returns `{ evidenceId, jobId }`.
+- `src/server/inngest/functions/ofw-ingest.ts` — 4-step ingest function: mark-processing → lookup-storage-path → download-and-parse → upsert-messages → finalize. `onFailure` marks job failed.
+- `src/server/api/messages/index.get.ts` — paginated list (limit/offset, `caseId`, `from`, `to`, `sender[]`, `q` for FTS).
+- `src/server/api/messages/[id].get.ts` — single message + thread context.
+- Function registered in `src/server/api/inngest.ts`.
+
+### End-to-end smoke (local dev → prod DB)
+| Step | Result |
+|---|---|
+| `POST /api/evidence-ofw-upload` with the 873 KB fixture | `200 OK`, `{ evidenceId, jobId, message: "Parsing started" }` |
+| Inngest event published + picked up | ~200 ms latency |
+| `jobs.status` after worker run | `completed`, `result_summary.messages_parsed=331`, `messages_inserted=331`, `thread_count=32`, 2 senders |
+| Idempotency: re-fire the same event with same `evidenceId/jobId` | `result_summary.messages_inserted=0`, total still 331 — `uniq_messages_evidence_sequence` working |
+| `GET /api/messages?limit=3` | 331 total, sorted desc by `sent_at`, `message_number` populated for primary messages |
+| `GET /api/messages/:id` on a primary message | Returns message + 32-row thread |
+| `GET /api/messages?q=pickup&limit=2` (FTS) | 8 hits, body preview matches |
+| Cleanup | `DELETE FROM evidence WHERE id=…` cascaded → 0 messages, 0 evidence, 0 jobs |
+
+### Notes
+- Storage object in `daylight-files/evidence/<user>/ofw/...` was deleted via the Supabase Storage REST API as part of cleanup (Storage tables protect against direct SQL deletes). 0 leftover OFW objects under the test account.
+- The Inngest dev server runs alongside Nuxt via `npm run dev`. The function id is `ofw-ingest` and is auto-discovered when Nitro serves `/api/inngest`.
