@@ -33,7 +33,7 @@ The old plans are in git history; nothing is lost.
 
 ## Plans in this folder
 
-- [`00_case_scoping_refactor.md`](./00_case_scoping_refactor.md) — **prereq.** Adds `case_id` to events / evidence / journal_entries, backfills, plus a sidebar case switcher modeled on the dashboard template's `TeamsMenu`. ~1 day. Removes a class of footguns from every other plan.
+- [`00_case_scoping_refactor.md`](./00_case_scoping_refactor.md) — **✅ shipped 2026-04-26** (commits `e9ec7b3` → `61c8f06`). Migration `0047_case_scoping.sql` + `profiles.active_case_id` (`0048`); `getActiveCaseId` / `requireCaseAccess` helpers; sidebar `CaseSwitcher`; every read/write endpoint scoped by case.
 - [`01_ofw_ingest.md`](./01_ofw_ingest.md) — port the standalone OFW PDF parser, add a `messages` table + `ofw_export` evidence type, render messages on the timeline alongside events.
 - [`02_chat_over_evidence.md`](./02_chat_over_evidence.md) — port AIR-Bot's chat plumbing (Vercel AI SDK + tool-calling + streaming UI + chats table) and wire it to Daylight's evidence model. Includes the citation validation pass.
 - [`03_attorney_share_workspace.md`](./03_attorney_share_workspace.md) — invite an attorney to a case as a read-only collaborator. Smallest possible step toward the two-sided product. Includes Resend email infrastructure as Phase 0.

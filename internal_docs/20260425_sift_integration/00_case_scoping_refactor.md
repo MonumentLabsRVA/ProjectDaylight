@@ -1,5 +1,7 @@
 # Plan 00 — Case Scoping Refactor (prereq)
 
+> **✅ Shipped 2026-04-26.** Migrations `0047_case_scoping.sql` + `0048_profiles_active_case.sql` are live. `getActiveCaseId` / `requireCaseAccess` exist in `src/server/utils/cases.ts`. `CaseSwitcher` is wired into the sidebar. Every read/write endpoint scopes by case. Verification logged in [`migration_verification.md`](./migration_verification.md). One deviation from this plan: active case lives on `profiles.active_case_id` (DB column with cookie-less fallback) rather than the `daylight_active_case` cookie originally specced — see the **State in DB, not cookie** memory note in `MEMORY.md`.
+
 ## Why this exists
 
 Plans 01–04 all assume resources (messages, chats, events, evidence, journal entries) can be scoped to a `case`. The current schema scopes everything to `user_id` only. The `cases` table (migration 0010) is metadata-only — no other table FKs to it. `journal-extraction.ts:303-329` already silently picks "the user's most recent case" for context, which works while everyone has one case but is the wrong primitive to keep building on.
