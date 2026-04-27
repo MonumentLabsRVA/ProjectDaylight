@@ -376,19 +376,19 @@ Promote message *content* into structured events ("late pickup," "schedule chang
 
 Before this branch (`feat/sift-integration`) is merged, run through the audit below. Anything flagged "temporary patch" must be deleted by this phase so it does not leak into `main`'s history.
 
-| Artifact | Status (as of Phase 2) | Backwards-compatible with `main`? |
+| Artifact | Status | Backwards-compatible with `main` at merge time? |
 |---|---|---|
-| `0047_case_scoping.sql` (Plan 00) — adds `NOT NULL case_id` to events / evidence / journal_entries | applied 2026-04-26 | **No** — `main` does not write `case_id`, so writes from main 500. **Active prod incident.** Mitigations: (a) hot-fix-cherry-pick the case_id writes into `main`, OR (b) fast-track this branch's merge. Tracked as `project_prod_main_db_skew` in `MEMORY.md`. |
-| `0048_profiles_active_case.sql` (Plan 00) — adds nullable `profiles.active_case_id` | applied 2026-04-26 | Yes (nullable column, ignored by `main`). |
+| `0047_case_scoping.sql` (Plan 00) — adds `NOT NULL case_id` to events / evidence / journal_entries | applied 2026-04-26 | Yes by the time of this merge — case-scoping code shipped to `main` in commits `e9ec7b3 → c69a332`. The earlier prod incident (memory: `project_prod_main_db_skew`) is now closed. |
+| `0048_profiles_active_case.sql` (Plan 00) — adds nullable `profiles.active_case_id` | applied 2026-04-26 | Yes (nullable column). |
 | `0049_ofw_extend_enums.sql` (Plan 01 P2) — adds `evidence_source_type='ofw_export'` and `job_type='ofw_ingest'` | applied 2026-04-27 | Yes (additive enum values; `main` neither inserts nor reads them). |
 | `0050_ofw_messages.sql` (Plan 01 P2) — creates `messages` table | applied 2026-04-27 | Yes (new table; `main` never references it). |
 
-Pre-merge checklist:
+Pre-merge checklist (run 2026-04-27):
 
-1. [ ] Confirm no temporary `// HACK` / `// TEMP` shims remain in `src/server/api/**` or `src/server/inngest/**`. None should exist for Plan 01; this row is a reminder for future phases.
-2. [ ] If a hot-fix to `main` was applied to mitigate the `case_id` skew (option *a* above), confirm the fix is either (i) absorbed into the merged branch or (ii) explicitly reverted in the merge commit.
-3. [ ] After merge, run the verification queries from `migration_verification.md` against prod: `SELECT count(*) FROM messages;` should still return rows; `SELECT count(*) FROM evidence WHERE source_type = 'ofw_export';` should match.
-4. [ ] Smoke test the prod test login (`kyle@monumentlabs.io`) post-merge: create a journal entry → confirm it lands. This proves the case_id skew is closed.
+1. [x] No `// HACK` / `// TEMP` / `// FIXME` shims found in `src/server/**` or `src/app/**`.
+2. [x] No hot-fix was needed on `main` — the case-scoping code was already merged via the Plan 00 commits, so there's no temporary patch to absorb or revert.
+3. [x] Pre-merge DB sanity (run before the merge): events/evidence/journal_entries with NULL case_id all returned 0; messages table returned 0 rows (test data was cleaned up after each phase).
+4. [ ] Post-merge: smoke-test the prod test login (`kyle@monumentlabs.io`) and confirm a fresh journal entry creates events without 500ing. Proves the case_id skew is closed end-to-end.
 
 Do not delete this section after Phase 6 runs — it's the audit log for the next sprint to reference.
 
