@@ -64,24 +64,26 @@ export async function summarizeThreadMissing(
 
 /**
  * Compute drift between threads already on message_threads (from earlier
- * imports) and the threads present in a freshly uploaded evidence row.
+ * imports) and the threads present in a freshly parsed OFW upload.
  *
  * Used to decide whether to pause the ingest pipeline for user confirmation
  * (Sprint 6). High drift = the new upload doesn't look like an extension of
  * the previous case file.
+ *
+ * Takes the parsed thread_ids directly (in-memory from the parser) rather
+ * than querying messages by evidence_id. With the dedupe constraint
+ * (case_id, sequence_number), a re-upload of an overlapping report inserts
+ * zero rows under its evidence_id, so an evidence-scoped query returns
+ * nothing and would falsely report 100% drift.
  */
 export async function diffThreadsForUpload(
   client: Client,
   caseId: string,
-  evidenceId: string
+  uploadThreadIdList: Iterable<string | null | undefined>
 ): Promise<ThreadDriftStats> {
-  const { data: uploadRows, error: uploadErr } = await client
-    .rpc('evidence_thread_ids', { p_case_id: caseId, p_evidence_id: evidenceId })
-  if (uploadErr) throw new Error(`diffThreadsForUpload upload fetch failed: ${uploadErr.message}`)
-
   const uploadThreadIds = new Set<string>()
-  for (const r of uploadRows ?? []) {
-    if (r.thread_id) uploadThreadIds.add(r.thread_id)
+  for (const t of uploadThreadIdList) {
+    if (t) uploadThreadIds.add(t)
   }
 
   const { data: existingRows, error: existingErr } = await client

@@ -139,13 +139,18 @@ export const ofwIngestFunction = inngest.createFunction(
     })
 
     const inserted = await step.run('upsert-messages', async () => {
+      // Dedup key is (case_id, sequence_number): OFW assigns a stable internal
+      // id per message, and a case has at most one OFW account behind it. So
+      // re-importing a later OFW report (which overlaps an earlier one) is a
+      // no-op for already-known messages instead of cloning every row under a
+      // new evidence_id. See migration 0056 for the matching unique constraint.
       const rows = result.messages.map((m: OFWMessage) => toMessageRow(m, caseId, userId, evidenceId))
       const chunks = chunk(rows, UPSERT_CHUNK_SIZE)
       let count = 0
       for (const c of chunks) {
         const { data, error } = await supabase
           .from('messages')
-          .upsert(c, { onConflict: 'evidence_id,sequence_number', ignoreDuplicates: true })
+          .upsert(c, { onConflict: 'case_id,sequence_number', ignoreDuplicates: true })
           .select('id')
         if (error) throw new Error(`Failed to upsert messages: ${error.message}`)
         count += data?.length ?? 0
@@ -154,7 +159,12 @@ export const ofwIngestFunction = inngest.createFunction(
     })
 
     const drift = await step.run('compute-thread-drift', async () => {
-      return await diffThreadsForUpload(supabase, caseId, evidenceId)
+      // Drift is judged against the *parsed* thread_ids (what's in the file),
+      // not what just got inserted. Under the (case_id, sequence_number)
+      // dedupe key, a full re-upload inserts zero rows but should still be
+      // recognized as overlapping the existing case.
+      const uploadThreadIds = result.messages.map((m: OFWMessage) => m.threadId)
+      return await diffThreadsForUpload(supabase, caseId, uploadThreadIds)
     })
 
     const needsConfirmation = drift.existing > 0 && drift.driftRatio > DRIFT_THRESHOLD
