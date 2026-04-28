@@ -1,0 +1,735 @@
+[
+  {
+    "query": "Q1_withhold",
+    "method": "plain_fts",
+    "hits": 0,
+    "total": 0,
+    "precision": 0,
+    "latencyMs": 141,
+    "items": []
+  },
+  {
+    "query": "Q1_withhold",
+    "method": "naive_keywords",
+    "hits": 0,
+    "total": 0,
+    "precision": 0,
+    "latencyMs": 126,
+    "items": []
+  },
+  {
+    "query": "Q1_withhold",
+    "method": "llm_rank_all",
+    "hits": 4,
+    "total": 5,
+    "precision": 0.8,
+    "latencyMs": 3147,
+    "items": [
+      {
+        "id": "0bf1ee1b-eacf-4049-af44-914a7de665dc",
+        "subject": "Re: Changeover",
+        "tone": "tense",
+        "flags": [
+          "schedule_violation",
+          "communication_breakdown",
+          "school_decision",
+          "safety_concern"
+        ],
+        "relevant": true,
+        "reason": "Mari explicitly accused the user of withholding Josie"
+      },
+      {
+        "id": "c0db9beb-6cd6-4eab-a371-4883cb332bbc",
+        "subject": "Re: 2/21 pick up",
+        "tone": "tense",
+        "flags": [
+          "schedule_violation",
+          "agreement_reference",
+          "communication_breakdown",
+          "gatekeeping"
+        ],
+        "relevant": true,
+        "reason": "Dispute over pickup timing and custodial time, with gatekeeping"
+      },
+      {
+        "id": "cebb2753-0c86-4bb6-9dbb-898ece830645",
+        "subject": "Access to Josie",
+        "tone": "tense",
+        "flags": [
+          "safety_concern",
+          "communication_breakdown",
+          "child_welfare_concern",
+          "schedule_violation"
+        ],
+        "relevant": true,
+        "reason": "Mari says the user blocked access to Josie by locking the door"
+      },
+      {
+        "id": "015db2d3-0c41-4080-8ee6-5df845a94fca",
+        "subject": "Items",
+        "tone": "tense",
+        "flags": [
+          "communication_breakdown",
+          "gatekeeping"
+        ],
+        "relevant": false,
+        "reason": "Mari says the user took items beyond what was consented to"
+      },
+      {
+        "id": "9eecfe64-7c9c-46dd-a819-ceba0f0bff6d",
+        "subject": "Re: Josie's Passports",
+        "tone": "tense",
+        "flags": [
+          "agreement_reference",
+          "gatekeeping",
+          "communication_breakdown"
+        ],
+        "relevant": true,
+        "reason": "Mari discusses withholding passports, a gatekeeping-related access dispute"
+      }
+    ]
+  },
+  {
+    "query": "Q1_withhold",
+    "method": "flag_planner",
+    "hits": 4,
+    "total": 5,
+    "precision": 0.8,
+    "latencyMs": 1879,
+    "items": [
+      {
+        "id": "982f1785-1659-4877-adc1-d5ea6e1771bd",
+        "subject": "Re: Josie surgery information",
+        "tone": "tense",
+        "flags": [
+          "medical_decision",
+          "schedule_violation",
+          "communication_breakdown",
+          "gatekeeping"
+        ],
+        "relevant": true
+      },
+      {
+        "id": "4a9601b6-08d8-41d2-a878-22457fe8b2f0",
+        "subject": "Re: Transition today",
+        "tone": "tense",
+        "flags": [
+          "schedule_violation",
+          "agreement_reference",
+          "financial_dispute",
+          "communication_breakdown",
+          "positive_coparenting"
+        ],
+        "relevant": true
+      },
+      {
+        "id": "41ba3466-2b77-4a82-a8c4-0c31ecef15ee",
+        "subject": "Re: Changeover today",
+        "tone": "tense",
+        "flags": [
+          "schedule_violation",
+          "communication_breakdown"
+        ],
+        "relevant": false
+      },
+      {
+        "id": "28e368b2-fc48-4f34-a437-92f40d93a230",
+        "subject": "Re: Pickup today",
+        "tone": "tense",
+        "flags": [
+          "schedule_violation",
+          "financial_dispute",
+          "communication_breakdown"
+        ],
+        "relevant": true
+      },
+      {
+        "id": "063dcfec-7f9b-4eda-9a45-889c36dd2213",
+        "subject": "Re: 3/14 pick up",
+        "tone": "tense",
+        "flags": [
+          "agreement_reference",
+          "schedule_violation",
+          "communication_breakdown",
+          "child_welfare_concern"
+        ],
+        "relevant": true
+      }
+    ]
+  },
+  {
+    "query": "Q2_ms_katy",
+    "method": "plain_fts",
+    "hits": 0,
+    "total": 0,
+    "precision": 0,
+    "latencyMs": 62,
+    "items": []
+  },
+  {
+    "query": "Q2_ms_katy",
+    "method": "naive_keywords",
+    "hits": 2,
+    "total": 2,
+    "precision": 1,
+    "latencyMs": 142,
+    "items": [
+      {
+        "id": "a22e2468-cc43-4213-87be-595799ed9ae9",
+        "subject": "Re: Josie’s lunchbox and bag",
+        "tone": "tense",
+        "flags": [
+          "schedule_violation",
+          "communication_breakdown",
+          "school_decision"
+        ],
+        "relevant": true
+      },
+      {
+        "id": "e09d5a90-5e17-4103-a60e-36ab4ee0aeb0",
+        "subject": "Re: 12/22",
+        "tone": "tense",
+        "flags": [
+          "schedule_violation",
+          "child_welfare_concern",
+          "communication_breakdown",
+          "agreement_reference"
+        ],
+        "relevant": true
+      }
+    ]
+  },
+  {
+    "query": "Q2_ms_katy",
+    "method": "llm_rank_all",
+    "hits": 5,
+    "total": 5,
+    "precision": 1,
+    "latencyMs": 3347,
+    "items": [
+      {
+        "id": "7b2dc689-eef3-434a-b469-cd9dd9e28f1a",
+        "subject": "Re: Childcare cost",
+        "tone": "tense",
+        "flags": [
+          "financial_dispute",
+          "schedule_violation",
+          "communication_breakdown",
+          "child_welfare_concern",
+          "agreement_reference"
+        ],
+        "relevant": true,
+        "reason": "Directly mentions paying Ms. Katy for daycare"
+      },
+      {
+        "id": "2223b1c6-a1c6-4c72-9b1a-68dc643ace5d",
+        "subject": "Re: Medicine and payments",
+        "tone": "tense",
+        "flags": [
+          "medical_decision",
+          "financial_dispute",
+          "communication_breakdown"
+        ],
+        "relevant": true,
+        "reason": "Discusses daycare payment with Ms. Katy explicitly"
+      },
+      {
+        "id": "982f1785-1659-4877-adc1-d5ea6e1771bd",
+        "subject": "Re: Josie surgery information",
+        "tone": "tense",
+        "flags": [
+          "medical_decision",
+          "schedule_violation",
+          "communication_breakdown",
+          "gatekeeping"
+        ],
+        "relevant": true,
+        "reason": "Proper nouns include Katy in a custody and surgery thread"
+      },
+      {
+        "id": "6bb4400e-5052-4f92-bd3a-93b861198f83",
+        "subject": "Re: Schedule next week",
+        "tone": "mixed",
+        "flags": [
+          "communication_breakdown",
+          "positive_coparenting"
+        ],
+        "relevant": true,
+        "reason": "Mentions Katy while coordinating daycare schedule and teacher pay"
+      },
+      {
+        "id": "40498eec-b44e-42fb-b5f3-bed16be4a088",
+        "subject": "Halloween Party",
+        "tone": "neutral",
+        "flags": [
+          "communication_breakdown"
+        ],
+        "relevant": true,
+        "reason": "References Katy in a daycare-related Halloween party exchange"
+      }
+    ]
+  },
+  {
+    "query": "Q2_ms_katy",
+    "method": "flag_planner",
+    "hits": 0,
+    "total": 0,
+    "precision": 0,
+    "latencyMs": 1531,
+    "items": []
+  },
+  {
+    "query": "Q3_medical_disagreement",
+    "method": "plain_fts",
+    "hits": 1,
+    "total": 1,
+    "precision": 1,
+    "latencyMs": 130,
+    "items": [
+      {
+        "id": "f840aeb2-3299-44d3-8cea-049d0ca79f55",
+        "subject": "Re: Sunday pickup for Josie",
+        "tone": "mixed",
+        "flags": [
+          "medical_decision",
+          "agreement_reference",
+          "communication_breakdown",
+          "safety_concern"
+        ],
+        "relevant": true
+      }
+    ]
+  },
+  {
+    "query": "Q3_medical_disagreement",
+    "method": "naive_keywords",
+    "hits": 1,
+    "total": 1,
+    "precision": 1,
+    "latencyMs": 70,
+    "items": [
+      {
+        "id": "f840aeb2-3299-44d3-8cea-049d0ca79f55",
+        "subject": "Re: Sunday pickup for Josie",
+        "tone": "mixed",
+        "flags": [
+          "medical_decision",
+          "agreement_reference",
+          "communication_breakdown",
+          "safety_concern"
+        ],
+        "relevant": true
+      }
+    ]
+  },
+  {
+    "query": "Q3_medical_disagreement",
+    "method": "llm_rank_all",
+    "hits": 5,
+    "total": 5,
+    "precision": 1,
+    "latencyMs": 3649,
+    "items": [
+      {
+        "id": "4c255219-032c-4a59-a6cb-0bd81f80da28",
+        "subject": "Re: Josie’s medicine",
+        "tone": "tense",
+        "flags": [
+          "medical_decision",
+          "communication_breakdown",
+          "safety_concern"
+        ],
+        "relevant": true,
+        "reason": "Direct dispute over antibiotic safety and replacement prescription"
+      },
+      {
+        "id": "1f64e510-2d9c-40db-9a2f-eed35febe82b",
+        "subject": "Josie girl's allergies",
+        "tone": "mixed",
+        "flags": [
+          "medical_decision",
+          "communication_breakdown"
+        ],
+        "relevant": true,
+        "reason": "Argued about giving allergy medicine without consent"
+      },
+      {
+        "id": "62a0a759-871f-4905-9f99-2febfdf8470d",
+        "subject": "Re: Josie 3yo check up",
+        "tone": "tense",
+        "flags": [
+          "medical_decision",
+          "communication_breakdown",
+          "gatekeeping"
+        ],
+        "relevant": true,
+        "reason": "Disagreed over pediatric checkup findings and care recommendations"
+      },
+      {
+        "id": "1d9c1ffe-a540-443d-9dd4-d71625d8e8c1",
+        "subject": "Re: Appointment Tomorrow",
+        "tone": "tense",
+        "flags": [
+          "medical_decision",
+          "gatekeeping",
+          "communication_breakdown"
+        ],
+        "relevant": true,
+        "reason": "Conflict over attending the doctor appointment and sharing medical records"
+      },
+      {
+        "id": "982f1785-1659-4877-adc1-d5ea6e1771bd",
+        "subject": "Re: Josie surgery information",
+        "tone": "tense",
+        "flags": [
+          "medical_decision",
+          "schedule_violation",
+          "communication_breakdown",
+          "gatekeeping"
+        ],
+        "relevant": true,
+        "reason": "Surgery care planning included disputed medical and recovery decisions"
+      }
+    ]
+  },
+  {
+    "query": "Q3_medical_disagreement",
+    "method": "flag_planner",
+    "hits": 1,
+    "total": 1,
+    "precision": 1,
+    "latencyMs": 1938,
+    "items": [
+      {
+        "id": "f840aeb2-3299-44d3-8cea-049d0ca79f55",
+        "subject": "Re: Sunday pickup for Josie",
+        "tone": "mixed",
+        "flags": [
+          "medical_decision",
+          "agreement_reference",
+          "communication_breakdown",
+          "safety_concern"
+        ],
+        "relevant": true
+      }
+    ]
+  },
+  {
+    "query": "Q4_daycare_money",
+    "method": "plain_fts",
+    "hits": 0,
+    "total": 0,
+    "precision": 0,
+    "latencyMs": 71,
+    "items": []
+  },
+  {
+    "query": "Q4_daycare_money",
+    "method": "naive_keywords",
+    "hits": 3,
+    "total": 3,
+    "precision": 1,
+    "latencyMs": 120,
+    "items": [
+      {
+        "id": "4e0e616d-9481-406c-9892-91429001a0b2",
+        "subject": "Re: Auto insurance",
+        "tone": "tense",
+        "flags": [
+          "financial_dispute",
+          "communication_breakdown"
+        ],
+        "relevant": true
+      },
+      {
+        "id": "2223b1c6-a1c6-4c72-9b1a-68dc643ace5d",
+        "subject": "Re: Medicine and payments",
+        "tone": "tense",
+        "flags": [
+          "medical_decision",
+          "financial_dispute",
+          "communication_breakdown"
+        ],
+        "relevant": true
+      },
+      {
+        "id": "7b2dc689-eef3-434a-b469-cd9dd9e28f1a",
+        "subject": "Re: Childcare cost",
+        "tone": "tense",
+        "flags": [
+          "financial_dispute",
+          "schedule_violation",
+          "communication_breakdown",
+          "child_welfare_concern",
+          "agreement_reference"
+        ],
+        "relevant": true
+      }
+    ]
+  },
+  {
+    "query": "Q4_daycare_money",
+    "method": "llm_rank_all",
+    "hits": 4,
+    "total": 4,
+    "precision": 1,
+    "latencyMs": 3742,
+    "items": [
+      {
+        "id": "7b2dc689-eef3-434a-b469-cd9dd9e28f1a",
+        "subject": "Re: Childcare cost",
+        "tone": "tense",
+        "flags": [
+          "financial_dispute",
+          "schedule_violation",
+          "communication_breakdown",
+          "child_welfare_concern",
+          "agreement_reference"
+        ],
+        "relevant": true,
+        "reason": "Direct daycare reimbursement dispute with Ms. Katy payments"
+      },
+      {
+        "id": "2223b1c6-a1c6-4c72-9b1a-68dc643ace5d",
+        "subject": "Re: Medicine and payments",
+        "tone": "tense",
+        "flags": [
+          "medical_decision",
+          "financial_dispute",
+          "communication_breakdown"
+        ],
+        "relevant": true,
+        "reason": "Discusses daycare payment and whether the teacher was paid"
+      },
+      {
+        "id": "02a7cec9-1849-4401-8f50-929d02d5c486",
+        "subject": "Re: Household expenses",
+        "tone": "tense",
+        "flags": [
+          "financial_dispute",
+          "communication_breakdown",
+          "agreement_reference",
+          "child_welfare_concern"
+        ],
+        "relevant": true,
+        "reason": "Mentions household expenses strain and unpaid childcare costs"
+      },
+      {
+        "id": "a44b8f84-acb6-416d-8cb7-5630cb7ca4da",
+        "subject": "Re: Daycare pickup",
+        "tone": "neutral",
+        "flags": [
+          "schedule_violation"
+        ],
+        "relevant": true,
+        "reason": "Daycare pickup context, but no payment detail"
+      }
+    ]
+  },
+  {
+    "query": "Q4_daycare_money",
+    "method": "flag_planner",
+    "hits": 5,
+    "total": 5,
+    "precision": 1,
+    "latencyMs": 1289,
+    "items": [
+      {
+        "id": "4a9601b6-08d8-41d2-a878-22457fe8b2f0",
+        "subject": "Re: Transition today",
+        "tone": "tense",
+        "flags": [
+          "schedule_violation",
+          "agreement_reference",
+          "financial_dispute",
+          "communication_breakdown",
+          "positive_coparenting"
+        ],
+        "relevant": true
+      },
+      {
+        "id": "28e368b2-fc48-4f34-a437-92f40d93a230",
+        "subject": "Re: Pickup today",
+        "tone": "tense",
+        "flags": [
+          "schedule_violation",
+          "financial_dispute",
+          "communication_breakdown"
+        ],
+        "relevant": true
+      },
+      {
+        "id": "60085289-54c5-409b-9ab1-2390549b310f",
+        "subject": "Re: 1/17-1/19 logistics",
+        "tone": "tense",
+        "flags": [
+          "schedule_violation",
+          "communication_breakdown",
+          "financial_dispute",
+          "school_decision"
+        ],
+        "relevant": true
+      },
+      {
+        "id": "4e0e616d-9481-406c-9892-91429001a0b2",
+        "subject": "Re: Auto insurance",
+        "tone": "tense",
+        "flags": [
+          "financial_dispute",
+          "communication_breakdown"
+        ],
+        "relevant": true
+      },
+      {
+        "id": "aac9686a-9369-4695-9302-2e5d53387f1a",
+        "subject": "Re: Shared responsibilities?",
+        "tone": "tense",
+        "flags": [
+          "financial_dispute",
+          "agreement_reference",
+          "communication_breakdown",
+          "child_welfare_concern"
+        ],
+        "relevant": true
+      }
+    ]
+  },
+  {
+    "query": "Q5_hostile_existing_case",
+    "method": "plain_fts",
+    "hits": 0,
+    "total": 0,
+    "precision": 0,
+    "latencyMs": 81,
+    "items": []
+  },
+  {
+    "query": "Q5_hostile_existing_case",
+    "method": "naive_keywords",
+    "hits": 4,
+    "total": 4,
+    "precision": 1,
+    "latencyMs": 115,
+    "items": [
+      {
+        "id": "c3cbe6e2-b40d-406e-8816-ca29ff7fabed",
+        "subject": "Re: Heading over",
+        "tone": "tense",
+        "flags": [
+          "communication_breakdown",
+          "positive_coparenting"
+        ],
+        "relevant": true
+      },
+      {
+        "id": "5a4aed85-e9e9-402d-b2c5-de245d5d6832",
+        "subject": "Re: 12/2",
+        "tone": "tense",
+        "flags": [
+          "communication_breakdown",
+          "schedule_violation",
+          "agreement_reference",
+          "child_welfare_concern"
+        ],
+        "relevant": true
+      },
+      {
+        "id": "93fbb030-cf5f-4da0-aef6-ddcfbaa10764",
+        "subject": "Re: Soy",
+        "tone": "tense",
+        "flags": [
+          "communication_breakdown",
+          "agreement_reference"
+        ],
+        "relevant": true
+      },
+      {
+        "id": "cc710bb3-2064-49d9-91f0-9ba723478551",
+        "subject": "Re: 10/26",
+        "tone": "tense",
+        "flags": [
+          "communication_breakdown",
+          "positive_coparenting"
+        ],
+        "relevant": true
+      }
+    ]
+  },
+  {
+    "query": "Q5_hostile_existing_case",
+    "method": "llm_rank_all",
+    "hits": 5,
+    "total": 5,
+    "precision": 1,
+    "latencyMs": 3131,
+    "items": [
+      {
+        "id": "8b101e74-0052-4821-a6b7-5cb054f61fda",
+        "subject": "Please stop harassing me",
+        "tone": "tense",
+        "flags": [
+          "communication_breakdown",
+          "safety_concern",
+          "child_welfare_concern"
+        ],
+        "relevant": true,
+        "reason": "Explicitly says “Please stop harassing me” and alleges threats"
+      },
+      {
+        "id": "b9191da6-4321-4e0e-9567-3b6aea6d5859",
+        "subject": "Access to Josie",
+        "tone": "tense",
+        "flags": [
+          "schedule_violation",
+          "gatekeeping",
+          "safety_concern",
+          "communication_breakdown"
+        ],
+        "relevant": true,
+        "reason": "Repeated hostile access dispute over Josie and locked door"
+      },
+      {
+        "id": "b69000de-08d8-48c7-a3ec-601e92378f81",
+        "subject": "Fire alarm",
+        "tone": "tense",
+        "flags": [
+          "safety_concern",
+          "communication_breakdown"
+        ],
+        "relevant": true,
+        "reason": "Smoking indoors and fire alarm complaint with clear confrontation"
+      },
+      {
+        "id": "425fbfa7-f2f8-4788-acf2-dd0aa023450a",
+        "subject": "Video recording",
+        "tone": "tense",
+        "flags": [
+          "safety_concern",
+          "communication_breakdown"
+        ],
+        "relevant": true,
+        "reason": "Threatens police and attorney over alleged video recording"
+      },
+      {
+        "id": "cc710bb3-2064-49d9-91f0-9ba723478551",
+        "subject": "Re: 10/26",
+        "tone": "tense",
+        "flags": [
+          "communication_breakdown",
+          "positive_coparenting"
+        ],
+        "relevant": true,
+        "reason": "Direct argument about hostile tone in front of Josie"
+      }
+    ]
+  },
+  {
+    "query": "Q5_hostile_existing_case",
+    "method": "flag_planner",
+    "hits": 0,
+    "total": 0,
+    "precision": 0,
+    "latencyMs": 1554,
+    "items": []
+  }
+]
