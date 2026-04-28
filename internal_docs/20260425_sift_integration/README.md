@@ -35,7 +35,7 @@ The old plans are in git history; nothing is lost.
 
 - [`00_case_scoping_refactor.md`](./00_case_scoping_refactor.md) — **✅ shipped 2026-04-26** (commits `e9ec7b3` → `61c8f06`). Migration `0047_case_scoping.sql` + `profiles.active_case_id` (`0048`); `getActiveCaseId` / `requireCaseAccess` helpers; sidebar `CaseSwitcher`; every read/write endpoint scoped by case.
 - [`01_ofw_ingest.md`](./01_ofw_ingest.md) — port the standalone OFW PDF parser, add a `messages` table + `ofw_export` evidence type, render messages on the timeline alongside events.
-- [`02_chat_over_evidence.md`](./02_chat_over_evidence.md) — port AIR-Bot's chat plumbing (Vercel AI SDK + tool-calling + streaming UI + chats table) and wire it to Daylight's evidence model. Includes the citation validation pass.
+- [`02_chat_over_evidence.md`](./02_chat_over_evidence.md) — **✅ shipped 2026-04-27** (commit `eb780a7`). All 4 phases + the citation slideover/hover preview. Migration `0052_chats.sql`; chat plumbing lifted from AIR-Bot, empty-state from Nuxt UI chat template; case-scoped tools + citation post-validation; dual-mode persona (evidence + support, with crisis path → 988 and a "push back without stiff-arming" rule).
 - [`03_attorney_share_workspace.md`](./03_attorney_share_workspace.md) — invite an attorney to a case as a read-only collaborator. Smallest possible step toward the two-sided product. Includes Resend email infrastructure as Phase 0.
 - [`04_evidence_brief.md`](./04_evidence_brief.md) — firm-side product. OFW → categorized + contradiction-flagged exhibit packet (PDF + DOCX). Per-brief or subscription billing.
 - [`gtm_plan.md`](./gtm_plan.md) — go-to-market plan (unchanged).
