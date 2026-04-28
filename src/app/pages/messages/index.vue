@@ -4,16 +4,31 @@ import { useActiveCase } from '~/composables/useActiveCase'
 
 type MessageRow = Tables<'messages'>
 
+type ThreadMessage = Pick<
+  MessageRow,
+  | 'id' | 'sent_at' | 'first_viewed_at' | 'sender' | 'recipient' | 'subject'
+  | 'body' | 'thread_id' | 'message_number' | 'sequence_number'
+  | 'word_count' | 'attachments' | 'evidence_id'
+>
+
 interface MessagesResponse {
-  messages: Pick<
-    MessageRow,
-    | 'id' | 'sent_at' | 'first_viewed_at' | 'sender' | 'recipient' | 'subject'
-    | 'body' | 'thread_id' | 'message_number' | 'sequence_number'
-    | 'word_count' | 'attachments' | 'evidence_id'
-  >[]
+  messages: ThreadMessage[]
   total: number
   limit: number
   offset: number
+}
+
+interface ThreadGroup {
+  id: string
+  subject: string
+  senders: string[]
+  latestSentAt: string
+  earliestSentAt: string
+  messageCount: number
+  messages: ThreadMessage[]
+  hasAttachments: boolean
+  latestPreview: string
+  latestSender: string
 }
 
 const activeCaseId = useActiveCase()
@@ -105,10 +120,88 @@ function formatSent(value: string) {
   })
 }
 
-function bodyPreview(body: string) {
-  if (body.length <= 240) return body
-  return body.slice(0, 240).trimEnd() + '…'
+function formatSentShort(value: string) {
+  return formatTzDate(value, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  })
 }
+
+function previewText(body: string, n: number) {
+  if (body.length <= n) return body
+  return body.slice(0, n).trimEnd() + '…'
+}
+
+function attachmentLabels(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((s): s is string => typeof s === 'string')
+}
+
+// Group the paginated batch by thread_id. Singletons (no thread_id, or a
+// thread that happens to have one row in the current page) become their own
+// group keyed by `single:<id>`. Within a group, messages are sorted oldest →
+// newest so the conversation reads top-to-bottom like Gmail.
+const threads = computed<ThreadGroup[]>(() => {
+  const buckets = new Map<string, ThreadMessage[]>()
+  for (const m of data.value?.messages ?? []) {
+    const key = m.thread_id ?? `single:${m.id}`
+    const arr = buckets.get(key) ?? []
+    arr.push(m)
+    buckets.set(key, arr)
+  }
+  const out: ThreadGroup[] = []
+  for (const [id, msgs] of buckets) {
+    const sorted = [...msgs].sort((a, b) => a.sent_at.localeCompare(b.sent_at))
+    const last = sorted[sorted.length - 1]!
+    const first = sorted[0]!
+    const senders = [...new Set(sorted.map((m) => m.sender))].sort()
+    out.push({
+      id,
+      subject: first.subject || last.subject || '(no subject)',
+      senders,
+      latestSentAt: last.sent_at,
+      earliestSentAt: first.sent_at,
+      messageCount: sorted.length,
+      messages: sorted,
+      hasAttachments: sorted.some((m) => attachmentLabels(m.attachments).length > 0),
+      latestPreview: previewText(last.body, 140),
+      latestSender: last.sender
+    })
+  }
+  out.sort((a, b) => b.latestSentAt.localeCompare(a.latestSentAt))
+  return out
+})
+
+const expandedIds = ref<Set<string>>(new Set())
+function isExpanded(id: string) {
+  return expandedIds.value.has(id)
+}
+function toggle(id: string) {
+  const next = new Set(expandedIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  expandedIds.value = next
+}
+
+const allExpanded = computed(() =>
+  threads.value.length > 0 && threads.value.every((t) => expandedIds.value.has(t.id))
+)
+function expandAll() {
+  expandedIds.value = new Set(threads.value.map((t) => t.id))
+}
+function collapseAll() {
+  expandedIds.value = new Set()
+}
+
+// When the user runs a text search, auto-expand all threads so matching
+// messages are immediately visible. Filters that don't search inside bodies
+// (sender, date) leave the collapse state alone.
+watch([threads, debouncedQ], ([t, query]) => {
+  if (query && t.length) {
+    expandedIds.value = new Set(t.map((x) => x.id))
+  }
+})
 </script>
 
 <template>
@@ -152,6 +245,16 @@ function bodyPreview(body: string) {
         >
           Clear
         </UButton>
+        <UButton
+          v-if="threads.length > 0"
+          variant="ghost"
+          color="neutral"
+          size="xs"
+          :icon="allExpanded ? 'i-lucide-chevrons-down-up' : 'i-lucide-chevrons-up-down'"
+          @click="allExpanded ? collapseAll() : expandAll()"
+        >
+          {{ allExpanded ? 'Collapse all' : 'Expand all' }}
+        </UButton>
       </div>
     </template>
 
@@ -167,44 +270,113 @@ function bodyPreview(body: string) {
           </UCard>
         </div>
 
-        <div v-else-if="(data?.messages?.length ?? 0) > 0" class="space-y-2">
-          <NuxtLink
-            v-for="msg in data!.messages"
-            :key="msg.id"
-            :to="`/messages/${msg.id}`"
-            class="block"
+        <div v-else-if="threads.length > 0" class="space-y-1.5">
+          <article
+            v-for="t in threads"
+            :key="t.id"
+            class="border border-default rounded-lg overflow-hidden bg-default"
+            :class="isExpanded(t.id) ? 'shadow-sm' : ''"
           >
-            <div class="py-2 px-3 hover:bg-muted/5 transition-colors cursor-pointer rounded-md">
-              <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
-                <div class="flex items-center gap-2 min-w-0">
+            <button
+              type="button"
+              class="w-full text-left px-3 py-2.5 flex items-center gap-3 hover:bg-elevated/40 transition-colors"
+              :class="isExpanded(t.id) ? 'bg-elevated/30' : ''"
+              :aria-expanded="isExpanded(t.id)"
+              :aria-controls="`thread-${t.id}`"
+              @click="toggle(t.id)"
+            >
+              <UIcon
+                :name="isExpanded(t.id) ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+                class="size-4 text-muted shrink-0"
+              />
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <p class="font-medium text-highlighted truncate">
+                    {{ t.subject }}
+                  </p>
                   <UBadge
-                    color="neutral"
+                    v-if="t.messageCount > 1"
                     variant="subtle"
+                    color="primary"
                     size="xs"
                     class="shrink-0"
                   >
-                    <UIcon name="i-lucide-message-square-text" class="size-3.5 mr-1" />
-                    {{ msg.sender }}
+                    {{ t.messageCount }}
                   </UBadge>
-                  <p class="font-medium text-highlighted truncate">
-                    {{ msg.subject || '(no subject)' }}
-                  </p>
+                  <UIcon
+                    v-if="t.hasAttachments"
+                    name="i-lucide-paperclip"
+                    class="size-3.5 text-muted shrink-0"
+                  />
                 </div>
-                <div class="flex items-center gap-3 text-xs text-muted">
-                  <span v-if="msg.message_number" class="text-muted">
-                    #{{ msg.message_number }}
+                <p class="text-xs text-muted truncate mt-0.5">
+                  <span class="font-medium text-default/80">
+                    <template v-for="(s, i) in t.senders" :key="s"
+                      ><span v-if="i > 0" class="opacity-50"> · </span>{{ s }}</template>
                   </span>
-                  <p>{{ formatSent(msg.sent_at) }}</p>
-                  <UIcon name="i-lucide-chevron-right" class="size-4 text-muted" />
+                  <span v-if="!isExpanded(t.id)" class="opacity-80">
+                    — {{ t.latestPreview }}
+                  </span>
+                </p>
+              </div>
+              <span class="text-xs text-muted shrink-0 hidden sm:inline">
+                {{ t.messageCount > 1 ? formatSentShort(t.latestSentAt) : formatSent(t.latestSentAt) }}
+              </span>
+            </button>
+
+            <div
+              v-if="isExpanded(t.id)"
+              :id="`thread-${t.id}`"
+              class="border-t border-default bg-elevated/10"
+            >
+              <div
+                v-for="(m, i) in t.messages"
+                :key="m.id"
+                class="px-4 py-3"
+                :class="i < t.messages.length - 1 ? 'border-b border-default/60' : ''"
+              >
+                <div class="flex flex-wrap items-baseline justify-between gap-2 mb-1.5">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <UBadge color="primary" variant="subtle" size="xs">
+                      {{ m.sender }} → {{ m.recipient }}
+                    </UBadge>
+                    <span v-if="m.message_number" class="text-xs text-muted">
+                      #{{ m.message_number }}
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <span class="text-xs text-muted">{{ formatSent(m.sent_at) }}</span>
+                    <UButton
+                      variant="ghost"
+                      color="neutral"
+                      size="xs"
+                      icon="i-lucide-arrow-up-right"
+                      :to="`/messages/${m.id}`"
+                      square
+                      :aria-label="`Open message ${m.message_number ?? ''} in detail view`"
+                    />
+                  </div>
+                </div>
+                <p class="text-sm whitespace-pre-wrap text-highlighted/90">{{ m.body }}</p>
+                <div
+                  v-if="attachmentLabels(m.attachments).length"
+                  class="mt-2 flex flex-wrap items-center gap-1 text-xs text-muted"
+                >
+                  <UIcon name="i-lucide-paperclip" class="size-3.5" />
+                  <UBadge
+                    v-for="att in attachmentLabels(m.attachments)"
+                    :key="att"
+                    color="neutral"
+                    variant="soft"
+                    size="xs"
+                  >
+                    {{ att }}
+                  </UBadge>
                 </div>
               </div>
-              <p class="text-xs text-muted line-clamp-2 mt-0.5">
-                {{ bodyPreview(msg.body) }}
-              </p>
             </div>
-          </NuxtLink>
+          </article>
 
-          <!-- Pagination -->
           <div v-if="totalPages > 1" class="flex items-center justify-between pt-3">
             <span class="text-xs text-muted">
               Page {{ currentPage }} of {{ totalPages }}
