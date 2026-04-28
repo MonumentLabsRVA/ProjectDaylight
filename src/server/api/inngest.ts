@@ -2,14 +2,15 @@ import { Inngest } from 'inngest'
 import { serve } from 'inngest/h3'
 import { eventHandler } from 'h3'
 import { inngest } from '../inngest/client'
-import { journalExtractionFunction, ofwIngestFunction } from '../inngest/functions'
+import { journalExtractionFunction, ofwIngestFunction, threadSummarizationFunction } from '../inngest/functions'
 
 // Create the Inngest serve handler
 const handler = serve({
   client: inngest,
   functions: [
     journalExtractionFunction,
-    ofwIngestFunction
+    ofwIngestFunction,
+    threadSummarizationFunction
   ]
 })
 

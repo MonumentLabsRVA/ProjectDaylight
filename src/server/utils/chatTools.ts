@@ -7,6 +7,7 @@ import type { CitationRegistry } from './citations'
 type Client = SupabaseClient<Database>
 
 const MAX_RECORDS = 25
+const MAX_THREADS = 10
 const BODY_PREVIEW_CHARS = 320
 
 const eventTypeEnum = z.enum([
@@ -17,6 +18,8 @@ const eventTypeEnum = z.enum([
   'communication',
   'legal'
 ])
+
+const toneEnum = z.enum(['cooperative', 'neutral', 'tense', 'hostile', 'mixed'])
 
 interface ToolDeps {
   registry: CitationRegistry
@@ -130,12 +133,137 @@ export function createCaseTools(client: Client, caseId: string, deps: ToolDeps) 
       }
     }),
 
+    search_threads: tool({
+      description:
+        'Search thread-level summaries for the active case. **Start here for any "what happened with X" question** — threads aggregate the full conversation so you do not have to read every message. Returns up to 10 threads with summary, tone, flags, participants, and search anchors. '
+        + 'QUERY RULES: pass 1–3 distinctive keywords (a name, a topic, a date), NOT a full sentence. Names beat verbs. Cite a thread via [thread:<id>]. To read individual messages in a thread, call get_thread next.',
+      inputSchema: z.object({
+        query: z.string().optional().describe('1–3 keywords. Names, topics, distinctive nouns. NOT a full sentence.'),
+        from: z.string().optional().describe('ISO date — last_sent_at >= from'),
+        to: z.string().optional().describe('ISO date — last_sent_at <= to'),
+        tones: z.array(toneEnum).optional(),
+        flags: z.array(z.string()).optional().describe('e.g. ["gatekeeping","schedule_violation","financial_dispute"]'),
+        participant: z.string().optional().describe('Filter to threads involving a participant — partial match.')
+      }),
+      execute: async (args) => {
+        try {
+          let q = (client as any)
+            .from('message_threads')
+            .select('id, thread_id, subject, summary, tone, flags, participants, message_count, first_sent_at, last_sent_at, search_anchors')
+            .eq('case_id', caseId)
+            .order('last_sent_at', { ascending: false, nullsFirst: false })
+            .limit(MAX_THREADS + 1)
+
+          if (args.from) q = q.gte('last_sent_at', args.from)
+          if (args.to) q = q.lte('last_sent_at', args.to)
+          if (args.tones?.length) q = q.in('tone', args.tones)
+          if (args.flags?.length) q = q.overlaps('flags', args.flags)
+          if (args.participant) {
+            // text[] does not have ilike; fall back to cs (contains) on the
+            // exact token. For partial match we'd need a function index — out
+            // of scope for v1. Document the limitation and accept exact match.
+            q = q.contains('participants', [args.participant])
+          }
+
+          if (args.query?.trim()) {
+            // summary_fts is a stored generated tsvector covering
+            // summary + subject + participants. See 0053_message_threads.sql.
+            // config: 'english' on the query side matches the column's
+            // tokenization (otherwise queries fall back to `simple` and miss
+            // stem-equivalent words).
+            q = q.textSearch('summary_fts', args.query.trim(), { config: 'english', type: 'websearch' })
+          }
+
+          const { data, error } = await q
+          if (error) return { error: error.message }
+
+          const truncated = (data?.length ?? 0) > MAX_THREADS
+          const items = (data ?? []).slice(0, MAX_THREADS).map((t: any) => ({
+            id: t.id,
+            threadSlug: t.thread_id,
+            subject: t.subject,
+            summary: t.summary,
+            tone: t.tone,
+            flags: t.flags,
+            participants: t.participants,
+            messageCount: t.message_count,
+            firstSentAt: safeIso(t.first_sent_at),
+            lastSentAt: safeIso(t.last_sent_at),
+            anchors: t.search_anchors
+          }))
+          registry.recordMany(items.map((i: { id: string }) => i.id))
+          return { items, count: items.length, truncated }
+        } catch (e) {
+          return { error: e instanceof Error ? e.message : 'unknown error' }
+        }
+      }
+    }),
+
+    get_thread: tool({
+      description:
+        'Fetch a single thread summary plus its messages chronologically. Use after search_threads when you need direct quotes, message-level chronology, or the answer hinges on a specific message. Cite individual messages via [message:<id>] and the thread itself via [thread:<id>].',
+      inputSchema: z.object({ id: z.string() }),
+      execute: async ({ id }) => {
+        try {
+          const { data: t, error } = await (client as any)
+            .from('message_threads')
+            .select('id, thread_id, subject, summary, tone, flags, participants, message_count, first_sent_at, last_sent_at, search_anchors')
+            .eq('id', id)
+            .eq('case_id', caseId)
+            .maybeSingle()
+          if (error) return { error: error.message }
+          if (!t) return { error: 'not found in this case' }
+
+          const { data: msgs, error: mErr } = await client
+            .from('messages')
+            .select('id, sent_at, sender, recipient, subject, body, message_number')
+            .eq('case_id', caseId)
+            .eq('thread_id', t.thread_id)
+            .order('sent_at', { ascending: true })
+            .limit(51)
+          if (mErr) return { error: mErr.message }
+
+          const messages = (msgs ?? []).slice(0, 50).map(m => ({
+            id: m.id,
+            timestamp: safeIso(m.sent_at),
+            sender: m.sender,
+            recipient: m.recipient,
+            subject: m.subject,
+            bodyPreview: (m.body ?? '').slice(0, BODY_PREVIEW_CHARS),
+            messageNumber: m.message_number
+          }))
+
+          registry.record(t.id)
+          registry.recordMany(messages.map(m => m.id))
+
+          return {
+            id: t.id,
+            threadSlug: t.thread_id,
+            subject: t.subject,
+            summary: t.summary,
+            tone: t.tone,
+            flags: t.flags,
+            participants: t.participants,
+            messageCount: t.message_count,
+            firstSentAt: safeIso(t.first_sent_at),
+            lastSentAt: safeIso(t.last_sent_at),
+            anchors: t.search_anchors,
+            messages,
+            truncated: (msgs?.length ?? 0) > 50
+          }
+        } catch (e) {
+          return { error: e instanceof Error ? e.message : 'unknown error' }
+        }
+      }
+    }),
+
     search_messages: tool({
       description:
-        'Search OFW messages for the active case by sender, date range, and/or full-text body match. '
+        'Free-text search across INDIVIDUAL OFW messages. **Prefer search_threads first** — it covers conversations, not isolated messages. Use this only when you already know the thread or you are looking for one specific message. '
+        + 'QUERY RULES: pass 1–3 distinctive keywords (a name, a place, an unusual noun). DO NOT pass a full sentence or the user\'s paraphrase — Postgres ANDs every stem and you will get zero hits. '
         + 'Returns up to 25 matches with id, sent_at, sender, recipient, subject, body preview. Cite via [message:<id>].',
       inputSchema: z.object({
-        query: z.string().optional(),
+        query: z.string().optional().describe('1–3 keywords. Names, places, distinctive nouns. NOT a full sentence.'),
         sender: z.string().optional(),
         from: z.string().optional(),
         to: z.string().optional()
@@ -369,8 +497,9 @@ export function createCaseTools(client: Client, caseId: string, deps: ToolDeps) 
     find_contradictions: tool({
       description:
         'Best-effort: given a claim or reference event id, surface messages and events that mention overlapping topics '
-        + 'and might contradict it. THIS IS KEYWORD RETRIEVAL, NOT SEMANTIC SEARCH. Always present results as candidates '
-        + 'for the user to read in context — do NOT adjudicate truth or label anyone as lying.',
+        + 'and might contradict it. THIS IS KEYWORD RETRIEVAL, NOT SEMANTIC SEARCH. '
+        + 'If you already have a thread context, prefer reading the thread end-to-end via get_thread before reaching for keyword retrieval. '
+        + 'Always present results as candidates for the user to read in context — do NOT adjudicate truth or label anyone as lying.',
       inputSchema: z.object({
         claim: z.string(),
         referenceEventId: z.string().optional(),

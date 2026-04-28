@@ -143,6 +143,8 @@ vite.config.ts.timestamp-*
 # Playwright MCP
 .playwright-mcp/
 .cursor/mcp.json
+.mcp.json
+.claude/mcp.json
 
 # OFW test fixtures — real exports contain children's PII; never commit
 src/server/utils/__fixtures__/*.pdf

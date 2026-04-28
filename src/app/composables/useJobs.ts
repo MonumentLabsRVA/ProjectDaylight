@@ -100,7 +100,8 @@ export function useJobs() {
 
     channels.value.set(job.id, channel)
 
-    // Set timeout to auto-cleanup stuck jobs
+    // Set timeout to auto-cleanup stuck jobs. Skips `pending_confirmation`
+    // since that state intentionally waits on the user — it shouldn't expire.
     const timeout = setTimeout(() => {
       const currentJob = activeJobs.value.get(job.id)
       if (currentJob && (currentJob.status === 'pending' || currentJob.status === 'processing')) {
@@ -210,9 +211,9 @@ export function useJobs() {
     try {
       const { data: pendingJobs, error } = await supabase
         .from('jobs')
-        .select('id, type, journal_entry_id, status')
+        .select('id, type, journal_entry_id, status, result_summary')
         .eq('user_id', userId)
-        .in('status', ['pending', 'processing'])
+        .in('status', ['pending', 'processing', 'pending_confirmation'])
         .order('created_at', { ascending: false })
         .limit(10)
 

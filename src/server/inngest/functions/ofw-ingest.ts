@@ -1,7 +1,16 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { inngest } from '../client'
 import { parseOFWPdf, type OFWMessage } from '../../utils/ofw-parser'
+import { diffThreadsForUpload, summarizeThreadMissing } from '../../utils/threads'
 import type { Database, Json } from '~/types/database.types'
+
+/**
+ * If more than 50% of the case's previously-known threads are absent from
+ * this upload (and the case had threads before), pause for user
+ * confirmation. UI surfaces this on /evidence; resume via
+ * /api/internal/confirm-ofw-import.
+ */
+const DRIFT_THRESHOLD = 0.5
 
 type PublicClient = SupabaseClient<Database, 'public'>
 
@@ -144,22 +153,59 @@ export const ofwIngestFunction = inngest.createFunction(
       return count
     })
 
+    const drift = await step.run('compute-thread-drift', async () => {
+      return await diffThreadsForUpload(supabase, caseId, evidenceId)
+    })
+
+    const needsConfirmation = drift.existing > 0 && drift.driftRatio > DRIFT_THRESHOLD
+
     await step.run('finalize', async () => {
       const { error } = await supabase.from('jobs').update({
-        status: 'completed',
-        completed_at: new Date().toISOString(),
+        status: needsConfirmation ? 'pending_confirmation' : 'completed',
+        completed_at: needsConfirmation ? null : new Date().toISOString(),
         result_summary: {
           messages_parsed: result.totalMessages,
           messages_inserted: inserted,
           report_expected: result.reportExpected,
           thread_count: result.threadCount,
           date_range: result.dateRange,
-          senders: result.senders
+          senders: result.senders,
+          drift,
+          // Stashed so the confirm-ofw-import endpoint can resolve the
+          // pending upload without an extra job-shape change.
+          evidence_id: evidenceId,
+          case_id: caseId
         }
       }).eq('id', jobId)
       if (error) throw new Error(`Failed to finalize job: ${error.message}`)
     })
 
-    return { messagesParsed: result.totalMessages, messagesInserted: inserted }
+    if (needsConfirmation) {
+      // Hold here. /api/internal/confirm-ofw-import re-emits a follow-up
+      // event when the user clicks Continue.
+      return {
+        messagesParsed: result.totalMessages,
+        messagesInserted: inserted,
+        pendingConfirmation: true,
+        drift
+      }
+    }
+
+    await step.run('enqueue-thread-summaries', async () => {
+      const deltas = await summarizeThreadMissing(supabase, caseId)
+      if (!deltas.length) return { enqueued: 0 }
+      await inngest.send(deltas.map(d => ({
+        name: 'messages/thread.summarize_requested',
+        data: {
+          caseId,
+          userId,
+          evidenceId,
+          threadId: d.threadId
+        }
+      })))
+      return { enqueued: deltas.length }
+    })
+
+    return { messagesParsed: result.totalMessages, messagesInserted: inserted, drift }
   }
 )

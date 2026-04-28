@@ -156,7 +156,9 @@ export interface InsightItem {
 export type ExportFocus = 'full-timeline' | 'incidents-only' | 'positive-parenting' | 'complete-record'
 
 // Background job types
-export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed'
+// `pending_confirmation` is used by ofw-ingest to pause for user input when an
+// upload's thread set drifts >50% from the case's existing threads.
+export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'pending_confirmation'
 export type JobType = 'journal_extraction' | 'evidence_processing' | 'ofw_ingest'
 
 export interface JobResultSummary {

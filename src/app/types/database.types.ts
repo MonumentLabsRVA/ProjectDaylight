@@ -914,6 +914,84 @@ export type Database = {
           },
         ]
       }
+      message_threads: {
+        Row: {
+          case_id: string
+          created_at: string
+          evidence_id: string | null
+          first_sent_at: string | null
+          flags: string[]
+          id: string
+          last_sent_at: string | null
+          message_count: number
+          model: string | null
+          participants: string[]
+          search_anchors: Json
+          subject: string | null
+          summary: string | null
+          summary_fts: unknown
+          summary_version: number
+          thread_id: string
+          tone: Database["public"]["Enums"]["thread_tone"] | null
+          updated_at: string
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          evidence_id?: string | null
+          first_sent_at?: string | null
+          flags?: string[]
+          id?: string
+          last_sent_at?: string | null
+          message_count?: number
+          model?: string | null
+          participants?: string[]
+          search_anchors?: Json
+          subject?: string | null
+          summary?: string | null
+          summary_fts?: unknown
+          summary_version?: number
+          thread_id: string
+          tone?: Database["public"]["Enums"]["thread_tone"] | null
+          updated_at?: string
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          evidence_id?: string | null
+          first_sent_at?: string | null
+          flags?: string[]
+          id?: string
+          last_sent_at?: string | null
+          message_count?: number
+          model?: string | null
+          participants?: string[]
+          search_anchors?: Json
+          subject?: string | null
+          summary?: string | null
+          summary_fts?: unknown
+          summary_version?: number
+          thread_id?: string
+          tone?: Database["public"]["Enums"]["thread_tone"] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_threads_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_threads_evidence_id_fkey"
+            columns: ["evidence_id"]
+            isOneToOne: false
+            referencedRelation: "evidence"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           attachments: Json
@@ -1017,6 +1095,8 @@ export type Database = {
           created_at: string
           email: string | null
           full_name: string | null
+          gclid: string | null
+          gclid_captured_at: string | null
           id: string
           is_employee: boolean | null
           onboarding_completed_at: string | null
@@ -1029,6 +1109,8 @@ export type Database = {
           created_at?: string
           email?: string | null
           full_name?: string | null
+          gclid?: string | null
+          gclid_captured_at?: string | null
           id: string
           is_employee?: boolean | null
           onboarding_completed_at?: string | null
@@ -1041,6 +1123,8 @@ export type Database = {
           created_at?: string
           email?: string | null
           full_name?: string | null
+          gclid?: string | null
+          gclid_captured_at?: string | null
           id?: string
           is_employee?: boolean | null
           onboarding_completed_at?: string | null
@@ -1155,7 +1239,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      case_thread_message_counts: {
+        Args: { p_case_id: string }
+        Returns: {
+          message_count: number
+          thread_id: string
+        }[]
+      }
+      evidence_thread_ids: {
+        Args: { p_case_id: string; p_evidence_id: string }
+        Returns: {
+          thread_id: string
+        }[]
+      }
+      message_threads_fts: {
+        Args: { p_participants: string[]; p_subject: string; p_summary: string }
+        Returns: unknown
+      }
     }
     Enums: {
       action_priority: "urgent" | "high" | "normal" | "low"
@@ -1193,7 +1293,12 @@ export type Database = {
         | "recording"
         | "other"
         | "ofw_export"
-      job_status: "pending" | "processing" | "completed" | "failed"
+      job_status:
+        | "pending"
+        | "processing"
+        | "completed"
+        | "failed"
+        | "pending_confirmation"
       job_type: "journal_extraction" | "evidence_processing" | "ofw_ingest"
       journal_entry_status:
         | "draft"
@@ -1212,6 +1317,7 @@ export type Database = {
         | "incomplete_expired"
         | "unpaid"
         | "paused"
+      thread_tone: "cooperative" | "neutral" | "tense" | "hostile" | "mixed"
       timestamp_precision: "exact" | "day" | "approximate" | "unknown"
       welfare_impact:
         | "none"
@@ -1386,7 +1492,13 @@ export const Constants = {
         "other",
         "ofw_export",
       ],
-      job_status: ["pending", "processing", "completed", "failed"],
+      job_status: [
+        "pending",
+        "processing",
+        "completed",
+        "failed",
+        "pending_confirmation",
+      ],
       job_type: ["journal_extraction", "evidence_processing", "ofw_ingest"],
       journal_entry_status: [
         "draft",
@@ -1407,6 +1519,7 @@ export const Constants = {
         "unpaid",
         "paused",
       ],
+      thread_tone: ["cooperative", "neutral", "tense", "hostile", "mixed"],
       timestamp_precision: ["exact", "day", "approximate", "unknown"],
       welfare_impact: [
         "none",

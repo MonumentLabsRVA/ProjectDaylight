@@ -1,6 +1,6 @@
 import type { UIMessage } from 'ai'
 
-export type CitationKind = 'event' | 'message' | 'journal'
+export type CitationKind = 'event' | 'message' | 'journal' | 'thread'
 
 export interface CitationToken {
   kind: CitationKind
@@ -8,7 +8,7 @@ export interface CitationToken {
   raw: string
 }
 
-const TOKEN_PATTERN = /\[(event|message|journal):([0-9a-f-]{8,})\]/gi
+const TOKEN_PATTERN = /\[(event|message|journal|thread):([0-9a-f-]{8,})\]/gi
 
 const STRIPPED_NOTICE = '[citation removed: source not in retrieved context]'
 

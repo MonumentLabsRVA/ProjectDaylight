@@ -36,6 +36,17 @@ const ofwLocalState = ref<{
 const { trackJob, activeJobsOfType } = useJobs()
 const ofwActiveJobs = activeJobsOfType('ofw_ingest')
 
+// A pending-confirmation job is one ofw-ingest paused on because the upload
+// drifted >50% from the case's existing thread set. The user resolves with
+// Continue or Cancel, which calls /api/internal/confirm-ofw-import.
+const ofwPendingConfirmation = computed(() =>
+  ofwActiveJobs.value.find(j => j.status === 'pending_confirmation') ?? null
+)
+
+const ofwProcessingJob = computed(() =>
+  ofwActiveJobs.value.find(j => j.status === 'pending' || j.status === 'processing') ?? null
+)
+
 const ofwBanner = computed<{ kind: 'uploading' | 'processing' | 'error', message: string } | null>(() => {
   if (ofwLocalState.value.state === 'uploading') {
     return { kind: 'uploading', message: ofwLocalState.value.message ?? 'Uploading…' }
@@ -43,11 +54,32 @@ const ofwBanner = computed<{ kind: 'uploading' | 'processing' | 'error', message
   if (ofwLocalState.value.state === 'error') {
     return { kind: 'error', message: ofwLocalState.value.message ?? 'Upload failed.' }
   }
-  if (ofwActiveJobs.value.length > 0) {
+  if (ofwProcessingJob.value) {
     return { kind: 'processing', message: 'Parsing your messages — this usually takes under a minute.' }
   }
   return null
 })
+
+const confirmBusy = ref<'continue' | 'cancel' | null>(null)
+
+async function resolveOfwConfirmation(decision: 'continue' | 'cancel') {
+  const job = ofwPendingConfirmation.value
+  if (!job || confirmBusy.value) return
+  confirmBusy.value = decision
+  try {
+    await $fetch('/api/internal/confirm-ofw-import', {
+      method: 'POST',
+      body: { jobId: job.id, decision }
+    })
+    // Realtime will update the job status; useJobs cleans up. Force a refresh
+    // here so the evidence list reflects deletion (cancel) or completion.
+    refresh()
+  } catch (err: any) {
+    ofwLocalState.value = { state: 'error', message: err?.statusMessage || err?.message || 'Failed to update import.' }
+  } finally {
+    confirmBusy.value = null
+  }
+}
 
 // When a tracked OFW job goes terminal, useJobs removes it from activeJobs.
 // Refresh the evidence list so the new file's row picks up its parsed messages.
@@ -271,6 +303,53 @@ function onImageError(id: string) {
                   :description="ofwBanner.message"
                   :ui="{ icon: ofwBanner.kind === 'error' ? '' : 'animate-spin' }"
                 />
+              </div>
+              <div
+                v-if="ofwPendingConfirmation"
+                class="mt-3 text-xs"
+              >
+                <UAlert
+                  color="warning"
+                  icon="i-lucide-alert-triangle"
+                  variant="subtle"
+                  title="This upload looks different from your previous one"
+                >
+                  <template #description>
+                    <p class="mb-3">
+                      Most of your previously imported threads aren't in this file. If this is the same case, that's expected only if a lot has changed since your last import. If this is a different case, you probably want to cancel.
+                      <span
+                        v-if="(ofwPendingConfirmation.result_summary as any)?.drift"
+                        class="block mt-1 text-muted"
+                      >
+                        Existing threads: {{ (ofwPendingConfirmation.result_summary as any).drift.existing }} ·
+                        In this upload: {{ (ofwPendingConfirmation.result_summary as any).drift.newInUpload }} ·
+                        Overlapping: {{ (ofwPendingConfirmation.result_summary as any).drift.overlapping }}
+                      </span>
+                    </p>
+                    <div class="flex gap-2">
+                      <UButton
+                        size="xs"
+                        color="primary"
+                        variant="solid"
+                        :loading="confirmBusy === 'continue'"
+                        :disabled="!!confirmBusy"
+                        @click="resolveOfwConfirmation('continue')"
+                      >
+                        Continue importing
+                      </UButton>
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        :loading="confirmBusy === 'cancel'"
+                        :disabled="!!confirmBusy"
+                        @click="resolveOfwConfirmation('cancel')"
+                      >
+                        Cancel and remove
+                      </UButton>
+                    </div>
+                  </template>
+                </UAlert>
               </div>
             </div>
             <UButton
