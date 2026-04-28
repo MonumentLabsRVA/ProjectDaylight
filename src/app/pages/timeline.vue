@@ -114,19 +114,19 @@ function parseDateParts(dateStr: string): [number, number, number] | null {
   return [year!, month!, day!]
 }
 
-function showDateSeparator(index: number, item: TimelineItem): boolean {
+function showDateSeparator(index: number, item: TimelineDisplayItem): boolean {
   if (index === 0) return true
 
-  const previous = filteredEvents.value[index - 1]
+  const previous = displayItems.value[index - 1]
   if (!previous) return true
 
   return getEventDateString(item.timestamp) !== getEventDateString(previous.timestamp)
 }
 
-function showItemSeparator(index: number, item: TimelineItem): boolean {
-  if (index === filteredEvents.value.length - 1) return false
+function showItemSeparator(index: number, item: TimelineDisplayItem): boolean {
+  if (index === displayItems.value.length - 1) return false
 
-  const next = filteredEvents.value[index + 1]
+  const next = displayItems.value[index + 1]
   if (!next) return false
 
   return getEventDateString(item.timestamp) === getEventDateString(next.timestamp)
@@ -227,6 +227,28 @@ const hasActiveFilters = computed(() => {
          !showMessages.value
 })
 
+// Display-only shape: messages on the same day in the same thread are
+// collapsed to a single row so the timeline reads like activity per thread,
+// not message-by-message clutter.
+interface TimelineMessageGroup {
+  kind: 'messageGroup'
+  id: string
+  threadId: string | null
+  latestId: string
+  timestamp: string
+  subject: string | null
+  senders: string[]
+  messageCount: number
+  bodyPreview: string
+  messageNumber: number | null
+  evidenceId: string
+}
+type TimelineDisplayItem =
+  | ({ kind: 'event' } & TimelineEvent)
+  | TimelineMessageGroup
+
+const isMessageGroup = (i: TimelineDisplayItem): i is TimelineMessageGroup => i.kind === 'messageGroup'
+
 // Filtered and sorted timeline items (events + messages)
 const filteredEvents = computed<TimelineItem[]>(() => {
   let items: TimelineItem[] = data.value || []
@@ -270,12 +292,60 @@ const filteredEvents = computed<TimelineItem[]>(() => {
   })
 })
 
+// Collapse same-day same-thread messages into one row. Each group is anchored
+// at the latest message's timestamp so it sorts to where the conversation last
+// moved, and links to the latest message so the messages page opens with full
+// thread context.
+const displayItems = computed<TimelineDisplayItem[]>(() => {
+  const items = filteredEvents.value
+  const events = items.filter(isEvent).map((e) => e as { kind: 'event' } & TimelineEvent)
+
+  const buckets = new Map<string, TimelineMessage[]>()
+  for (const item of items) {
+    if (!isMessage(item)) continue
+    const day = getEventDateString(item.timestamp)
+    const tkey = item.threadId ?? `single:${item.id}`
+    const key = `${day}:${tkey}`
+    const arr = buckets.get(key) ?? []
+    arr.push(item)
+    buckets.set(key, arr)
+  }
+
+  const groups: TimelineMessageGroup[] = []
+  for (const [key, msgs] of buckets) {
+    const sorted = [...msgs].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+    const latest = sorted[sorted.length - 1]!
+    const first = sorted[0]!
+    const senders = [...new Set(sorted.map((m) => m.sender))].sort()
+    groups.push({
+      kind: 'messageGroup',
+      id: key,
+      threadId: latest.threadId,
+      latestId: latest.id,
+      timestamp: latest.timestamp,
+      subject: first.subject || latest.subject,
+      senders,
+      messageCount: sorted.length,
+      bodyPreview: latest.bodyPreview,
+      messageNumber: latest.messageNumber,
+      evidenceId: latest.evidenceId
+    })
+  }
+
+  const merged: TimelineDisplayItem[] = [...events, ...groups]
+  return merged.sort((a, b) => {
+    const dateA = new Date(a.timestamp).getTime()
+    const dateB = new Date(b.timestamp).getTime()
+    return sortOrder.value === 'newest' ? dateB - dateA : dateA - dateB
+  })
+})
+
 // Stats for the toolbar
 const eventStats = computed(() => {
   const items = data.value || []
   return {
     total: items.length,
-    filtered: filteredEvents.value.length,
+    filtered: displayItems.value.length,
     eventCount: items.filter(isEvent).length,
     messageCount: items.filter(isMessage).length
   }
@@ -613,10 +683,10 @@ function formatTime(timestamp: string): string {
 
         <!-- Content display -->
         <div
-          v-else-if="filteredEvents.length > 0"
+          v-else-if="displayItems.length > 0"
           class="space-y-0"
         >
-          <div v-for="(item, index) in filteredEvents" :key="item.id">
+          <div v-for="(item, index) in displayItems" :key="item.id">
             <!-- Date separator for new days -->
             <div
               v-if="showDateSeparator(index, item)"
@@ -686,10 +756,10 @@ function formatTime(timestamp: string): string {
               </div>
             </NuxtLink>
 
-            <!-- Message row -->
+            <!-- Message thread row (one row per thread per day) -->
             <NuxtLink
-              v-else
-              :to="`/messages/${item.id}`"
+              v-else-if="isMessageGroup(item)"
+              :to="`/messages/${item.latestId}`"
               class="block"
             >
               <div class="py-2 px-3 flex flex-col gap-1 hover:bg-muted/5 transition-colors cursor-pointer">
@@ -697,17 +767,23 @@ function formatTime(timestamp: string): string {
                   <div class="flex items-center gap-2 min-w-0">
                     <UBadge color="neutral" variant="subtle" size="xs" class="shrink-0">
                       <UIcon name="i-lucide-message-square-text" class="size-3.5 mr-1" />
-                      {{ item.sender }}
+                      Thread
                     </UBadge>
                     <p class="font-medium text-highlighted truncate">
                       {{ item.subject || '(no subject)' }}
                     </p>
+                    <UBadge
+                      v-if="item.messageCount > 1"
+                      variant="subtle"
+                      color="primary"
+                      size="xs"
+                      class="shrink-0"
+                    >
+                      {{ item.messageCount }} msgs
+                    </UBadge>
                   </div>
 
                   <div class="flex items-center gap-3 text-xs text-muted">
-                    <span v-if="item.messageNumber" class="text-muted">
-                      OFW #{{ item.messageNumber }}
-                    </span>
                     <p>{{ formatTime(item.timestamp) }}</p>
                     <UIcon name="i-lucide-chevron-right" class="size-4 text-muted" />
                   </div>
@@ -715,6 +791,12 @@ function formatTime(timestamp: string): string {
 
                 <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
                   <p class="flex-1 min-w-0 line-clamp-1">{{ item.bodyPreview }}</p>
+                  <span class="inline-flex items-center gap-1 shrink-0">
+                    <UIcon name="i-lucide-users" class="size-3.5" />
+                    <span class="truncate max-w-[10rem] sm:max-w-xs">
+                      {{ item.senders.join(', ') }}
+                    </span>
+                  </span>
                 </div>
               </div>
             </NuxtLink>
