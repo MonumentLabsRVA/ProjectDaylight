@@ -230,6 +230,47 @@ export type Database = {
         }
         Relationships: []
       }
+      chats: {
+        Row: {
+          agent: string | null
+          case_id: string
+          created_at: string | null
+          id: string
+          messages: Json | null
+          title: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          agent?: string | null
+          case_id: string
+          created_at?: string | null
+          id?: string
+          messages?: Json | null
+          title?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          agent?: string | null
+          case_id?: string
+          created_at?: string | null
+          id?: string
+          messages?: Json | null
+          title?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chats_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       communications: {
         Row: {
           agreement_violation: boolean | null
