@@ -2,9 +2,9 @@
   "name": "Daylight",
   "short_name": "Daylight",
   "description": "Stop carrying custody documentation in your head. Daylight turns voice notes into organized timelines your lawyer can actually use.",
-  "start_url": "https://www.daylight.legal/",
-  "id": "https://www.daylight.legal/",
-  "scope": "https://www.daylight.legal/",
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
