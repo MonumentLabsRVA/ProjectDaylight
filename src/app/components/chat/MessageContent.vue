@@ -100,35 +100,44 @@ function onToolToggle(i: number, value: boolean) {
 }
 
 /**
- * Convert [event:<id>], [message:<id>], [journal:<id>] tokens in assistant
- * markdown into inline links UEditor will render as <a> tags. The container
- * intercepts clicks and routes them through the citation viewer slideover
- * instead of letting the browser navigate.
+ * Convert [event:<id>], [message:<id>], [journal:<id>], [thread:<id>] tokens
+ * in assistant markdown into inline links UEditor will render as <a> tags.
+ * The container intercepts clicks and routes them through the citation
+ * viewer slideover instead of letting the browser navigate. Scoped CSS
+ * styles them as pills (see <style> block).
  */
-const CITATION_RE = /\[(event|message|journal):([0-9a-f-]{8,})\]/gi
+const CITATION_RE = /\[(event|message|journal|thread):([0-9a-f-]{8,})\]/gi
 const CITATION_LABELS: Record<string, string> = {
-  event: '📅 event',
-  message: '✉ message',
-  journal: '📖 journal'
+  event: 'event',
+  message: 'message',
+  journal: 'journal',
+  thread: 'thread'
+}
+
+function citationPath(kind: string, id: string): string {
+  if (kind === 'event') return `/event/${id}`
+  if (kind === 'message') return `/messages/${id}`
+  if (kind === 'journal') return `/journal/${id}`
+  return `/messages?thread_citation=${id}`
 }
 
 function linkifyCitations(text: string): string {
   return text.replace(CITATION_RE, (_raw, kind: string, id: string) => {
     const k = kind.toLowerCase()
     const label = CITATION_LABELS[k] ?? k
-    const path = k === 'event' ? `/event/${id}` : k === 'message' ? `/messages/${id}` : `/journal/${id}`
-    // data-citation attrs let the click/hover handlers identify these without re-parsing the href
-    return `[${label}](${path}#cite=${k}:${id})`
+    return `[${label}](${citationPath(k, id)}#cite=${k}:${id})`
   })
 }
 
 const { show: showCitation } = useCitationViewer()
 const hoverState = useCitationHoverState()
 
-function parseCiteHref(href: string | null): { kind: string, id: string } | null {
+function parseCiteHref(href: string | null): { kind: 'event' | 'message' | 'journal' | 'thread', id: string } | null {
   if (!href) return null
-  const hashMatch = href.match(/#cite=(event|message|journal):([0-9a-f-]{8,})/i)
-  if (hashMatch) return { kind: hashMatch[1]!.toLowerCase(), id: hashMatch[2]! }
+  const hashMatch = href.match(/#cite=(event|message|journal|thread):([0-9a-f-]{8,})/i)
+  if (hashMatch) {
+    return { kind: hashMatch[1]!.toLowerCase() as 'event' | 'message' | 'journal' | 'thread', id: hashMatch[2]! }
+  }
   const eventMatch = href.match(/\/event\/([0-9a-f-]{8,})/i)
   if (eventMatch) return { kind: 'event', id: eventMatch[1]! }
   const msgMatch = href.match(/\/messages\/([0-9a-f-]{8,})/i)
@@ -146,7 +155,7 @@ function onContainerClick(e: MouseEvent) {
   e.preventDefault()
   e.stopPropagation()
   hoverState.dismiss()
-  showCitation({ kind: cite.kind as 'event' | 'message' | 'journal', id: cite.id })
+  showCitation({ kind: cite.kind, id: cite.id })
 }
 
 function onContainerMouseOver(e: MouseEvent) {
@@ -226,3 +235,52 @@ function onContainerMouseOut(e: MouseEvent) {
     </template>
   </template>
 </template>
+
+<style scoped>
+/* Tailwind v4 requires @reference in scoped Vue styles before @apply will
+   resolve utility classes. Pointing at main.css picks up @nuxt/ui's primary
+   palette (mapped from `primary: 'sky'` in app.config.ts). */
+@reference "../../assets/css/main.css";
+
+/* Render citation links as compact pills. UEditor produces plain <a> tags
+   inside the markdown content; we identify ours by the #cite= fragment that
+   linkifyCitations appends, then style via the kind in that fragment.
+   Colors come from the Nuxt UI design tokens — the dark: variants flip the
+   palette automatically. */
+.chat-citation-host :deep(a[href*="#cite="]) {
+  @apply inline-flex items-center gap-1 px-2 py-px mx-0.5 rounded-full text-xs font-medium leading-5 align-baseline whitespace-nowrap cursor-pointer border border-transparent no-underline transition-colors;
+}
+.chat-citation-host :deep(a[href*="#cite="]):hover {
+  @apply no-underline;
+}
+
+/* Event / message / thread share the primary palette — they're all "case
+   data" pointers and visually grouping them keeps prose readable. The
+   leading icon (set via ::before) distinguishes the kinds. Journal keeps
+   its own warm tone because it's a different shape of source: the user's
+   own writing, not extracted records. */
+.chat-citation-host :deep(a[href*="#cite=event"]),
+.chat-citation-host :deep(a[href*="#cite=message"]),
+.chat-citation-host :deep(a[href*="#cite=thread"]) {
+  @apply bg-primary-100 text-primary-800 border-primary-300 dark:bg-primary-950 dark:text-primary-200 dark:border-primary-800;
+}
+.chat-citation-host :deep(a[href*="#cite=event"]):hover,
+.chat-citation-host :deep(a[href*="#cite=message"]):hover,
+.chat-citation-host :deep(a[href*="#cite=thread"]):hover {
+  @apply bg-primary-200 border-primary-400 dark:bg-primary-900 dark:border-primary-700;
+}
+
+.chat-citation-host :deep(a[href*="#cite=journal"]) {
+  @apply bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-950 dark:text-yellow-200 dark:border-yellow-800;
+}
+.chat-citation-host :deep(a[href*="#cite=journal"]):hover {
+  @apply bg-yellow-200 border-yellow-400 dark:bg-yellow-900 dark:border-yellow-700;
+}
+
+/* Tiny leading icon via ::before so we don't have to round-trip through
+   markdown. Glyphs are unicode so they work without an icon font. */
+.chat-citation-host :deep(a[href*="#cite=event"])::before { content: "\1F4C5"; }     /* 📅 */
+.chat-citation-host :deep(a[href*="#cite=message"])::before { content: "\2709";     /* ✉ */ font-size: 0.85em; }
+.chat-citation-host :deep(a[href*="#cite=journal"])::before { content: "\1F4D6"; }   /* 📖 */
+.chat-citation-host :deep(a[href*="#cite=thread"])::before { content: "\1F9F5"; }    /* 🧵 */
+</style>

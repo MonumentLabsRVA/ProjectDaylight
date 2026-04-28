@@ -48,6 +48,15 @@ const popoverStyle = computed(() => {
   }
 })
 
+type ToneColor = 'success' | 'neutral' | 'warning' | 'error' | 'primary'
+function threadToneColor(tone: string | null | undefined): ToneColor {
+  if (tone === 'cooperative') return 'success'
+  if (tone === 'tense') return 'warning'
+  if (tone === 'hostile') return 'error'
+  if (tone === 'mixed') return 'primary'
+  return 'neutral'
+}
+
 function fmtDate(iso: string | null | undefined) {
   if (!iso) return ''
   const d = new Date(iso)
@@ -62,7 +71,7 @@ function openFull() {
   if (!target.value) return
   const t = target.value
   dismiss()
-  show({ kind: t.kind as 'event' | 'message' | 'journal', id: t.id })
+  show({ kind: t.kind as 'event' | 'message' | 'journal' | 'thread', id: t.id })
 }
 </script>
 
@@ -145,6 +154,44 @@ function openFull() {
           </div>
           <p class="text-sm text-default whitespace-pre-wrap line-clamp-6">
             {{ data.text }}
+          </p>
+          <div class="flex justify-end pt-1.5 border-t border-default">
+            <UButton
+              icon="i-lucide-maximize-2"
+              label="Open"
+              size="xs"
+              variant="ghost"
+              @click="openFull"
+            />
+          </div>
+        </template>
+
+        <template v-else-if="data && target.kind === 'thread'">
+          <div class="flex items-center justify-between gap-2 text-xs text-muted">
+            <span class="font-medium text-highlighted truncate">
+              {{ data.subject || 'Thread' }}
+            </span>
+            <span class="shrink-0">{{ data.messageCount }} msgs</span>
+          </div>
+          <div class="flex flex-wrap items-center gap-1">
+            <UBadge
+              v-if="data.tone"
+              :label="(data.tone as string)"
+              variant="subtle"
+              size="xs"
+              :color="threadToneColor(data.tone as string)"
+            />
+            <UBadge
+              v-for="f in ((data.flags as string[] | undefined) ?? []).slice(0, 3)"
+              :key="f"
+              :label="f.replace(/_/g, ' ')"
+              variant="subtle"
+              size="xs"
+              color="neutral"
+            />
+          </div>
+          <p class="text-sm text-default whitespace-pre-wrap line-clamp-6">
+            {{ data.summary }}
           </p>
           <div class="flex justify-end pt-1.5 border-t border-default">
             <UButton

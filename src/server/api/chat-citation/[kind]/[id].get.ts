@@ -3,7 +3,7 @@ import { requireUserId } from '../../../utils/auth'
 import { requireCaseAccess } from '../../../utils/cases'
 import type { Database } from '~/types/database.types'
 
-const KINDS = ['event', 'message', 'journal'] as const
+const KINDS = ['event', 'message', 'journal', 'thread'] as const
 type Kind = (typeof KINDS)[number]
 
 /**
@@ -98,24 +98,53 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // journal
+  if (kind === 'journal') {
+    const { data, error } = await supabase
+      .from('journal_entries')
+      .select('id, case_id, event_text, reference_date, reference_time_description, status, created_at')
+      .eq('id', id)
+      .maybeSingle()
+    if (error) throw createError({ statusCode: 500, statusMessage: error.message })
+    if (!data) throw createError({ statusCode: 404, statusMessage: 'journal entry not found' })
+    await requireCaseAccess(supabase, userId, data.case_id)
+
+    return {
+      kind: 'journal' as const,
+      id: data.id,
+      text: data.event_text,
+      referenceDate: data.reference_date,
+      referenceTimeDescription: data.reference_time_description,
+      status: data.status,
+      createdAt: data.created_at,
+      sourcePath: `/journal/${data.id}`
+    }
+  }
+
+  // thread
   const { data, error } = await supabase
-    .from('journal_entries')
-    .select('id, case_id, event_text, reference_date, reference_time_description, status, created_at')
+    .from('message_threads')
+    .select('id, case_id, thread_id, subject, participants, message_count, first_sent_at, last_sent_at, summary, tone, flags, search_anchors')
     .eq('id', id)
     .maybeSingle()
   if (error) throw createError({ statusCode: 500, statusMessage: error.message })
-  if (!data) throw createError({ statusCode: 404, statusMessage: 'journal entry not found' })
+  if (!data) throw createError({ statusCode: 404, statusMessage: 'thread not found' })
   await requireCaseAccess(supabase, userId, data.case_id)
 
   return {
-    kind: 'journal' as const,
+    kind: 'thread' as const,
     id: data.id,
-    text: data.event_text,
-    referenceDate: data.reference_date,
-    referenceTimeDescription: data.reference_time_description,
-    status: data.status,
-    createdAt: data.created_at,
-    sourcePath: `/journal/${data.id}`
+    threadId: data.thread_id,
+    subject: data.subject,
+    participants: data.participants ?? [],
+    messageCount: data.message_count,
+    firstSentAt: data.first_sent_at,
+    lastSentAt: data.last_sent_at,
+    summary: data.summary,
+    tone: data.tone,
+    flags: data.flags ?? [],
+    searchAnchors: data.search_anchors,
+    // No dedicated /thread/:id page — link to the messages list filtered by
+    // this thread_id so "Open full page" stays useful.
+    sourcePath: `/messages?thread=${encodeURIComponent(data.thread_id)}`
   }
 })

@@ -34,6 +34,15 @@ function fmtDate(iso: string | null | undefined) {
 }
 
 function onClose() { close() }
+
+type ToneColor = 'success' | 'neutral' | 'warning' | 'error' | 'primary'
+function threadToneColor(tone: string | null | undefined): ToneColor {
+  if (tone === 'cooperative') return 'success'
+  if (tone === 'tense') return 'warning'
+  if (tone === 'hostile') return 'error'
+  if (tone === 'mixed') return 'primary'
+  return 'neutral'
+}
 </script>
 
 <template>
@@ -45,7 +54,8 @@ function onClose() { close() }
             <UIcon
               :name="target?.kind === 'event' ? 'i-lucide-calendar-clock'
                 : target?.kind === 'message' ? 'i-lucide-message-square-text'
-                  : 'i-lucide-book-open'"
+                  : target?.kind === 'thread' ? 'i-lucide-messages-square'
+                    : 'i-lucide-book-open'"
               class="size-4 text-primary shrink-0"
             />
             <p class="text-sm font-medium text-highlighted capitalize">
@@ -167,6 +177,51 @@ function onClose() { close() }
             </div>
             <div class="prose prose-sm max-w-none whitespace-pre-wrap text-default">
               {{ data.text }}
+            </div>
+          </div>
+
+          <div v-else-if="data && target?.kind === 'thread'" class="flex flex-col gap-4">
+            <div class="flex flex-col gap-1">
+              <div v-if="data.subject" class="text-base font-semibold text-highlighted">
+                {{ data.subject }}
+              </div>
+              <div class="flex flex-wrap items-center gap-1.5 text-xs text-muted">
+                <span>{{ fmtDate(data.firstSentAt as string) }} – {{ fmtDate(data.lastSentAt as string) }}</span>
+                <span>· {{ data.messageCount }} messages</span>
+              </div>
+              <div class="flex flex-wrap items-center gap-1.5 mt-1">
+                <UBadge
+                  v-if="data.tone"
+                  :label="(data.tone as string)"
+                  variant="subtle"
+                  size="xs"
+                  :color="threadToneColor(data.tone as string)"
+                />
+                <UBadge
+                  v-for="f in (data.flags as string[] | undefined) ?? []"
+                  :key="f"
+                  :label="f.replace(/_/g, ' ')"
+                  variant="subtle"
+                  size="xs"
+                  color="neutral"
+                />
+              </div>
+            </div>
+            <div v-if="(data.participants as string[] | undefined)?.length" class="flex flex-col gap-1">
+              <div class="text-xs font-medium uppercase tracking-wide text-muted">
+                Participants
+              </div>
+              <div class="text-sm text-default">
+                {{ ((data.participants as string[]) ?? []).join(', ') }}
+              </div>
+            </div>
+            <div class="flex flex-col gap-1">
+              <div class="text-xs font-medium uppercase tracking-wide text-muted">
+                Summary
+              </div>
+              <div class="prose prose-sm max-w-none whitespace-pre-wrap text-default">
+                {{ data.summary }}
+              </div>
             </div>
           </div>
         </div>

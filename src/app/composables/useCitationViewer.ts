@@ -1,4 +1,4 @@
-export type CitationKind = 'event' | 'message' | 'journal'
+export type CitationKind = 'event' | 'message' | 'journal' | 'thread'
 
 export interface CitationTarget {
   kind: CitationKind
