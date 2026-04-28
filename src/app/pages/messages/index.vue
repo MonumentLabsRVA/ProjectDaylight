@@ -52,7 +52,15 @@ watch(q, (val) => {
   }, 250)
 })
 
-const queryParams = computed(() => {
+// Use `useAsyncData` + an inline `$fetch` rather than `useFetch` with a
+// reactive `query`/URL: Nuxt's reactive-query path causes `await useFetch` to
+// resolve *before* the SSR fetch completes, leaving `status`/`data` undefined
+// at render time and producing a structural hydration mismatch when the
+// client re-renders with the populated payload. With `useAsyncData`, the
+// fetcher closure reads the current query each time it runs, the SSR `await`
+// genuinely waits for the response, and `refresh()` re-runs the closure
+// after any param change.
+function buildQuery(): Record<string, string> {
   const params: Record<string, string> = {
     limit: String(limit),
     offset: String(offset.value)
@@ -63,13 +71,21 @@ const queryParams = computed(() => {
   if (dateFrom.value) params.from = `${dateFrom.value}T00:00:00`
   if (dateTo.value) params.to = `${dateTo.value}T23:59:59`
   return params
-})
+}
 
-const { data, status, refresh } = await useFetch<MessagesResponse>('/api/messages', {
-  headers: useRequestHeaders(['cookie']),
-  query: queryParams,
-  watch: [queryParams]
-})
+const requestHeaders = useRequestHeaders(['cookie'])
+const { data, status, refresh } = await useAsyncData<MessagesResponse>(
+  'messages-list',
+  () => $fetch<MessagesResponse>('/api/messages', {
+    headers: requestHeaders,
+    query: buildQuery()
+  })
+)
+
+watch(
+  [activeCaseId, debouncedQ, senderFilter, dateFrom, dateTo, offset],
+  () => { refresh() }
+)
 
 const session = useSupabaseSession()
 watch(session, (s) => { if (s?.access_token) refresh() })
