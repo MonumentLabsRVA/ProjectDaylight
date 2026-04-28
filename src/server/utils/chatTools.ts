@@ -1,5 +1,7 @@
 import { tool } from 'ai'
 import { z } from 'zod'
+import OpenAI from 'openai'
+import { zodTextFormat } from 'openai/helpers/zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '~/types/database.types'
 import type { CitationRegistry } from './citations'
@@ -8,6 +10,8 @@ type Client = SupabaseClient<Database>
 
 const MAX_RECORDS = 25
 const MAX_THREADS = 10
+const MAX_THREADS_TO_RANK = 300
+const RANK_MODEL = 'gpt-5.4-mini'
 const BODY_PREVIEW_CHARS = 320
 
 const eventTypeEnum = z.enum([
@@ -23,7 +27,16 @@ const toneEnum = z.enum(['cooperative', 'neutral', 'tense', 'hostile', 'mixed'])
 
 interface ToolDeps {
   registry: CitationRegistry
+  /** OpenAI API key, used by find_relevant_threads to rank summaries. */
+  openaiApiKey: string
 }
+
+const RankSchema = z.object({
+  matches: z.array(z.object({
+    id: z.string().describe('The thread row id from the input. Must match one of the provided ids exactly.'),
+    reason: z.string().describe('One short clause (max 15 words) on why this thread matches.')
+  })).max(5)
+})
 
 function safeIso(value: string | null | undefined): string | null {
   if (!value) return null
@@ -42,7 +55,7 @@ function safeIso(value: string | null | undefined): string | null {
  * stream finishes, the streaming endpoint uses it to strip hallucinated citations.
  */
 export function createCaseTools(client: Client, caseId: string, deps: ToolDeps) {
-  const { registry } = deps
+  const { registry, openaiApiKey } = deps
 
   return {
     search_events: tool({
@@ -138,12 +151,11 @@ export function createCaseTools(client: Client, caseId: string, deps: ToolDeps) 
         'Search thread-level summaries for the active case. **Start here for any "what happened with X" question** — threads aggregate the full conversation so you do not have to read every message. Returns up to 10 threads with summary, tone, flags, participants, and search anchors. '
         + 'QUERY RULES: pass 1–3 distinctive keywords (a name, a topic, a date), NOT a full sentence. Names beat verbs. Cite a thread via [thread:<id>]. To read individual messages in a thread, call get_thread next.',
       inputSchema: z.object({
-        query: z.string().optional().describe('1–3 keywords. Names, topics, distinctive nouns. NOT a full sentence.'),
+        query: z.string().optional().describe('1–3 keywords. Names, topics, distinctive nouns. NOT a full sentence. Names of people mentioned in the bodies (e.g. "Katy") work here — they are indexed via the thread search anchors.'),
         from: z.string().optional().describe('ISO date — last_sent_at >= from'),
         to: z.string().optional().describe('ISO date — last_sent_at <= to'),
         tones: z.array(toneEnum).optional(),
-        flags: z.array(z.string()).optional().describe('e.g. ["gatekeeping","schedule_violation","financial_dispute"]'),
-        participant: z.string().optional().describe('Filter to threads involving a participant — partial match.')
+        flags: z.array(z.string()).optional().describe('e.g. ["gatekeeping","schedule_violation","financial_dispute"]')
       }),
       execute: async (args) => {
         try {
@@ -158,12 +170,6 @@ export function createCaseTools(client: Client, caseId: string, deps: ToolDeps) 
           if (args.to) q = q.lte('last_sent_at', args.to)
           if (args.tones?.length) q = q.in('tone', args.tones)
           if (args.flags?.length) q = q.overlaps('flags', args.flags)
-          if (args.participant) {
-            // text[] does not have ilike; fall back to cs (contains) on the
-            // exact token. For partial match we'd need a function index — out
-            // of scope for v1. Document the limitation and accept exact match.
-            q = q.contains('participants', [args.participant])
-          }
 
           if (args.query?.trim()) {
             // summary_fts is a stored generated tsvector covering
@@ -251,6 +257,98 @@ export function createCaseTools(client: Client, caseId: string, deps: ToolDeps) 
             messages,
             truncated: (msgs?.length ?? 0) > 50
           }
+        } catch (e) {
+          return { error: e instanceof Error ? e.message : 'unknown error' }
+        }
+      }
+    }),
+
+    find_relevant_threads: tool({
+      description:
+        'Semantic fallback for thread retrieval. Use when the user describes a behavior or pattern with no obvious keyword in the corpus '
+        + '(e.g. "withholding the child", "where he was hostile", "money disagreements", "the times we agreed", "what kind of person is he"). '
+        + 'A model reads up to 300 thread summaries for the case and returns the top 5 most relevant with a one-clause reason for each. '
+        + '**Slower than search_threads (~3s).** Use it when (a) search_threads returned nothing useful and the question is intent-shaped, or '
+        + '(b) the question is clearly behavioral and you can already tell keyword search will not bite. '
+        + 'Cite each returned thread via [thread:<id>]. To read the messages in a thread, call get_thread next.',
+      inputSchema: z.object({
+        question: z.string().describe('The user\'s natural-language question. Pass it through verbatim — do not paraphrase or shorten.'),
+        from: z.string().optional().describe('ISO date — only consider threads with last_sent_at >= from. Use to narrow the scan on large cases.'),
+        to: z.string().optional().describe('ISO date — only consider threads with last_sent_at <= to.')
+      }),
+      execute: async (args) => {
+        try {
+          let q = (client as any)
+            .from('message_threads')
+            .select('id, thread_id, subject, summary, tone, flags, participants, search_anchors, message_count, last_sent_at')
+            .eq('case_id', caseId)
+            .order('last_sent_at', { ascending: false, nullsFirst: false })
+            .limit(MAX_THREADS_TO_RANK + 1)
+          if (args.from) q = q.gte('last_sent_at', args.from)
+          if (args.to) q = q.lte('last_sent_at', args.to)
+
+          const { data, error } = await q
+          if (error) return { error: error.message }
+          const truncated = (data?.length ?? 0) > MAX_THREADS_TO_RANK
+          const all = (data ?? []).slice(0, MAX_THREADS_TO_RANK)
+          if (!all.length) return { items: [], count: 0, totalScanned: 0, truncated: false }
+
+          // Compact card per thread. Skip participants — already covered by
+          // proper_nouns and the role-keyed summary prose.
+          const cards = all.map((t: any) => ({
+            id: t.id,
+            subject: t.subject,
+            tone: t.tone,
+            flags: t.flags,
+            summary: t.summary,
+            proper_nouns: t.search_anchors?.proper_nouns ?? [],
+            topics: t.search_anchors?.topics ?? []
+          }))
+
+          const openai = new OpenAI({ apiKey: openaiApiKey })
+          const system = [
+            'You rank custody-case message-thread summaries by relevance to a question.',
+            'Read the question. Read the threads. Pick the up-to-5 most relevant thread ids, ordered best first.',
+            'For each, give a one-clause reason (≤15 words).',
+            'If the question describes a behavior with no obvious keyword (e.g. "withholding the child"),',
+            'consider thread `flags` (e.g. gatekeeping, schedule_violation) and `tone` as well as the prose.',
+            'If nothing plausibly matches, return an empty matches array. Do not stretch.'
+          ].join(' ')
+          const user = `QUESTION:\n${args.question}\n\nTHREADS (${cards.length}):\n${JSON.stringify(cards)}`
+
+          const res = await openai.responses.parse({
+            model: RANK_MODEL,
+            reasoning: { effort: 'low' },
+            text: { format: zodTextFormat(RankSchema, 'rank') },
+            input: [
+              { role: 'system', content: [{ type: 'input_text', text: system }] },
+              { role: 'user', content: [{ type: 'input_text', text: user }] }
+            ]
+          })
+
+          const parsed = res.output_parsed as { matches: { id: string, reason: string }[] } | null
+          const idToThread = new Map(all.map((t: any) => [t.id, t]))
+          const items = (parsed?.matches ?? [])
+            .map((m) => {
+              const t: any = idToThread.get(m.id)
+              if (!t) return null
+              return {
+                id: t.id,
+                threadSlug: t.thread_id,
+                subject: t.subject,
+                summary: t.summary,
+                tone: t.tone,
+                flags: t.flags,
+                participants: t.participants,
+                messageCount: t.message_count,
+                lastSentAt: safeIso(t.last_sent_at),
+                anchors: t.search_anchors,
+                reason: m.reason
+              }
+            })
+            .filter(Boolean) as Array<{ id: string }>
+          registry.recordMany(items.map(i => i.id))
+          return { items, count: items.length, totalScanned: all.length, truncated, model: RANK_MODEL }
         } catch (e) {
           return { error: e instanceof Error ? e.message : 'unknown error' }
         }

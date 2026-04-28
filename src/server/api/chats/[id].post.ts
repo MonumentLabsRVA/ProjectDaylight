@@ -58,7 +58,7 @@ export default defineEventHandler(async (event) => {
 
   const openai = createOpenAI({ apiKey })
   const registry = new CitationRegistry()
-  const tools = createCaseTools(supabase, existingChat.caseId, { registry })
+  const tools = createCaseTools(supabase, existingChat.caseId, { registry, openaiApiKey: apiKey })
   const systemPrompt = await buildSystemPromptFromCase(supabase, existingChat.caseId, userId)
 
   const stream = createUIMessageStream({
