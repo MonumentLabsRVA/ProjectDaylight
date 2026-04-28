@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
   // Fetch profile with onboarding status and preferences
   const { data: profile, error } = await client
     .from('profiles')
-    .select('id, full_name, email, timezone, avatar_url, onboarding_completed_at, created_at, updated_at')
+    .select('id, full_name, email, timezone, avatar_url, onboarding_completed_at, is_employee, created_at, updated_at')
     .eq('id', userId)
     .single()
 

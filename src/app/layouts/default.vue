@@ -31,16 +31,12 @@ interface SearchGroup {
   items: SearchItem[]
 }
 
-const INTERNAL_ALLOWED_EMAILS = new Set([
-  'gkjohns@gmail.com',
-  'kyle@monumentlabs.io',
-  'kyle@tidewaterresearch.com'
-])
-
-const isInternalUser = computed(() => {
-  const email = (user.value as any)?.email
-  return Boolean(email && INTERNAL_ALLOWED_EMAILS.has(email))
+const { data: profileData } = useFetch('/api/profile', {
+  key: `profile-${user.value?.id ?? 'anon'}`,
+  getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] || nuxtApp.static.data[key]
 })
+
+const isInternalUser = computed(() => profileData.value?.profile?.is_employee === true)
 
 const links = computed<NavigationMenuItem[][]>(() => {
   const main: NavigationMenuItem[][] = [
@@ -95,6 +91,13 @@ const links = computed<NavigationMenuItem[][]>(() => {
       label: 'Evidence',
       icon: 'i-lucide-folder-open',
       to: '/evidence',
+      onSelect: () => {
+        open.value = false
+      }
+    }, {
+      label: 'Chat',
+      icon: 'i-lucide-message-square',
+      to: '/chat',
       onSelect: () => {
         open.value = false
       }

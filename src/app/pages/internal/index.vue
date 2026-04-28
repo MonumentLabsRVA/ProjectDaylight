@@ -1,24 +1,18 @@
 <script setup lang="ts">
 useHead({ title: 'Daylight — Internal' })
 
-const ALLOWED_EMAILS = new Set([
-  'gkjohns@gmail.com',
-  'kyle@monumentlabs.io',
-  'kyle@tidewaterresearch.com'
-])
-
 const user = useSupabaseUser()
-const isAllowed = computed(() => Boolean(user.value?.email && ALLOWED_EMAILS.has(user.value.email)))
 
-if (import.meta.server && !isAllowed.value) {
+const { data: profileData } = await useFetch('/api/profile', {
+  key: `profile-${user.value?.id ?? 'anon'}`,
+  getCachedData: (key, nuxtApp) => nuxtApp.payload.data[key] || nuxtApp.static.data[key]
+})
+
+const isAllowed = computed(() => profileData.value?.profile?.is_employee === true)
+
+if (!isAllowed.value) {
   throw createError({ statusCode: 404, statusMessage: 'Not Found', fatal: true })
 }
-
-watchEffect(() => {
-  if (import.meta.client && user.value && !isAllowed.value) {
-    throw createError({ statusCode: 404, statusMessage: 'Not Found', fatal: true })
-  }
-})
 
 // ─────────────────────────── Dev tools ───────────────────────────
 

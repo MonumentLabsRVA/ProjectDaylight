@@ -1,11 +1,5 @@
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 
-const ALLOWED_EMAILS = new Set([
-  'gkjohns@gmail.com',
-  'kyle@monumentlabs.io',
-  'kyle@tidewaterresearch.com'
-])
-
 type CheckSnapshot = {
   ok: boolean
   latencyMs: number | null
@@ -50,7 +44,19 @@ export default defineEventHandler(async (event): Promise<StatusPayload> => {
   const email = (authUser as any)?.email ?? null
   const userId = (authUser as any)?.sub ?? (authUser as any)?.id ?? null
 
-  if (!email || !ALLOWED_EMAILS.has(email)) {
+  if (!userId) {
+    throw createError({ statusCode: 404, statusMessage: 'Not Found' })
+  }
+
+  const client = await serverSupabaseClient(event)
+
+  const { data: profile } = await client
+    .from('profiles')
+    .select('is_employee')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (profile?.is_employee !== true) {
     throw createError({ statusCode: 404, statusMessage: 'Not Found' })
   }
 
@@ -66,8 +72,6 @@ export default defineEventHandler(async (event): Promise<StatusPayload> => {
     hasInngestEventKey: Boolean(process.env.INNGEST_EVENT_KEY),
     hasInngestSigningKey: Boolean(process.env.INNGEST_SIGNING_KEY)
   }
-
-  const client = await serverSupabaseClient(event)
 
   const supabasePing = await timed(async () => {
     const { error } = await client.from('profiles').select('id').limit(1)
