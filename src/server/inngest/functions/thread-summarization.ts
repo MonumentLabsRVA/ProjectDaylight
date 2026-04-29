@@ -20,8 +20,12 @@ const MODEL = 'gpt-5.4-mini'
  * Bumped when the prompt schema changes in a way that should regenerate
  * everything. The backfill endpoint reads message_threads.summary_version
  * to decide what to re-summarize. Bump deliberately, not casually.
+ *
+ * v2 (2026-04-29): added `retrieval_blurb` — a behavioral-vocabulary synopsis
+ * folded into summary_fts so keyword search hits user-frame verbs ("withheld",
+ * "hostile", "blocked") that the neutral `summary` deliberately avoids.
  */
-export const SUMMARY_VERSION = 1
+export const SUMMARY_VERSION = 2
 
 /**
  * Body cap when assembling the thread for the LLM. Most threads are well
@@ -35,6 +39,16 @@ const ThreadSummarySchema = z.object({
     .string()
     .describe(
       'One paragraph, plain English, 80–180 words. What the thread is about and how it resolves (or does not). Name participants by role ("the user", "the co-parent", "the school"), not by tone-loaded labels. No editorializing, no diagnoses.'
+    ),
+  retrieval_blurb: z
+    .string()
+    .describe(
+      '2-3 sentences (~40 words) describing this thread for retrieval. PURPOSE: a parent searching the case in their own words should hit this thread. ' +
+      'Use the natural framing they would type, INCLUDING loaded behavioral vocabulary when accurate: "withheld", "blocked", "refused", "kept her", "stonewalled", "ignored", "argued", "hostile", "manipulated", "agreed", "cooperated", "compromised", "complied", "denied access", "missed pickup". ' +
+      'Use direct names (Mari, John) and the child\'s name when known — this is the one place names belong. ' +
+      'Describe the dynamic, not just the topic: "Mari refused to release Josie at the scheduled handoff and argued the schedule had changed" beats "Discussion of pickup logistics". ' +
+      'Stay factual — no diagnosis, no labels, no characterization ("hostile in this exchange" OK; "narcissist" NOT). ' +
+      'If the thread is purely logistical with no notable dynamic, write a short factual sentence — do not manufacture conflict.'
     ),
   tone: z
     .enum(['cooperative', 'neutral', 'tense', 'hostile', 'mixed'])
@@ -185,13 +199,19 @@ function buildSummaryPrompt(thread: LoadedThread): { system: string; user: strin
     "You are a custody-case thread summarizer for Project Daylight.",
     "You read OFW (Our Family Wizard) message threads between two co-parents and produce a structured summary used by a chat agent for retrieval.",
     "",
+    "You produce TWO different views of the thread:",
+    "  1. `summary` — neutral digest for display. Roles, no names, no loaded language.",
+    "  2. `retrieval_blurb` — search-friendly synopsis. Names, behavioral verbs, the way a parent would describe the dynamic out loud.",
+    "Both are factual; only the voice differs. Read each field's description carefully — they have different rules.",
+    "",
     "Hard rules:",
-    "- Refer to participants by role ('the user', 'the co-parent', 'the child'), not by name. Names go in search_anchors.proper_nouns.",
+    "- In `summary`: refer to participants by role ('the user', 'the co-parent', 'the child'), NOT by name.",
+    "- In `retrieval_blurb`: USE names (Mari, John, the child's name). This is where names go for search.",
     "- Describe what happened. Do not diagnose, label, or speculate about intent.",
     "- `tone` is the conversational temperature of the thread, not a verdict on either parent.",
     "- `flags` are descriptive of the thread, not of a person. `gatekeeping` describes information being refused or sidestepped — never label a person as gatekeeping.",
-    "- search_anchors are for keyword retrieval. Extract verbatim nouns and numbers a parent would later type to find this thread again. Skip generic words.",
-    "- If the thread is purely logistical with nothing notable, that's fine — short summary, tone='neutral' or 'cooperative', flags=[].",
+    "- search_anchors are for exact-token keyword retrieval. Extract verbatim nouns and numbers. Skip generic words.",
+    "- If the thread is purely logistical with nothing notable, the summary is short, tone='neutral'/'cooperative', flags=[], and the blurb is a short factual sentence — do not manufacture conflict.",
     "- Never give legal advice or characterize anyone in moral terms.",
     "",
     "Thread metadata you can rely on:",
@@ -258,6 +278,7 @@ async function upsertThreadSummary(
     first_sent_at: thread.firstSentAt,
     last_sent_at: thread.lastSentAt,
     summary: summary.summary,
+    retrieval_blurb: summary.retrieval_blurb,
     tone: summary.tone,
     flags: summary.flags,
     search_anchors: summary.search_anchors,

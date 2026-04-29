@@ -926,6 +926,7 @@ export type Database = {
           message_count: number
           model: string | null
           participants: string[]
+          retrieval_blurb: string | null
           search_anchors: Json
           subject: string | null
           summary: string | null
@@ -946,6 +947,7 @@ export type Database = {
           message_count?: number
           model?: string | null
           participants?: string[]
+          retrieval_blurb?: string | null
           search_anchors?: Json
           subject?: string | null
           summary?: string | null
@@ -966,6 +968,7 @@ export type Database = {
           message_count?: number
           model?: string | null
           participants?: string[]
+          retrieval_blurb?: string | null
           search_anchors?: Json
           subject?: string | null
           summary?: string | null
