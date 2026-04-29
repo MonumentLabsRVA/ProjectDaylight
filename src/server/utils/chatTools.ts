@@ -11,8 +11,30 @@ type Client = SupabaseClient<Database>
 const MAX_RECORDS = 25
 const MAX_THREADS = 10
 const MAX_THREADS_TO_RANK = 300
+const RANK_CHUNK_SIZE = 50
 const RANK_MODEL = 'gpt-5.4-mini'
 const BODY_PREVIEW_CHARS = 320
+
+// Regex retrieval — LLM generates POSIX patterns from the user's question;
+// Postgres applies them against retrieval_blurb. Uses higher reasoning than
+// the rest of the tools because regex generation is the failure mode worth
+// spending tokens on.
+const REGEX_MODEL = 'gpt-5.4-mini'
+const REGEX_REASONING: 'low' | 'medium' | 'high' = 'medium'
+const MAX_REGEX_PATTERNS = 4
+const MAX_REGEX_HITS_PER_PATTERN = 10
+const MAX_REGEX_TOTAL_HITS = 15
+
+const RegexPatternsSchema = z.object({
+  patterns: z.array(z.object({
+    pattern: z.string().describe(
+      'A Postgres POSIX regex pattern. Use \\m and \\M for word boundaries (POSIX does NOT support \\b). '
+      + 'Use alternation (foo|bar) freely. Do not include (?i) — the matcher is already case-insensitive. '
+      + 'Avoid PCRE-only features: no lookahead/behind, no named groups, no \\d/\\w/\\s shorthands (use [0-9], [A-Za-z]).'
+    ),
+    intent: z.string().describe('One short clause describing what surface form this pattern targets, e.g. "explicit withholding language", "missed pickup".')
+  })).min(1).max(MAX_REGEX_PATTERNS)
+})
 
 const eventTypeEnum = z.enum([
   'incident',
@@ -34,6 +56,7 @@ interface ToolDeps {
 const RankSchema = z.object({
   matches: z.array(z.object({
     id: z.string().describe('The thread row id from the input. Must match one of the provided ids exactly.'),
+    score: z.number().min(0).max(100).describe('How strongly this thread matches the question, 0–100. Use the full range: 90+ for an obvious match, 50–80 for plausible, <40 only if you are reaching. Calibrate so the scores would be comparable across separate batches of threads.'),
     reason: z.string().describe('One short clause (max 15 words) on why this thread matches.')
   })).max(5)
 })
@@ -198,6 +221,17 @@ export function createCaseTools(client: Client, caseId: string, deps: ToolDeps) 
             anchors: t.search_anchors
           }))
           registry.recordMany(items.map((i: { id: string }) => i.id))
+          // Active in-band escalation hint. The agent has shown a tendency to
+          // permute keywords on 0-result rather than switch tools; this nudges
+          // it toward find_relevant_threads when the question is intent-shaped.
+          if (items.length === 0 && args.query?.trim()) {
+            return {
+              items,
+              count: 0,
+              truncated,
+              hint: 'No keyword hits. If the user described a behavior or pattern (e.g. "withheld", "hostile", "kept her", "refused"), call find_relevant_threads next instead of permuting keywords — that vocabulary is unlikely to appear literally in the corpus.'
+            }
+          }
           return { items, count: items.length, truncated }
         } catch (e) {
           return { error: e instanceof Error ? e.message : 'unknown error' }
@@ -280,7 +314,7 @@ export function createCaseTools(client: Client, caseId: string, deps: ToolDeps) 
         try {
           let q = (client as any)
             .from('message_threads')
-            .select('id, thread_id, subject, summary, tone, flags, participants, search_anchors, message_count, last_sent_at')
+            .select('id, thread_id, subject, summary, retrieval_blurb, tone, flags, participants, search_anchors, message_count, last_sent_at')
             .eq('case_id', caseId)
             .order('last_sent_at', { ascending: false, nullsFirst: false })
             .limit(MAX_THREADS_TO_RANK + 1)
@@ -293,42 +327,69 @@ export function createCaseTools(client: Client, caseId: string, deps: ToolDeps) 
           const all = (data ?? []).slice(0, MAX_THREADS_TO_RANK)
           if (!all.length) return { items: [], count: 0, totalScanned: 0, truncated: false }
 
-          // Compact card per thread. Skip participants — already covered by
-          // proper_nouns and the role-keyed summary prose.
+          // Slim card. retrieval_blurb (when present) is purpose-built for this
+          // path — shorter and uses behavioral vocabulary the user actually
+          // types. Falls back to summary for un-backfilled rows.
+          // proper_nouns/topics already FTS-covered via search_threads; skipping
+          // them here saves tokens with no recall hit.
           const cards = all.map((t: any) => ({
             id: t.id,
             subject: t.subject,
             tone: t.tone,
             flags: t.flags,
-            summary: t.summary,
-            proper_nouns: t.search_anchors?.proper_nouns ?? [],
-            topics: t.search_anchors?.topics ?? []
+            blurb: t.retrieval_blurb || t.summary
           }))
+
+          // Chunk the cards and rank each chunk in parallel. 192 threads in one
+          // call is ~3.4s; four ~50-thread calls in parallel run ~1.5s for the
+          // same cost. Each chunk returns up to 5 matches with a 0–100 score;
+          // we merge globally by score and keep the top 5.
+          const chunks: typeof cards[] = []
+          for (let i = 0; i < cards.length; i += RANK_CHUNK_SIZE) {
+            chunks.push(cards.slice(i, i + RANK_CHUNK_SIZE))
+          }
 
           const openai = new OpenAI({ apiKey: openaiApiKey })
           const system = [
             'You rank custody-case message-thread summaries by relevance to a question.',
-            'Read the question. Read the threads. Pick the up-to-5 most relevant thread ids, ordered best first.',
-            'For each, give a one-clause reason (≤15 words).',
+            'Read the question. Read the threads. Pick up to 5 of the most relevant ids from THIS BATCH, ordered best first.',
+            'For each, give a one-clause reason (≤15 words) and a score 0–100.',
             'If the question describes a behavior with no obvious keyword (e.g. "withholding the child"),',
-            'consider thread `flags` (e.g. gatekeeping, schedule_violation) and `tone` as well as the prose.',
-            'If nothing plausibly matches, return an empty matches array. Do not stretch.'
+            'consider thread `flags` (e.g. gatekeeping, schedule_violation) and `tone` alongside the prose.',
+            'You are seeing one batch of a larger set; calibrate scores so they are comparable across batches.',
+            'If nothing in this batch plausibly matches, return an empty matches array. Do not stretch.'
           ].join(' ')
-          const user = `QUESTION:\n${args.question}\n\nTHREADS (${cards.length}):\n${JSON.stringify(cards)}`
 
-          const res = await openai.responses.parse({
-            model: RANK_MODEL,
-            reasoning: { effort: 'low' },
-            text: { format: zodTextFormat(RankSchema, 'rank') },
-            input: [
-              { role: 'system', content: [{ type: 'input_text', text: system }] },
-              { role: 'user', content: [{ type: 'input_text', text: user }] }
-            ]
-          })
+          type Match = { id: string, score: number, reason: string }
+          const rankChunk = async (chunk: typeof cards): Promise<Match[]> => {
+            const user = `QUESTION:\n${args.question}\n\nTHREADS (${chunk.length}):\n${JSON.stringify(chunk)}`
+            const res = await openai.responses.parse({
+              model: RANK_MODEL,
+              reasoning: { effort: 'low' },
+              text: { format: zodTextFormat(RankSchema, 'rank') },
+              input: [
+                { role: 'system', content: [{ type: 'input_text', text: system }] },
+                { role: 'user', content: [{ type: 'input_text', text: user }] }
+              ]
+            })
+            const parsed = res.output_parsed as { matches: Match[] } | null
+            return parsed?.matches ?? []
+          }
 
-          const parsed = res.output_parsed as { matches: { id: string, reason: string }[] } | null
+          const chunkResults = await Promise.all(chunks.map(rankChunk))
+          const seen = new Set<string>()
+          const merged: Match[] = chunkResults
+            .flat()
+            .sort((a, b) => b.score - a.score)
+            .filter((m) => {
+              if (seen.has(m.id)) return false
+              seen.add(m.id)
+              return true
+            })
+            .slice(0, 5)
+
           const idToThread = new Map(all.map((t: any) => [t.id, t]))
-          const items = (parsed?.matches ?? [])
+          const items = merged
             .map((m) => {
               const t: any = idToThread.get(m.id)
               if (!t) return null
@@ -348,7 +409,163 @@ export function createCaseTools(client: Client, caseId: string, deps: ToolDeps) 
             })
             .filter(Boolean) as Array<{ id: string }>
           registry.recordMany(items.map(i => i.id))
-          return { items, count: items.length, totalScanned: all.length, truncated, model: RANK_MODEL }
+          return {
+            items,
+            count: items.length,
+            totalScanned: all.length,
+            chunkCount: chunks.length,
+            truncated,
+            model: RANK_MODEL
+          }
+        } catch (e) {
+          return { error: e instanceof Error ? e.message : 'unknown error' }
+        }
+      }
+    }),
+
+    regex_search_threads: tool({
+      description:
+        'Search threads by an LLM-generated regex against per-thread retrieval_blurbs. **Best for behavior questions where the user named the dynamic with concrete vocabulary** ("withheld", "kept her overnight", "stonewalled", "refused pickup"). '
+        + 'A model generates 2-4 alternation patterns from the question, then Postgres applies them case-insensitively. '
+        + 'Faster than find_relevant_threads (~1s vs ~2s) and cheaper. Returns matching threads with the patterns that hit. '
+        + 'Cite each thread via [thread:<id>]. To read the messages in a thread, call get_thread next.',
+      inputSchema: z.object({
+        question: z.string().describe('The user\'s question (verbatim) or the behavioral intent in plain English. Pass the loaded vocabulary unchanged — that is what makes regex work here.')
+      }),
+      execute: async (args) => {
+        try {
+          const openai = new OpenAI({ apiKey: openaiApiKey })
+
+          const sys = [
+            'You generate Postgres POSIX regex patterns to find custody-case threads matching a behavioral intent.',
+            'The text being matched is a per-thread retrieval blurb (~40 words) that uses NATURAL framing: real names (Mari, Kyle, Josie) and behavioral verbs (withheld, blocked, refused, hostile, agreed, cooperated).',
+            '',
+            'Rules:',
+            '- Postgres POSIX flavor. Use \\m and \\M for word boundaries (POSIX does NOT support \\b — that will silently fail).',
+            '- Pattern is matched case-insensitively (~*). Do NOT include (?i).',
+            '- Output 2-4 patterns. Each targets a distinct surface form of the SAME intent.',
+            '- Use word boundaries to avoid false positives (e.g. \\mkept\\M not just kept).',
+            '- Stay focused on the behavior. Skip stop words and generic verbs ("said", "told").',
+            '- No PCRE-only features: no lookahead/behind, no named groups, no \\d/\\w/\\s shorthands. Use [0-9], [A-Za-z], explicit characters.',
+            '- Patterns should be lowercase. The matcher is case-insensitive.',
+            '',
+            'Examples:',
+            '',
+            'Question: "where Mari withheld Josie"',
+            'Patterns:',
+            '  pattern: "(\\mwithh[oe]ld[a-z]*\\M|\\mdenied (the )?(exchange|handoff|transfer)\\M|\\mrefused to (return|release|hand over|bring)\\M)"',
+            '  intent:  "explicit withholding language"',
+            '',
+            '  pattern: "\\mkept (her|the child|josie|him) (overnight|past|through|longer|home)\\M"',
+            '  intent:  "kept past scheduled time"',
+            '',
+            '  pattern: "(\\mmissed (the )?(pickup|exchange|handoff|drop[- ]off)\\M|\\mdid (not|n.t) (bring|return|release)\\M)"',
+            '  intent:  "missed scheduled exchange"',
+            '',
+            'Question: "the times he was hostile"',
+            'Patterns:',
+            '  pattern: "\\m(hostile|aggressive|threatening|nasty|rude|combative)\\M"',
+            '  intent:  "explicit hostility vocabulary"',
+            '  pattern: "\\m(cursed|yelled|shouted|swore|insulted|berated)\\M"',
+            '  intent:  "verbal aggression"',
+            '  pattern: "\\m(threatened|intimidat[a-z]+)\\M"',
+            '  intent:  "intimidation"'
+          ].join('\n')
+
+          const planning = await openai.responses.parse({
+            model: REGEX_MODEL,
+            reasoning: { effort: REGEX_REASONING },
+            text: { format: zodTextFormat(RegexPatternsSchema, 'patterns') },
+            input: [
+              { role: 'system', content: [{ type: 'input_text', text: sys }] },
+              { role: 'user', content: [{ type: 'input_text', text: `Question: ${args.question}` }] }
+            ]
+          })
+          const planned = (planning.output_parsed as { patterns: { pattern: string, intent: string }[] } | null)?.patterns ?? []
+          if (planned.length === 0) {
+            return { items: [], count: 0, patterns: [], note: 'model returned no patterns' }
+          }
+
+          // Run each pattern as its own filter so we can attribute hits.
+          // Postgres regex errors are caught per-pattern so one bad regex
+          // doesn't kill the whole tool.
+          type Hit = {
+            id: string
+            threadSlug: string
+            subject: string | null
+            summary: string | null
+            retrievalBlurb: string | null
+            tone: string | null
+            flags: string[] | null
+            participants: string[] | null
+            messageCount: number
+            lastSentAt: string | null
+            anchors: any
+            matchedPatterns: string[]
+          }
+          const matchedById = new Map<string, Hit>()
+          const patternResults: { pattern: string, intent: string, hits: number, error?: string }[] = []
+
+          for (const p of planned) {
+            try {
+              const { data, error } = await (client as any)
+                .from('message_threads')
+                .select('id, thread_id, subject, summary, retrieval_blurb, tone, flags, participants, message_count, last_sent_at, search_anchors')
+                .eq('case_id', caseId)
+                .filter('retrieval_blurb', 'imatch', p.pattern)
+                .order('last_sent_at', { ascending: false, nullsFirst: false })
+                .limit(MAX_REGEX_HITS_PER_PATTERN)
+
+              if (error) {
+                patternResults.push({ ...p, hits: 0, error: error.message })
+                continue
+              }
+              for (const row of (data ?? []) as any[]) {
+                const existing = matchedById.get(row.id)
+                if (existing) {
+                  existing.matchedPatterns.push(p.intent)
+                  continue
+                }
+                matchedById.set(row.id, {
+                  id: row.id,
+                  threadSlug: row.thread_id,
+                  subject: row.subject,
+                  summary: row.summary,
+                  retrievalBlurb: row.retrieval_blurb,
+                  tone: row.tone,
+                  flags: row.flags,
+                  participants: row.participants,
+                  messageCount: row.message_count,
+                  lastSentAt: safeIso(row.last_sent_at),
+                  anchors: row.search_anchors,
+                  matchedPatterns: [p.intent]
+                })
+              }
+              patternResults.push({ ...p, hits: data?.length ?? 0 })
+            } catch (e) {
+              patternResults.push({ ...p, hits: 0, error: e instanceof Error ? e.message : 'unknown error' })
+            }
+          }
+
+          const items = [...matchedById.values()]
+            .sort((a, b) => {
+              // Sort by number of patterns matched (more = more confident), then recency
+              if (b.matchedPatterns.length !== a.matchedPatterns.length) {
+                return b.matchedPatterns.length - a.matchedPatterns.length
+              }
+              const da = a.lastSentAt ? new Date(a.lastSentAt).getTime() : 0
+              const db = b.lastSentAt ? new Date(b.lastSentAt).getTime() : 0
+              return db - da
+            })
+            .slice(0, MAX_REGEX_TOTAL_HITS)
+          registry.recordMany(items.map(i => i.id))
+
+          return {
+            items,
+            count: items.length,
+            patterns: patternResults,
+            model: REGEX_MODEL
+          }
         } catch (e) {
           return { error: e instanceof Error ? e.message : 'unknown error' }
         }

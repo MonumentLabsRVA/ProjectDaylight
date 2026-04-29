@@ -69,7 +69,7 @@ export default defineEventHandler(async (event) => {
         system: systemPrompt,
         messages: await convertToModelMessages(submittedMessages),
         tools,
-        stopWhen: stepCountIs(5),
+        stopWhen: stepCountIs(15),
         experimental_transform: smoothStream(),
         providerOptions: {
           openai: {
