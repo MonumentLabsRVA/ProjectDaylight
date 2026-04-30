@@ -128,11 +128,19 @@ const links = computed<NavigationMenuItem[][]>(() => {
   const internal: NavigationMenuItem[] = [{
     label: 'Internal',
     icon: 'i-lucide-wrench',
-    to: '/internal',
     badge: { color: 'info' as const, variant: 'subtle' as const, label: 'Employee' },
-    onSelect: () => {
-      open.value = false
-    }
+    defaultOpen: route.path.startsWith('/internal'),
+    children: [{
+      label: 'Overview',
+      icon: 'i-lucide-gauge',
+      to: '/internal',
+      onSelect: () => { open.value = false }
+    }, {
+      label: 'Test users',
+      icon: 'i-lucide-user-plus',
+      to: '/internal/test-users',
+      onSelect: () => { open.value = false }
+    }]
   }]
 
   return [...main, internal]
