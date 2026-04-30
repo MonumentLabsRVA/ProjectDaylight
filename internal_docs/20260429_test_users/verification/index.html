@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Test Users — Verification (2026-04-29)</title>
+<style>
+  :root {
+    --fg: #0f172a;
+    --muted: #475569;
+    --soft: #64748b;
+    --line: #e2e8f0;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --accent: #0369a1;
+    --ok: #15803d;
+    --warn: #b45309;
+    --bad: #b91c1c;
+    --code-bg: #0f172a;
+    --code-fg: #e2e8f0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    color: var(--fg);
+    background: var(--bg);
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 48px 24px 96px; }
+  h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -0.02em; }
+  h2 { font-size: 20px; margin: 48px 0 12px; letter-spacing: -0.01em; }
+  h3 { font-size: 16px; margin: 28px 0 8px; }
+  p, ul, ol { margin: 0 0 14px; color: var(--muted); }
+  ul { padding-left: 20px; }
+  li { margin: 4px 0; }
+  small, .meta { color: var(--soft); font-size: 13px; }
+  .meta { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
+  .pill {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    background: #e0f2fe;
+    color: var(--accent);
+  }
+  .pill.ok { background: #dcfce7; color: var(--ok); }
+  .pill.warn { background: #fef3c7; color: var(--warn); }
+  hr { border: none; border-top: 1px solid var(--line); margin: 36px 0; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin: 16px 0;
+  }
+  figure { margin: 16px 0 24px; }
+  figure img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+  }
+  figcaption {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--soft);
+  }
+  pre {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: 14px 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font: 12.5px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  code { font: 13px/1 ui-monospace, SFMono-Regular, Menlo, monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { font-weight: 600; color: var(--soft); font-size: 13px; }
+  .checks li::marker { content: "✓  "; color: var(--ok); }
+  .stepgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 720px) { .stepgrid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <span class="pill">Verification artifact</span>
+  <h1>Test users — onboarding QA tooling</h1>
+  <div class="meta">
+    <span>Project: ProjectDaylight</span>
+    <span>Plan: <code>internal_docs/20260429_test_users/</code></span>
+    <span>Date: 2026-04-29</span>
+    <span>Status: <span class="pill ok">Verified</span></span>
+  </div>
+
+  <p>
+    Recreates project-margin's throwaway-user system inside Daylight. Employees can mint a fresh Supabase auth user, copy a magic link to test the new-user experience in incognito (or switch sessions in-place), list existing test users, and hard-delete one or all of them — every action gated purely on <code>profiles.is_employee = true</code> with no <code>NODE_ENV</code> bypass.
+  </p>
+
+  <div class="card">
+    <h3 style="margin-top:0">What landed</h3>
+    <ul>
+      <li>Migration <code>0059_profiles_is_test_user.sql</code> — adds <code>profiles.is_test_user</code> with a partial index.</li>
+      <li>Cascade utility <code>src/server/utils/test-user-deletion.ts</code> — only <code>jobs</code> needs manual cleanup; everything else cascades from <code>auth.users</code>.</li>
+      <li>Five API endpoints under <code>src/server/api/internal/test-users/</code>: create, list, login-link, delete one, bulk delete.</li>
+      <li>Page <code>src/app/pages/internal/test-users.vue</code> + <code>employee</code> middleware (<code>src/app/middleware/employee.ts</code>) returning 404 (not redirect) for non-employees.</li>
+      <li>Sidebar (<code>src/app/layouts/default.vue</code>): <em>Internal</em> is now a parent menu with <em>Overview</em> and <em>Test users</em> children.</li>
+    </ul>
+  </div>
+
+  <hr />
+
+  <h2>Sprint 1 — Schema + cascade utility</h2>
+  <p>Migration applied via Supabase MCP. Column lands as <code>NOT NULL DEFAULT false</code> with a partial index covering only test-user rows.</p>
+
+  <h3>SQL verification</h3>
+<pre><code>SELECT column_name, data_type, is_nullable, column_default
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'profiles'
+  AND column_name IN ('is_test_user','is_employee');
+
+-- Result
+-- [
+--   { "column_name": "is_employee",  "data_type": "boolean", "is_nullable": "YES", "column_default": "false" },
+--   { "column_name": "is_test_user", "data_type": "boolean", "is_nullable": "NO",  "column_default": "false" }
+-- ]</code></pre>
+
+  <h3>Cascade audit</h3>
+  <p>Every user-scoped table in Daylight already cascades from <code>auth.users</code> via <code>ON DELETE CASCADE</code>, with one exception:</p>
+  <table>
+    <thead><tr><th>Table</th><th>FK target</th><th>ON DELETE</th><th>Manual cleanup?</th></tr></thead>
+    <tbody>
+      <tr><td>profiles</td><td>auth.users(id)</td><td>CASCADE</td><td>No</td></tr>
+      <tr><td>cases, events, evidence, journal_entries, messages, chats, …</td><td>auth.users(id)</td><td>CASCADE</td><td>No</td></tr>
+      <tr><td>subscriptions, bug_reports, exports, …</td><td>auth.users(id)</td><td>CASCADE</td><td>No</td></tr>
+      <tr><td><strong>jobs</strong></td><td><strong>auth.users(id)</strong></td><td><strong>NONE</strong></td><td><strong>Yes</strong> — deleted manually before <code>auth.admin.deleteUser</code></td></tr>
+    </tbody>
+  </table>
+
+  <hr />
+
+  <h2>Sprint 2 — Five API endpoints</h2>
+  <p>Each endpoint resolves the caller, reads <code>profiles.is_employee</code> directly from Postgres, and rejects with 403 if it's not <code>true</code>. Login-link and delete endpoints additionally re-verify <code>is_test_user = true</code> on the target row, so an employee cannot use these to mint a magic link or hard-delete a real user.</p>
+
+  <h3>Live API responses (captured from the dev server)</h3>
+<pre><code>POST /api/internal/test-users
+{
+  "userId": "6d88e077-cd30-4fb6-96ca-8d86c9681323",
+  "email": "test+1777507585926@daylight-test.local",
+  "magicLink": "https://soebpfvyoorstmbimrmj.supabase.co/auth/v1/verify?token=…&type=magiclink&redirect_to=…"
+}
+
+GET /api/internal/test-users
+{
+  "testUsers": [
+    {
+      "id": "6d88e077-cd30-4fb6-96ca-8d86c9681323",
+      "email": "test+1777507585926@daylight-test.local",
+      "full_name": "Test User 1777507585926",
+      "created_at": "2026-04-30T00:06:26.177586+00:00",
+      "onboarding_completed_at": null,
+      "case_count": 0
+    }
+  ]
+}
+
+POST /api/internal/test-users/[id]/login-link   ← real user id (Kyle's own)
+HTTP 403
+{ "statusCode": 403, "statusMessage": "Target is not a test user" }
+
+POST /api/internal/test-users/bulk-delete
+{ "matched": 1, "deleted": 1, "failed": [] }</code></pre>
+
+  <p class="meta">Full payload dump: <code>verification/samples/api_responses.json</code>.</p>
+
+  <hr />
+
+  <h2>Sprint 3 — UI walkthrough</h2>
+
+  <figure>
+    <img src="screenshots/01_empty_state.png" alt="Empty test users page" />
+    <figcaption>1. Empty state on first visit. Sidebar shows <em>Internal → Test users</em> (employee-only). Two CTAs at top right: <em>Create &amp; copy link</em> and <em>Create &amp; switch</em>.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="screenshots/02_after_create.png" alt="Page after creating a test user — magic link banner and one-row table" />
+    <figcaption>2. After clicking <em>Create &amp; copy link</em>: success banner shows the new email and the full magic link (also copied to clipboard), and the list refreshes with one user, <code>onboarding_completed_at</code> still null, so they'll land in onboarding on first sign-in.</figcaption>
+  </figure>
+
+  <div class="stepgrid">
+    <figure>
+      <img src="screenshots/04_delete_modal.png" alt="Single delete confirmation modal" />
+      <figcaption>3. Per-row delete confirmation. The modal names the email being removed.</figcaption>
+    </figure>
+    <figure>
+      <img src="screenshots/05_after_delete.png" alt="Empty list after delete" />
+      <figcaption>4. After confirming: list returns to empty state. SQL check below confirms <code>profiles</code> and <code>auth.users</code> were both cleaned.</figcaption>
+    </figure>
+  </div>
+
+  <h3>Post-delete SQL check</h3>
+<pre><code>SELECT count(*) FROM public.profiles WHERE is_test_user = true;
+-- 0
+
+SELECT count(*) FROM auth.users
+WHERE raw_user_meta_data-&gt;&gt;'is_test_user' = 'true';
+-- 0</code></pre>
+
+  <div class="stepgrid">
+    <figure>
+      <img src="screenshots/06_bulk_modal.png" alt="Bulk delete confirmation" />
+      <figcaption>5. Bulk delete confirmation. Reads "All N test user(s) and their data will be permanently removed."</figcaption>
+    </figure>
+    <figure>
+      <img src="screenshots/07_bulk_result.png" alt="Bulk delete result with matched=1 deleted=1" />
+      <figcaption>6. Result inline in the modal: <code>Matched 1 · deleted 1 · failed 0</code>, and the list empties.</figcaption>
+    </figure>
+  </div>
+
+  <hr />
+
+  <h2>Middleware gate (DB-driven)</h2>
+  <p>The <code>employee</code> middleware queries <code>/api/profile</code>, checks <code>is_employee === true</code>, and otherwise throws a 404. To verify the gate I temporarily flipped Kyle's flag to false and reloaded the page:</p>
+
+  <figure>
+    <img src="screenshots/08_blocked_404.png" alt="Page not found — 404 — when is_employee is false" />
+    <figcaption>7. With <code>profiles.is_employee = false</code>, <code>/internal/test-users</code> renders the standard 404. No redirect, no leak that the route exists. Kyle's flag was restored to <code>true</code> immediately after.</figcaption>
+  </figure>
+
+  <hr />
+
+  <h2>End-to-end checklist</h2>
+  <ul class="checks">
+    <li>Migration applied; <code>profiles.is_test_user</code> column exists with default false</li>
+    <li>Service-role helper consolidated (<code>src/server/utils/service-client.ts</code>) so all five endpoints share one path</li>
+    <li>Cascade utility deletes <code>jobs</code> before calling <code>auth.admin.deleteUser</code>; everything else cascades automatically</li>
+    <li>Create returns <code>{ userId, email, magicLink }</code></li>
+    <li>List returns test users newest-first with case counts (single follow-up query, no N+1)</li>
+    <li>Login-link and delete refuse to touch a real user (403)</li>
+    <li>Bulk delete reports matched / deleted / failed counts</li>
+    <li>Sidebar shows <em>Internal → Test users</em> only for <code>is_employee = true</code> profiles</li>
+    <li>Middleware blocks non-employees with a 404 (no <code>NODE_ENV</code> bypass)</li>
+    <li>SQL post-conditions clean after delete and bulk-delete</li>
+  </ul>
+
+  <h2>Known follow-ups (out of scope for this PR)</h2>
+  <ul>
+    <li><strong>Magic-link redirect in dev.</strong> Supabase Auth's allowlist forces <code>redirect_to</code> back to the production Site URL (<code>https://www.daylight.legal</code>) since localhost isn't in the list. The link still verifies the session, just not back to localhost. Add <code>http://localhost:3000/auth/confirm</code> to the project's auth redirect allowlist if we want full local round-trip onboarding tests.</li>
+    <li><strong>Stale <code>NODE_ENV</code> fork in <code>dev/set-tier.post.ts</code></strong> still bypasses the employee gate in dev — separate cleanup, intentionally not touched here.</li>
+  </ul>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,47 @@
+{
+  "POST /api/internal/test-users (create)": {
+    "status": 200,
+    "body": {
+      "userId": "6d88e077-cd30-4fb6-96ca-8d86c9681323",
+      "email": "test+1777507585926@daylight-test.local",
+      "magicLink": "https://soebpfvyoorstmbimrmj.supabase.co/auth/v1/verify?token=…&type=magiclink&redirect_to=https://www.daylight.legal"
+    }
+  },
+  "GET /api/internal/test-users (list)": {
+    "status": 200,
+    "body": {
+      "testUsers": [
+        {
+          "id": "6d88e077-cd30-4fb6-96ca-8d86c9681323",
+          "email": "test+1777507585926@daylight-test.local",
+          "full_name": "Test User 1777507585926",
+          "created_at": "2026-04-30T00:06:26.177586+00:00",
+          "onboarding_completed_at": null,
+          "case_count": 0
+        }
+      ]
+    }
+  },
+  "POST /api/internal/test-users/[id]/login-link (test user — 200)": {
+    "status": 200,
+    "body": {
+      "magicLink": "https://soebpfvyoorstmbimrmj.supabase.co/auth/v1/verify?token=…&type=magiclink&redirect_to=https://www.daylight.legal"
+    }
+  },
+  "POST /api/internal/test-users/[id]/login-link (real user — 403, defense-in-depth)": {
+    "status": 403,
+    "body": {
+      "error": true,
+      "statusCode": 403,
+      "statusMessage": "Target is not a test user"
+    }
+  },
+  "POST /api/internal/test-users/bulk-delete": {
+    "status": 200,
+    "body": {
+      "matched": 1,
+      "deleted": 1,
+      "failed": []
+    }
+  }
+}
