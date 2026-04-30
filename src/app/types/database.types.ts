@@ -1102,6 +1102,7 @@ export type Database = {
           gclid_captured_at: string | null
           id: string
           is_employee: boolean | null
+          is_test_user: boolean
           onboarding_completed_at: string | null
           timezone: string | null
           updated_at: string
@@ -1116,6 +1117,7 @@ export type Database = {
           gclid_captured_at?: string | null
           id: string
           is_employee?: boolean | null
+          is_test_user?: boolean
           onboarding_completed_at?: string | null
           timezone?: string | null
           updated_at?: string
@@ -1130,6 +1132,7 @@ export type Database = {
           gclid_captured_at?: string | null
           id?: string
           is_employee?: boolean | null
+          is_test_user?: boolean
           onboarding_completed_at?: string | null
           timezone?: string | null
           updated_at?: string
@@ -1255,8 +1258,15 @@ export type Database = {
           thread_id: string
         }[]
       }
+      jsonb_string_array_to_text: { Args: { p: Json }; Returns: string }
       message_threads_fts: {
-        Args: { p_participants: string[]; p_subject: string; p_summary: string }
+        Args: {
+          p_anchors: Json
+          p_participants: string[]
+          p_retrieval_blurb: string
+          p_subject: string
+          p_summary: string
+        }
         Returns: unknown
       }
     }
