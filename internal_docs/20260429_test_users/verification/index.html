@@ -261,9 +261,70 @@ WHERE raw_user_meta_data-&gt;&gt;'is_test_user' = 'true';
     <li>SQL post-conditions clean after delete and bulk-delete</li>
   </ul>
 
+  <hr />
+
+  <h2>Magic link end-to-end (post-fix)</h2>
+  <p>
+    Initial verification stopped at "the link is generated and copied to the clipboard." The actual <em>click-the-link, sign in, land in onboarding</em> path turned out to have two bugs that only showed up under a real browser. Both fixed in commit <code>002801c</code> (<em>fix(test-users): make magic link land on /auth/confirm</em>).
+  </p>
+
+  <h3>Bug 1 — <code>/auth/confirm</code> ignored the magic-link URL hash</h3>
+  <p>
+    The page handled the PKCE <code>?code=</code> flow only. Magic links from <code>auth.admin.generateLink({ type: 'magiclink' })</code> return their tokens in the URL hash, so the page now also reads the hash and calls <code>supabase.auth.setSession()</code> before redirecting:
+  </p>
+<pre><code>// src/app/pages/auth/confirm.vue (excerpt)
+if (import.meta.client &amp;&amp; window.location.hash) {
+  const hashParams = new URLSearchParams(window.location.hash.substring(1))
+  const accessToken = hashParams.get('access_token')
+  const refreshToken = hashParams.get('refresh_token')
+  if (accessToken &amp;&amp; refreshToken) {
+    await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+  }
+}</code></pre>
+
+  <h3>Bug 2 — <code>redirect_to</code> query string broke the allowlist match</h3>
+  <p>
+    Supabase Auth's redirect-URL allowlist matches by <strong>strict equality</strong> unless an entry contains a <code>*</code> wildcard. We were passing <code>…/auth/confirm?next=/home</code>; the allowlist had <code>…/auth/confirm</code>; no match, so Supabase silently fell back to the bare Site URL (<code>https://www.daylight.legal</code>) and the link landed on the marketing page with the auth tokens orphaned in the URL hash.
+  </p>
+  <p>
+    Server log proving the rewrite was happening (before the fix):
+  </p>
+<pre><code>[test-users:create] DEBUG redirectTo = "http://localhost:3000/auth/confirm?next=%2Fhome"
+[test-users:create] DEBUG action_link = https://soebpfvyoorstmbimrmj.supabase.co/auth/v1/verify?token=…&amp;redirect_to=https://www.daylight.legal</code></pre>
+  <p>
+    Fix: drop the query string. The confirm page defaults to <code>/home</code> anyway, and the global auth middleware then forwards to <code>/onboarding</code> for users with <code>onboarding_completed_at IS NULL</code>.
+  </p>
+<pre><code>// src/server/api/internal/test-users/index.post.ts &amp; [id]/login-link.post.ts
+const redirectTo = `${origin}/auth/confirm`   // bare path, matches the allowlist</code></pre>
+
+  <h3>End-to-end verification (live)</h3>
+  <ol>
+    <li>Logged in as Kyle, generated a test user via the API.</li>
+    <li>Cleared cookies + localStorage in the same browser to simulate incognito.</li>
+    <li>Navigated to the magic-link URL <em>once</em>.</li>
+    <li>Supabase verified the OTP and 303-redirected to <code>http://localhost:3000/auth/confirm#access_token=…&amp;refresh_token=…&amp;type=magiclink</code>.</li>
+    <li>Confirm page parsed the hash, called <code>setSession</code>, the watcher fired, redirected to <code>/home</code>.</li>
+    <li>Global auth middleware saw <code>onboarding_completed_at IS NULL</code> and forwarded to <code>/onboarding</code>.</li>
+  </ol>
+
+  <figure>
+    <img src="screenshots/09_magic_link_onboarding.png" alt="Magic-link landed the test user on onboarding step 1" />
+    <figcaption>8. Test user <code>test+1777510659485@daylight-test.local</code> on step 1 of the onboarding wizard, signed in via magic link in a clean browser context.</figcaption>
+  </figure>
+
+  <h3>Verified by SQL</h3>
+<pre><code>SELECT id, email, last_sign_in_at
+FROM auth.users
+WHERE raw_user_meta_data-&gt;&gt;'is_test_user' = 'true'
+ORDER BY created_at DESC
+LIMIT 1;
+-- last_sign_in_at populated → magic link verified server-side</code></pre>
+
+  <hr />
+
   <h2>Known follow-ups (out of scope for this PR)</h2>
   <ul>
-    <li><strong>Magic-link redirect in dev.</strong> Supabase Auth's allowlist forces <code>redirect_to</code> back to the production Site URL (<code>https://www.daylight.legal</code>) since localhost isn't in the list. The link still verifies the session, just not back to localhost. Add <code>http://localhost:3000/auth/confirm</code> to the project's auth redirect allowlist if we want full local round-trip onboarding tests.</li>
+    <li><strong>"Switch to user" in the same browser doesn't fully take.</strong> <code>setSession</code> updates the Supabase JS client in-memory, but the Nuxt module's auth cookie isn't immediately rewritten, so the <strong>server</strong> keeps seeing the previous user (Kyle) until a hard reload. Workaround: use "Copy link" + incognito. Real fix is a forced <code>window.location.reload()</code> after <code>setSession</code>, or have the "Switch" handler clear cookies first.</li>
     <li><strong>Stale <code>NODE_ENV</code> fork in <code>dev/set-tier.post.ts</code></strong> still bypasses the employee gate in dev — separate cleanup, intentionally not touched here.</li>
   </ul>
 

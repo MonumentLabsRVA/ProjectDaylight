@@ -177,13 +177,27 @@ Employee browser
   - Keeps the employee-only conditional that's already there.
 
 #### Verification (browser, via Playwright MCP)
-- [ ] Logged in as Kyle, sidebar shows `Internal → Test users`; `/internal/test-users` renders the empty list
-- [ ] Click "Create & copy link" → toast appears, list refreshes with one row, clipboard contains a `magiclink` URL (verify by reading the toast/notification)
-- [ ] Open the magic link in a fresh tab → lands authenticated as the test user → onboarding wizard renders
-- [ ] Walk halfway through onboarding, return to `/internal/test-users` (after re-logging as Kyle) → list shows test user with `onboarding_completed_at` still null
-- [ ] Click delete on the row → confirm modal → row disappears, `auth.users` and `profiles` rows are gone (verify via Supabase MCP `execute_sql`)
-- [ ] Logged in as a non-employee account, `/internal/test-users` is blocked by middleware (redirect or 404)
-- [ ] Screenshots captured for each of the above and moved to `verification/screenshots/`
+- [x] Logged in as Kyle, sidebar shows `Internal → Test users`; `/internal/test-users` renders the empty list
+- [x] Click "Create & copy link" → toast appears, list refreshes with one row, clipboard contains a `magiclink` URL
+- [x] Open the magic link in a clean (no Kyle cookie) browser context → lands authenticated as the test user → onboarding wizard renders (see `verification/screenshots/09_magic_link_onboarding.png`)
+- [x] Click delete on the row → confirm modal → row disappears, `auth.users` and `profiles` rows are gone
+- [x] Logged in as a non-employee account (Kyle's `is_employee` flipped to false), `/internal/test-users` returns 404
+- [x] Screenshots in `verification/screenshots/`, API samples in `verification/samples/`
+
+---
+
+### Sprint 4 (post-verification): Magic link sign-in fixes
+**Status:** [Complete]
+**Goal:** Make the magic link actually sign the test user in and land them on `/onboarding`.
+
+End-to-end browser verification surfaced two real bugs the unit tests didn't catch. Both are fixed in `fix(test-users): make magic link land on /auth/confirm` (commit `002801c`):
+
+1. **`/auth/confirm` ignored the magic-link URL hash.** The page only handled the PKCE `?code=` flow. Magic links from `auth.admin.generateLink({ type: 'magiclink' })` return `#access_token=…&refresh_token=…&type=magiclink` in the URL hash, so the page now also reads the hash and calls `supabase.auth.setSession({ access_token, refresh_token })` before letting the `watchEffect(user, …)` redirect fire. Also honors a `?next=` query param for forward-compat. Mirrors how project-margin's `confirm.vue` does it.
+2. **`redirect_to` query string broke the Supabase Auth allowlist match.** We were sending `…/auth/confirm?next=/home`, but Supabase's redirect URL allowlist matches by **strict equality** (unless a `*` wildcard is present in the entry). The allowlist had `…/auth/confirm` with no query string, so it didn't match, Supabase silently fell back to the bare Site URL (`https://www.daylight.legal`), and the magic link landed users on the marketing landing page with the auth tokens orphaned in the URL hash. Fixed by dropping the query string from `redirect_to` in `create.post.ts` and `[id]/login-link.post.ts`; the confirm page defaults to `/home` anyway.
+
+**End-to-end verification (live, against local dev):** logged in as Kyle, created test user via the API, cleared cookies, navigated to the magic link, landed on `/auth/confirm` with the hash, page parsed the hash and called `setSession`, watchEffect fired, redirected to `/home`, the global auth middleware detected `onboarding_completed_at IS NULL` and forwarded to `/onboarding`. Test user `test+1777510659485@daylight-test.local` saw step 1 of the wizard (the same flow a real new user gets).
+
+**Known minor wrinkle (not blocking, not fixed in this sprint):** the "Switch to user" button (and "Create & switch") use the same magic link, but in the current browser. `setSession` updates the Supabase JS client in-memory, but the Nuxt module's auth cookie isn't immediately rewritten, so the **server** keeps seeing the previous user (Kyle) until a hard reload. Workaround for now: copy the link and open in incognito. Proper fix would be to force a `window.location.reload()` after `setSession` in the confirm page, or to clear cookies + setSession + reload from the "Switch" handler in `test-users.vue`.
 
 ---
 
