@@ -25,26 +25,51 @@ const errorDescription = computed(() => {
 const supabase = useSupabaseClient()
 
 onMounted(async () => {
-  // Exchange PKCE code for session (if present and we are not authenticated yet)
+  // Magic links (auth.admin.generateLink type=magiclink) return tokens in the
+  // URL hash: #access_token=...&refresh_token=...&type=magiclink. The Supabase
+  // client doesn't auto-pick these up on every redirect target, so we parse and
+  // explicitly setSession.
+  if (import.meta.client && window.location.hash) {
+    const hashParams = new URLSearchParams(window.location.hash.substring(1))
+    const accessToken = hashParams.get('access_token')
+    const refreshToken = hashParams.get('refresh_token')
+    if (accessToken && refreshToken) {
+      const { error: setError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken
+      })
+      if (setError) {
+        console.error('[auth/confirm] setSession from hash failed:', setError)
+      }
+    }
+  }
+
+  // PKCE flow (OAuth, email signup): exchange ?code= for a session.
   const code = route.query.code as string | undefined
   if (code && !user.value) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (error) {
-      console.error('PKCE exchange failed:', error)
+    const { error: pkceError } = await supabase.auth.exchangeCodeForSession(code)
+    if (pkceError) {
+      console.error('PKCE exchange failed:', pkceError)
     }
   }
 })
 
-// When Supabase has finished the OAuth flow it will populate the user.
-// At that point we redirect either to a stored destination or /home.
+// When the user becomes authenticated, redirect. Precedence:
+//   ?next= query (magic links pass this) → localStorage auth_redirect
+//   (login form sets this) → /home.
 watchEffect(() => {
   if (!user.value) {
     return
   }
 
+  const nextParam = route.query.next as string | undefined
+  if (nextParam && nextParam.startsWith('/')) {
+    navigateTo(nextParam, { replace: true })
+    return
+  }
+
   if (process.client) {
     const storedRedirect = localStorage.getItem('auth_redirect')
-
     if (storedRedirect) {
       localStorage.removeItem('auth_redirect')
       navigateTo(storedRedirect, { replace: true })

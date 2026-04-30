@@ -64,7 +64,9 @@ export default defineEventHandler(async (event) => {
     origin = getHeader(event, 'origin') ?? ''
   }
 
-  const redirectTo = `${origin}/auth/confirm?next=${encodeURIComponent('/home')}`
+  // Supabase Auth's redirect URL allowlist does strict equality on the path —
+  // see comment in create.post.ts.
+  const redirectTo = `${origin}/auth/confirm`
 
   const { data: linkData, error: linkError } = await serviceClient.auth.admin.generateLink({
     type: 'magiclink',
