@@ -76,7 +76,20 @@
     overflow-x: auto;
     font: 12.5px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
   }
-  code { font: 13px/1 ui-monospace, SFMono-Regular, Menlo, monospace; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; }
+  /* Inline <code> only — no styling inside <pre>. */
+  :not(pre) > code {
+    font: 13px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: #f1f5f9;
+    color: var(--fg);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+  pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+    font: inherit;
+  }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
   th { font-weight: 600; color: var(--soft); font-size: 13px; }
